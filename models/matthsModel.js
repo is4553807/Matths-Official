@@ -5454,6 +5454,7 @@ const privateMockExamAttemptSchema =
                 default: null,
                 index: true,
             },
+            integrityClearedAt: Date,
             integritySummary: {
                 riskScore: {
                     type: Number,

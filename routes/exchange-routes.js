@@ -46,7 +46,7 @@ function historyBefore(value) {
 
 function mpiSelection(req) {
   return { marketId: req.query.market ? id(req.query.market) : undefined,
-    interval: intervalFor(req.query.interval).code, before: historyBefore(req.query.before) };
+    interval: req.query.interval, before: historyBefore(req.query.before) };
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1262.98" height="313" viewBox="0 0 1262.98 313" role="img" aria-labelledby="title">
+  <title id="title">Matths Exchange</title>
+  <g id="matths-master" transform="translate(44 44) translate(-305 -175.4)">
+    <defs>
+      <linearGradient id="mGradient" gradientUnits="userSpaceOnUse" x1="343.514" y1="219.822" x2="426.748" y2="351.087">
+        <stop offset="0" stop-color="#E649D2" />
+        <stop offset="1" stop-color="#674DFF" />
+      </linearGradient>
+      <linearGradient id="iGradient" gradientUnits="userSpaceOnUse" x1="506.386" y1="397.065" x2="502.53" y2="301.857">
+        <stop offset="0" stop-color="#07EAF0" />
+        <stop offset="1" stop-color="#229DF8" />
+      </linearGradient>
+      <linearGradient id="starAccent" gradientUnits="userSpaceOnUse" x1="487" y1="201" x2="516" y2="201">
+        <stop offset="0" stop-color="#AD91E7" stop-opacity="0.95" />
+        <stop offset="0.78" stop-color="#924AF6" stop-opacity="0.22" />
+        <stop offset="1" stop-color="#7B4EFC" stop-opacity="0" />
+      </linearGradient>
+      <clipPath id="starClip">
+        <path d="M 512 175.4 C 513.5 190 518.5 198.5 537 201 C 518.5 203.5 513.5 212 512 227 C 510.5 212 505.5 203.5 487 201 C 505.5 198.5 510.5 190 512 175.4 Z" />
+      </clipPath>
+      <mask id="aCounterMask" maskUnits="userSpaceOnUse" x="698" y="268" width="78" height="90">
+        <rect x="698" y="268" width="78" height="90" fill="#FFFFFF" />
+        <path d="M 725.5 318 L 746.8 318 C 752.5 318 755.5 320 754 324 C 751.5 331.5 745.5 337.5 735.5 339 C 724 340.5 716 336 716 329 C 716 323 719.5 319.5 725.5 318 Z" fill="#000000" />
+      </mask>
+    </defs>
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 327 377.5 L 327 255 L 409 332.5 L 484 255" stroke="url(#mGradient)" stroke-width="44" />
+      <rect x="482.6" y="299.5" width="43.8" height="100" rx="21.9" fill="url(#iGradient)" stroke="none" />
+      <path d="M 512 175.4 C 513.5 190 518.5 198.5 537 201 C 518.5 203.5 513.5 212 512 227 C 510.5 212 505.5 203.5 487 201 C 505.5 198.5 510.5 190 512 175.4 Z" fill="#7B4EFC" stroke="none" />
+      <rect x="487" y="175" width="31" height="53" fill="url(#starAccent)" clip-path="url(#starClip)" stroke="none" />
+    </g>
+  </g>
+  <path d="M322 99V214" stroke="#414963" stroke-width="4" fill="none" />
+  <g id="exchange-lettering" transform="translate(350 103) scale(1.42)" fill="#10141B">
+    <path d="M9 0H63V12H17L14 15V31H54V43H14V61L17 64H63V76H9L0 67V9Z" fill-rule="evenodd" transform="translate(0)" />
+    <path d="M0 76L55 0H73L18 76Z" fill="#007C91" transform="translate(73)" />
+    <path d="M0 0H18L33 21L24 33ZM49 43L73 76H55L40 55Z" fill="#6744D7" transform="translate(73)" />
+    <path d="M12 0H59L69 10V19H55V15L52 12H18L14 16V60L18 64H52L55 61V57H69V66L59 76H12L0 64V12Z" fill-rule="evenodd" transform="translate(156)" />
+    <path d="M0 0H14V31H55V0H69V69L62 76H55V44H14V76H0Z" fill-rule="evenodd" transform="translate(235)" />
+    <path d="M12 0H58L70 12V76H56V56H14V76H0V12ZM18 12L14 16V43H56V16L52 12Z" fill-rule="evenodd" transform="translate(314)" />
+    <path d="M0 0H14L57 53V7L64 0H71V76H57L14 23V76H0Z" fill-rule="evenodd" transform="translate(394)" />
+    <path d="M12 0H60L71 11V19H57V15L54 12H18L14 16V60L18 64H53L57 60V46H37V34H71V65L60 76H12L0 64V12Z" fill-rule="evenodd" transform="translate(475)" />
+    <path d="M9 0H63V12H17L14 15V31H54V43H14V61L17 64H63V76H9L0 67V9Z" fill-rule="evenodd" transform="translate(556)" />
+  </g>
+</svg>

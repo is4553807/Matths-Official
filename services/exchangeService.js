@@ -5,7 +5,7 @@ const {
 } = models;
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, syncWeeklyMarkets, saveSample,
-  publicSampleScope, sampleWithCutoff,
+  publicSampleScope, sampleWithCutoff, sampleMinute,
 } = require("./exchangeMarketService");
 const { INITIAL_TP, TP_SCALE, processMarket } = require("./exchangeTradingService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
@@ -174,10 +174,12 @@ async function adminState(year, grade, now = new Date()) {
   return { markets: controls, settings, events, schedules, exams };
 }
 
-async function runExchangeTick(now = new Date(), maintain = true) {
+async function runExchangeTick(now = new Date(), maintain = true, sample = true) {
   if (maintain) await syncWeeklyMarkets(now);
-  const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now } }).lean();
-  for (const market of weekly) await saveSample(market, now);
+  if (sample) {
+    const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now } }).lean();
+    for (const market of weekly) await saveSample(market, now);
+  }
   if (!maintain) return;
   const markets = await ExchangeMarket.find({ $or: [
     { phase: "settling" },
@@ -195,15 +197,20 @@ async function startExchangeScheduler() {
   if (process.env.DISABLE_SCHEDULERS === "1") return;
   let running = false;
   let lastMaintenance = 0;
+  let lastSampleMinute;
   const run = async () => {
     if (running) return;
     running = true;
     try {
+      const now = new Date();
+      const maintain = +now - lastMaintenance >= 5000;
+      const minute = +sampleMinute(now);
+      const sample = minute !== lastSampleMinute;
+      if (!maintain && !sample) return;
       await withSchedulerLease({ name: "exchange", leaseMs: 10_000 }, async () => {
-        const now = new Date();
-        const maintain = +now - lastMaintenance >= 5000;
-        await runExchangeTick(now, maintain);
+        await runExchangeTick(now, maintain, sample);
         if (maintain) lastMaintenance = +now;
+        if (sample) lastSampleMinute = minute;
       });
     } catch (cause) {
       console.error("[exchange] scheduler failed", cause.message);

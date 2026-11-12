@@ -32,12 +32,14 @@ function pushPrice(candles, at, price, ms) {
 }
 
 // A sampled index holds its last value until the next calculation.
-function indexCandles(rows, ms) {
-  if (ms !== 1000 || !rows.length) return rows;
+function indexCandles(rows, ms, { prior, carryFrom } = {}) {
+  if (!rows.length || (ms !== 1000 && !carryFrom)) return rows;
   const cutoff = candleWindow(rows.at(-1)._id, ms);
   return rows.map((row, index) => {
-    const previous = rows[index - 1];
-    if (previous?._id + ms !== row._id) return row;
+    const previous = index ? rows[index - 1] : prior;
+    const consecutiveSeconds = ms === 1000 && previous?._id + ms === row._id;
+    const minuteSample = carryFrom && row._id >= +carryFrom;
+    if (!previous || (!consecutiveSeconds && !minuteSample)) return row;
     const open = previous.close;
     return { ...row, open, high: Math.max(open, row.high), low: Math.min(open, row.low) };
   }).filter((row) => row._id >= cutoff);
@@ -58,4 +60,4 @@ async function aggregateCandles(model, { match, dateField, priceField, ms, volum
   ]);
 }
 
-module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, candleWindow, pushPrice, indexCandles, aggregateCandles };
+module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, bucketStart, candleWindow, pushPrice, indexCandles, aggregateCandles };

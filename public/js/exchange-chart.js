@@ -105,6 +105,8 @@
       canvas.width = width * ratio;
       canvas.height = height * ratio;
       const ctx = canvas.getContext("2d");
+      const palette = getComputedStyle(canvas);
+      const color = (name) => palette.getPropertyValue(name).trim();
       ctx.scale(ratio, ratio);
       ctx.font = "11px system-ui";
       const right = width - rightGutter, top = 16, bottom = height - (volume ? 53 : 28);
@@ -123,8 +125,8 @@
       const spacing = (right - left) / visible;
       const bodyWidth = clamp(spacing * .62, 1, 23);
       const maxVolume = Math.max(1, ...rows.map((row) => row.volume || 0));
-      ctx.fillStyle = "#a5afbf";
-      ctx.strokeStyle = "#282f3d";
+      ctx.fillStyle = color("--muted");
+      ctx.strokeStyle = color("--border");
       for (let i = 0; i <= 5; i += 1) {
         const value = min + (max - min) * i / 5;
         ctx.beginPath();
@@ -149,7 +151,7 @@
       ctx.clip();
       for (const row of rows) {
         const at = x(row._id + ms / 2);
-        ctx.strokeStyle = row.close >= row.open ? "#4cd2ac" : "#f580a0";
+        ctx.strokeStyle = row.close >= row.open ? color("--bid") : color("--ask");
         ctx.fillStyle = ctx.strokeStyle;
         ctx.beginPath();
         ctx.moveTo(at, y(row.high));
@@ -169,9 +171,9 @@
         ctx.beginPath();
         ctx.rect(left, top, right - left, bottom - top);
         ctx.clip();
-        for (const [size, color] of [[5, "#f6c557"], [10, "#c08ff6"]]) {
+        for (const [size, lineColor] of [[5, color("--accent")], [10, color("--chart-ma")]]) {
           ctx.beginPath();
-          ctx.strokeStyle = color;
+          ctx.strokeStyle = lineColor;
           candles.slice(size - 1).forEach((row, index) => {
             const average = candles.slice(index, index + size).reduce((sum, point) => sum + point.close, 0) / size;
             const at = x(row._id + ms / 2);
@@ -189,7 +191,7 @@
       ), null) : null;
       if (hovered) {
         const at = x(hovered._id + ms / 2);
-        ctx.strokeStyle = "#77849b";
+        ctx.strokeStyle = color("--chart-crosshair");
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.moveTo(at, top);
@@ -199,9 +201,9 @@
         ctx.stroke();
         ctx.setLineDash([]);
         const price = max - (max - min) * (hover.y - top) / (bottom - top);
-        ctx.fillStyle = "#353e50";
+        ctx.fillStyle = color("--chart-label");
         ctx.fillRect(right + 1, hover.y - 9, rightGutter - 1, 18);
-        ctx.fillStyle = "#f1f4fa";
+        ctx.fillStyle = color("--chart-label-text");
         ctx.fillText(number.format(price), right + 6, hover.y + 4);
       }
       showSummary(hovered || rows.at(-1) || candles.at(-1));
@@ -326,6 +328,7 @@
     }
     canvas.addEventListener("pointerleave", () => { hover = null; draw(); });
     new ResizeObserver(draw).observe(canvas);
+    document.addEventListener("exchange-theme-change", draw);
 
     return {
       get interval() { return selected.dataset.interval; },

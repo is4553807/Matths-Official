@@ -1,8 +1,18 @@
 <header class="exchange-header">
-  <a class="exchange-brand" href="/exchange"><img src="/images/brand/matths-exchange-header.svg" alt="Matths Exchange" width="174" height="43" /></a>
+  <a class="exchange-brand" href="/exchange"><%- include("exchange-brand", { width: 174, height: 43 }) %></a>
   <nav class="exchange-sections" aria-label="Exchange 화면">
     <a href="/exchange/mpi" <%= exchangePage === "mpi" ? 'aria-current=page' : '' %>>MPI 지수</a>
     <a href="/exchange/futures" <%= exchangePage === "futures" ? 'aria-current=page' : '' %>>Futures</a>
   </nav>
-  <a class="header-link" href="/exchange/dashboard" <%= exchangePage === "dashboard" ? 'aria-current=page' : '' %>>대시보드</a>
+  <div class="header-actions">
+    <a class="header-link" href="/exchange/dashboard" <%= exchangePage === "dashboard" ? 'aria-current=page' : '' %>>대시보드</a>
+    <button class="theme-toggle" type="button" id="exchange-theme-toggle" aria-label="라이트 모드로 전환" title="라이트 모드로 전환">
+      <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
+      </svg>
+      <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20.8 14.2A9 9 0 0 1 9.8 3.2a9 9 0 1 0 11 11Z" />
+      </svg>
+    </button>
+  </div>
 </header>

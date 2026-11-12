@@ -6461,6 +6461,7 @@ async function resumePrivateMockIntegrityRequest({
         usedForMmrStability:
           false,
       },
+      $unset: { integrityClearedAt: "" },
     }
   );
 
@@ -9265,32 +9266,14 @@ async function reviewPrivateMockIntegrityCase({
   }
 
   await integrityCase.save();
+  const completed = normalizedReview === "completed";
+  const cleared = completed && normalizedPenalty === "no_penalty";
+  const integrityStatus = completed ? (cleared ? "CLEAR" : "INVALIDATED") : "PENDING_INTEGRITY_REVIEW";
   await PrivateMockExamAttempt.updateOne(
+    { _id: integrityCase.attemptId },
     {
-      _id:
-        integrityCase.attemptId,
-    },
-    {
-      $set: {
-        integrityStatus:
-          normalizedReview ===
-            "completed"
-            ? normalizedPenalty ===
-              "penalty"
-              ? "INVALIDATED"
-              : "CLEAR"
-            : "PENDING_INTEGRITY_REVIEW",
-        usedForWeeklyRanking:
-          normalizedReview ===
-            "completed" &&
-          normalizedPenalty ===
-            "no_penalty",
-        usedForMmrStability:
-          normalizedReview ===
-            "completed" &&
-          normalizedPenalty ===
-            "no_penalty",
-      },
+      $set: { integrityStatus, usedForWeeklyRanking: cleared, usedForMmrStability: cleared },
+      ...(cleared ? { $min: { integrityClearedAt: new Date() } } : { $unset: { integrityClearedAt: "" } }),
     }
   );
 

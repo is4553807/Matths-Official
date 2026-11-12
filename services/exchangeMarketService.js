@@ -9,7 +9,7 @@ const ROUNDS = Object.freeze({
   3: ["3", "5", "6", "7", "9", "10", "csat"],
 });
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const SAMPLE_LOOKBACK_MS = 30 * 60 * 1000;
+const MINUTE_MS = 60_000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function error(status, message) {
@@ -223,21 +223,27 @@ function calculateSample(attempts, pick = randomInt) {
     populationCount: attempts.length, sampleCount };
 }
 
-function sampleDataCutoffAt(sampledAt) {
-  return new Date(+sampledAt - SAMPLE_LOOKBACK_MS);
+function sampleMinute(now) {
+  return new Date(Math.floor(+now / MINUTE_MS) * MINUTE_MS);
 }
 
 async function publicSampleScope(marketId, now) {
   const time = { marketId, publishAt: { $lte: now } };
-  const firstCurrent = await ExchangeTick.findOne({ ...time, dataCutoffAt: { $exists: true } })
-    .sort({ publishAt: 1 }).select("publishAt").lean();
-  const startsAt = firstCurrent?.publishAt;
-  // Keep the old chart history while dropping old ticks queued after the first live calculation.
-  const filter = startsAt ? { ...time, $or: [
-    { dataCutoffAt: { $exists: true } },
-    { dataCutoffAt: { $exists: false }, publishAt: { $lt: startsAt } },
-  ] } : time;
-  return { filter, startsAt };
+  const [firstMinute, firstRolling] = await Promise.all([
+    ExchangeTick.findOne({ ...time, minuteSample: true }).sort({ dataCutoffAt: 1 }).select("dataCutoffAt").lean(),
+    ExchangeTick.findOne({ ...time, dataCutoffAt: { $exists: true } }).sort({ publishAt: 1 }).select("publishAt").lean(),
+  ]);
+  // Keep published history before each rollout and exclude superseded ticks at the transition.
+  const startsAt = firstMinute?.dataCutoffAt || firstRolling?.publishAt;
+  const legacyCutoff = firstRolling?.publishAt < startsAt ? firstRolling.publishAt : startsAt;
+  const series = [{ dataCutoffAt: { $exists: false }, publishAt: { $lt: legacyCutoff } }];
+  if (firstMinute) {
+    series.push({ minuteSample: true });
+    series.push({ minuteSample: { $ne: true }, dataCutoffAt: { $exists: true }, publishAt: { $lt: startsAt } });
+  } else {
+    series.push({ dataCutoffAt: { $exists: true } });
+  }
+  return { filter: startsAt ? { ...time, $or: series } : time, startsAt, firstMinuteAt: firstMinute?.dataCutoffAt };
 }
 
 function sampleWithCutoff(sample) {
@@ -248,18 +254,37 @@ async function saveSample(market, now = new Date()) {
   if (market.type !== "weekly" || now < market.opensAt || now >= market.closeAt) return;
   const exam = await readWeeklyExam(market.examId);
   if (exam?.status !== "open" || !await weeklyExamReady(exam)) return;
-  const sampledAt = new Date(Math.floor(+now / 1000) * 1000);
-  const dataCutoffAt = sampleDataCutoffAt(sampledAt);
-  const attempts = await PrivateMockExamAttempt.find(validAttempts(exam, dataCutoffAt))
-    .select("score exchangeMmrGrade").lean();
+  const dataCutoffAt = sampleMinute(now);
+  const minuteSample = { marketId: market._id, minuteSample: true };
+  const previous = await ExchangeTick.findOne(minuteSample).sort({ dataCutoffAt: -1 })
+    .select("dataCutoffAt").lean();
+  if (previous?.dataCutoffAt >= dataCutoffAt) return;
+
+  const attempts = await PrivateMockExamAttempt.find({
+    ...validAttempts(exam, dataCutoffAt),
+    $nor: [
+      { "submissionFinalization.completedAt": { $gt: dataCutoffAt } },
+      { integrityClearedAt: { $gt: dataCutoffAt } },
+    ],
+  }).select("score exchangeMmrGrade submittedAt submissionFinalization.completedAt integrityClearedAt").lean();
+  const lastCutoff = previous?.dataCutoffAt;
+  if (!attempts.some((attempt) => !lastCutoff || attempt.submittedAt > lastCutoff
+    || attempt.submissionFinalization?.completedAt > lastCutoff || attempt.integrityClearedAt > lastCutoff)) return;
+
   const sample = calculateSample(attempts);
-  await ExchangeTick.updateOne({ marketId: market._id, sampledAt }, {
-    $setOnInsert: { ...sample, dataCutoffAt, publishAt: sampledAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2) },
-  }, { upsert: true });
+  const key = { ...minuteSample, dataCutoffAt };
+  try {
+    await ExchangeTick.updateOne(key, {
+      $setOnInsert: { ...sample, sampledAt: now, publishAt: now, expiresAt: new Date(+now + WEEK_MS * 2) },
+    }, { upsert: true });
+  } catch (cause) {
+    // A concurrent worker may have saved this minute. Retry any legacy timestamp collision on the next scheduler pass.
+    if (cause.code !== 11000 || !await ExchangeTick.exists(key)) throw cause;
+  }
 }
 
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, setPaused, calculateSample,
-  sampleDataCutoffAt, publicSampleScope, sampleWithCutoff, saveSample,
+  sampleMinute, publicSampleScope, sampleWithCutoff, saveSample,
 };

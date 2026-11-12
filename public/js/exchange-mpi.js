@@ -42,7 +42,7 @@
     get("mpi-select-wrap").hidden = !state.markets.length;
     text("mpi-market-name", state.market?.title || "맵쓰 주간 모의고사");
     text("mpi-source", isDemo ? "시연 데이터" : "공식 표본");
-    text("mpi-note", isDemo ? "시연용 더미 계정의 점수로 계산한 지수입니다." : "계산 시각의 30분 전까지 제출된 유효 성적으로 MPI를 계산합니다.");
+    text("mpi-note", isDemo ? "시연용 더미 계정의 점수로 계산한 지수입니다." : "새 유효 응시가 반영되는 분에 MPI를 다시 계산합니다.");
     text("mpi-value", hasValue ? number.format(latest.mpi) : "—");
     text("mpi-score", hasValue ? `${number.format(latest.mpi / 10)}점` : "—");
     text("mpi-count", latest ? `${latest.populationCount}명 / ${latest.sampleCount}명` : "—");

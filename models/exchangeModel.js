@@ -101,6 +101,7 @@ const tick = new Schema({
   marketId: objectId,
   sampledAt: Date,
   dataCutoffAt: Date,
+  minuteSample: Boolean,
   publishAt: Date,
   expiresAt: Date,
   mpi: Number,
@@ -110,6 +111,7 @@ const tick = new Schema({
 tick.index({ marketId: 1, sampledAt: 1 }, { unique: true });
 tick.index({ marketId: 1, publishAt: -1 });
 tick.index({ marketId: 1, publishAt: 1 }, { partialFilterExpression: { dataCutoffAt: { $exists: true } } });
+tick.index({ marketId: 1, dataCutoffAt: -1 }, { unique: true, partialFilterExpression: { minuteSample: true } });
 tick.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const mpiDemo = new Schema({
