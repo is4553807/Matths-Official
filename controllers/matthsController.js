@@ -6295,15 +6295,9 @@ exports.login = async (req, res, next) => {
   }
 };
 
-exports.logout = (req, res, next) => {
-    const loginPath = req.session?.user?.role === "admin"
-        ? "/admin/login"
-        : "/student/login";
-    const loginSurface = req.session?.user?.role === "admin" ? "admin" : "public";
+function destroyWebSession(req, res, next, redirectTo) {
     req.session.destroy((error) => {
-        if (error) {
-            return next(error);
-        }
+        if (error) return next(error);
 
         res.clearCookie("connect.sid", {
             path: "/",
@@ -6311,9 +6305,18 @@ exports.logout = (req, res, next) => {
                 ? { domain: process.env.SESSION_COOKIE_DOMAIN }
                 : {}),
         });
-        return res.redirect(serviceUrl(loginSurface, loginPath));
+        return res.redirect(redirectTo);
     });
+}
+
+exports.logout = (req, res, next) => {
+    const isAdmin = req.session?.user?.role === "admin";
+    const redirectTo = isAdmin ? serviceUrl("admin", "/admin/login") : serviceUrl("public", "/student/login");
+    return destroyWebSession(req, res, next, redirectTo);
 };
+
+exports.exchangeLogout = (req, res, next) =>
+    destroyWebSession(req, res, next, "/exchange/futures");
 
 function createNotFoundError(message) {
     const error = new Error(message);

@@ -11,7 +11,7 @@ const { dashboardState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState } = require("../services/exchangeMpiService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
-const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo, ExchangeOrder } = models;
 
 const time = (value) => new Date(value);
@@ -61,7 +61,10 @@ async function testHttp() {
     assert.match(html, /href="\/exchange\/mpi"/);
     assert.match(html, /matths-exchange-header\.svg/);
     assert.match(html, /matths-exchange-header-light\.svg/);
-    assert.match(html, /href="\/exchange\/dashboard"[\s\S]*id="exchange-theme-toggle"/);
+    assert.match(html, /id="exchange-login" href="[^"]*\/login\?next=%2Fexchange"/);
+    assert.match(html, /맵쓰로 돌아가기/);
+    assert.match(html, /<fieldset class="order-fields" disabled>/);
+    assert.doesNotMatch(html, /href="\/exchange\/dashboard"|로그아웃/);
     assert.match(html, /matths-exchange-x\.svg/);
     assert.doesNotMatch(html, /id="sample-price"/);
     const mpiResponse = await fetch(`${origin}/exchange/mpi`);
@@ -74,7 +77,7 @@ async function testHttp() {
     assert.match(mpiHtml, /제출 반영 기준 · KST/);
     assert.match(mpiHtml, /data-interval="1m"[^>]+aria-pressed="true"/);
     assert.match(mpiHtml, /id="exchange-theme-toggle"/);
-    assert.match(mpiHtml, /href="\/exchange\/dashboard"/);
+    assert.match(mpiHtml, /id="exchange-login" href="[^"]*\/login\?next=%2Fexchange%2Fmpi"/);
     assert.doesNotMatch(mpiHtml, /data-mpi-source/);
     assert.deepEqual(OPTIONS.slice(0, 5).map((item) => item.code), ["1s", "15m", "1h", "4h", "3d"]);
     for (const { code } of OPTIONS) {
@@ -85,7 +88,11 @@ async function testHttp() {
     assert.match(mpiHtml, /aria-label="가격축 자동 스케일"/);
     assert.equal((await fetch(`${origin}/api/exchange/mpi?before=0`)).status, 400);
     const guestDashboard = await fetch(`${origin}/exchange/dashboard`, { redirect: "manual" });
-    assert.equal(guestDashboard.status, 302);
+    assert.equal(guestDashboard.status, 200);
+    assert.match(await guestDashboard.text(), /로그인하면 내 잔액과 주문, 포지션을 확인할 수 있습니다/);
+    const guestPositions = await fetch(`${origin}/exchange/dashboard/positions`);
+    assert.equal(guestPositions.status, 200);
+    assert.doesNotMatch(await guestPositions.text(), /id="positions-heading"/);
     const dashboard = await fetch(`${origin}/exchange/dashboard`, { headers: { Cookie: student } });
     assert.equal(dashboard.status, 200);
     const dashboardHtml = await dashboard.text();
@@ -109,6 +116,7 @@ async function testHttp() {
     assert.equal(operatorFutures.status, 200);
     assert.match(await operatorFutures.text(), /data-wallet="exchange"[\s\S]+Matths Exchange · 가용 TP/);
     assert.match(dashboardHtml, /href="\/exchange\/dashboard" aria-current=page/);
+    assert.match(dashboardHtml, /action="\/exchange\/logout" method="post"/);
     assert.match(dashboardHtml, /matths-exchange-x\.svg/);
     assert.match(dashboardHtml, /id="exchange-theme-toggle"/);
     assert.doesNotMatch(mpiHtml, /id="order-form"|id="asks"/);
@@ -117,6 +125,7 @@ async function testHttp() {
     });
     assert.equal(unauthenticated.status, 401);
     assert.equal((await fetch(`${origin}/admin/exchange`, { headers: { Cookie: student } })).status, 403);
+
 
     const adminResponse = await fetch(`${origin}/admin/exchange?year=${nextYear}&grade=3`, { headers: { Cookie: admin } });
     assert.equal(adminResponse.status, 200);
@@ -181,6 +190,13 @@ async function testHttp() {
     await models.ExchangeAccount.deleteOne({ marketId: csat._id, userId: EXCHANGE_WALLET_ID });
     await ExchangeWallet.deleteOne({ _id: EXCHANGE_WALLET_ID });
     await ExchangeMarket.deleteOne({ _id: csat._id });
+    const logout = await fetch(`${origin}/exchange/logout`, {
+      method: "POST", headers: { Origin: origin, Cookie: student }, redirect: "manual",
+    });
+    assert.equal(logout.status, 302);
+    assert.equal(logout.headers.get("location"), "/exchange/futures");
+    assert.match(logout.headers.get("set-cookie"), /connect\.sid=;/);
+    assert.match(await (await fetch(`${origin}/exchange/futures`, { headers: { Cookie: student } })).text(), /id="exchange-login"/);
   } finally {
     await new Promise((resolve) => http.close(resolve));
   }
@@ -318,9 +334,9 @@ async function main() {
 
     await runExchangeTick(publicAt);
     const mm = await terminalState({ marketId: String(weekly._id), now: publicAt });
-    assert.deepEqual(mm.reference, { price: 700, source: "operator" });
-    assert.equal(mm.asks[0].operatorQuantity, 1);
-    assert.equal(mm.bids[0].operatorQuantity, 1);
+    assert.deepEqual(mm.reference, { price: 700 });
+    assert.deepEqual(mm.asks[0], { price: 718, quantity: 1 });
+    assert.deepEqual(mm.bids[0], { price: 682, quantity: 1 });
     assert.equal(mm.market.volume, 2);
     const mmFill = await order(weekly, fourth, "long", mm.asks[0].price, 1, publicAt);
     assert.equal(mmFill.status, "filled");
@@ -329,7 +345,7 @@ async function main() {
     assert.equal(await ExchangeTrade.countDocuments({ liquidityProvider: "matths" }), 1);
     const oneSided = await terminalState({ marketId: String(weekly._id), now: publicAt });
     assert.equal(oneSided.reference.price, null);
-    assert.equal(oneSided.bids[0].operatorQuantity, 1);
+    assert.deepEqual(oneSided.bids[0], { price: 686, quantity: 1 });
     const expiry = new Date(+publicAt + 21_000);
     assert.equal((await terminalState({ marketId: String(weekly._id), now: expiry })).bids.length, 0);
 
@@ -429,9 +445,11 @@ async function main() {
 
     await maintainMarketMaker(liquidityMarket._id, () => startsAt);
     const quoted = await viewAt(startsAt);
-    assert.deepEqual(quoted.bids, [{ price: 560, quantity: 1, operatorQuantity: 1, scheduledQuantity: 1 }]);
-    assert.deepEqual(quoted.asks, [{ price: 640, quantity: 1, operatorQuantity: 1, scheduledQuantity: 1 }]);
-    assert.deepEqual(quoted.reference, { price: 600, source: "operator" });
+    assert.deepEqual(quoted.bids, [{ price: 560, quantity: 1 }]);
+    assert.deepEqual(quoted.asks, [{ price: 640, quantity: 1 }]);
+    assert.deepEqual(quoted.reference, { price: 600 });
+    assert.ok(quoted.references.length > 0);
+    assert.ok(quoted.references.every((row) => !("source" in row)));
     assert.deepEqual(quoted.ticks, []);
     assert.equal(quoted.market.lastPrice, null);
     assert.equal(quoted.market.volume, 0);
@@ -440,19 +458,23 @@ async function main() {
     const filled = await viewAt(startsAt);
     assert.equal(filled.market.volume, 1);
     assert.equal(filled.market.lastPrice, 640);
-    assert.equal(filled.trades[0].liquidityProvider, "matths");
+    assert.deepEqual(Object.keys(filled.trades[0]).sort(), ["price", "quantity", "tradedAt"]);
+    assert.equal(await ExchangeTrade.countDocuments({ marketId: liquidityMarket._id, liquidityProvider: "matths" }), 1);
     assert.equal(filled.asks.length, 0);
-    assert.equal(filled.bids[0].scheduledQuantity, 1);
+    assert.deepEqual(filled.bids[0], { price: 564, quantity: 1 });
 
     // Editing the plan or restarting the worker cannot replenish its opening limit.
     await scheduleMarketLiquidity(liquidityMarket._id, { ...plan, referencePrice: 610 }, operator._id, () => startsAt);
-    const nearEnd = new Date(+endsAt - 1_000);
+    await assert.rejects(stopMarketLiquidity(liquidityMarket._id, buyer, () => startsAt), { status: 403 });
+    await stopMarketLiquidity(liquidityMarket._id, operator._id, () => startsAt);
+    const stopEndsAt = new Date(+startsAt + 5 * 60_000);
+    const nearEnd = new Date(+stopEndsAt - 1_000);
     await maintainMarketMaker(liquidityMarket._id, () => nearEnd);
     assert.equal((await viewAt(nearEnd)).asks.length, 0);
     assert.equal((await viewAt(nearEnd)).bids.length, 1);
-    assert.equal((await viewAt(endsAt)).bids.length, 0);
-    assert.equal((await order(liquidityMarket, fifth, "short", 570, 1, endsAt)).status, "working");
-    assert.equal((await viewAt(endsAt)).market.volume, 1);
+    assert.equal((await viewAt(stopEndsAt)).bids.length, 0);
+    assert.equal((await order(liquidityMarket, fifth, "short", 570, 1, stopEndsAt)).status, "working");
+    assert.equal((await viewAt(stopEndsAt)).market.volume, 1);
 
     console.log("Exchange verified: delayed official MPI, legacy and demo exclusion, MM quotes and scheduled live liquidity, verification wait, fees, wallets and settlement.");
   } finally {

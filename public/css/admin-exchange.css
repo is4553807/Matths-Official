@@ -26,3 +26,17 @@
 .exchange-admin-details dt { color: #56647a; font-size: 12px; }
 .exchange-admin-details dd { margin: 3px 0 0; font-size: 14px; font-weight: 650; }
 @media (max-width: 600px) { .exchange-admin-section { padding: 15px; } .exchange-admin-section .section-top { align-items: flex-start; flex-direction: column; } }
+
+.exchange-admin-liquidity { margin-block: 14px; padding: 14px; border: 1px solid #dce3ec; border-radius: 7px; background: #f7f9fc; }
+.exchange-admin-form.liquidity-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 10px 14px; }
+.liquidity-form label { min-width: 0; }
+.liquidity-form :is(input[type="number"], input[type="text"], input[type="datetime-local"]) { width: 100%; min-width: 0; }
+.liquidity-actions, .liquidity-stop { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.liquidity-stop button { background: #962c43; }
+.exchange-admin-heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 600px) {
+  .exchange-admin-form.liquidity-form { grid-template-columns: minmax(0, 1fr); }
+  .exchange-admin-form.inline > label { min-width: 0; max-width: 100%; }
+  .exchange-admin-form.inline input { max-width: 100%; }
+  .exchange-admin-round summary span { display: inline-block; margin: 4px 0 0; }
+}

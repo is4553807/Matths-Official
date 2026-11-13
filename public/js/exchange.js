@@ -6,6 +6,7 @@
   const select = get("market-select");
   const form = get("order-form");
   const wallet = root.dataset.wallet;
+  const loginLink = get("exchange-login");
   const walletQuery = wallet ? "?wallet=exchange" : "";
   const price = get("order-price");
   const quantity = get("order-quantity");
@@ -79,8 +80,7 @@
       button.type = "button";
       button.dataset.price = row.price;
       button.style.setProperty("--depth", `${total / sum * 100}%`);
-      const provider = row.scheduledQuantity ? " · 운영자" : row.operatorQuantity ? " · MM" : "";
-      button.append(el("span", number(row.price) + provider), el("span", number(row.quantity)), el("span", number(total)));
+      button.append(el("span", number(row.price)), el("span", number(row.quantity)), el("span", number(total)));
       return button;
     });
     if (id === "asks") nodes.reverse();
@@ -116,8 +116,8 @@
       headers = ["방향", "진입가", "보유 수량", "거래 손익 (TP)"];
       rows = (own?.positions || []).map((row) => [row.direction.toUpperCase(), number(row.price), row.remaining, number(row.realized)]);
     } else if (activity === "trades") {
-      headers = ["체결 시각 (KST)", "체결가", "수량", "운영자 참여"];
-      rows = (market ? state.trades || [] : []).map((row) => [time.format(new Date(row.tradedAt)), number(row.price), row.quantity, row.liquidityProvider === "matths" ? "MM" : "—"]);
+      headers = ["체결 시각 (KST)", "체결가", "수량"];
+      rows = (market ? state.trades || [] : []).map((row) => [time.format(new Date(row.tradedAt)), number(row.price), row.quantity]);
     } else {
       headers = ["접수 시각 (KST)", "방향", "지정가", "주문 수량", "미체결", "지불 수수료 (TP)", "상태"];
       rows = (own?.orders || []).filter((row) => activity !== "working" || row.status === "working").map((row) => {
@@ -197,8 +197,7 @@
     get("market-status").dataset.status = market?.status || "empty";
     text("market-price", number(market?.lastPrice));
     text("book-price", number(market?.type === "weekly" ? state.reference?.price : market?.lastPrice));
-    const source = { operator: "운영자 호가", mixed: "학생·운영자 호가", students: "학생 호가" }[state.reference?.source];
-    text("book-price-label", market?.type === "weekly" ? (source || "호가 중간값") : "최근 체결");
+    text("book-price-label", market?.type === "weekly" ? "호가 중간값" : "최근 체결");
     text("market-volume", market ? number(market.volume) : "—");
     text("settlement-price", number(market?.settlement));
     const resultLink = get("result-link");
@@ -312,7 +311,10 @@
   });
   for (const id of ["asks", "bids"]) get(id).addEventListener("click", (event) => {
     const button = event.target.closest("[data-price]");
-    if (button) { price.value = button.dataset.price; updateOrder(); }
+    if (!button) return;
+    if (loginLink) return void loginLink.focus();
+    price.value = button.dataset.price;
+    updateOrder();
   });
   for (const button of root.querySelectorAll("[data-activity]")) button.addEventListener("click", async () => {
     activity = button.dataset.activity;

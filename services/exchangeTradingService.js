@@ -17,6 +17,7 @@ const MM_POSITION_LIMIT = 2;
 const MM_SNAPSHOT_MAX_AGE = 60 * 60_000;
 const MM_CLOSE_ONLY_WINDOW = 30 * 60_000;
 const MM_QUOTE_LIFETIME = 20_000;
+const LIQUIDITY_CLOSE_ONLY_MS = 5 * 60_000;
 
 const isOperator = (order) => order.liquidityProvider === "matths";
 
@@ -292,7 +293,7 @@ function canFillOperatorOrder(market, order, snapshot, plan, now) {
   if (!matchingReference) return false;
   if (order.action === "close") return true;
   if (+now >= operatorOpenUntil(market, snapshot, plan)) return false;
-  return snapshot ? !market.marketMakerUsedSnapshot?.equals(snapshot._id) : !plan.openingFilledAt;
+  return snapshot ? !market.marketMakerUsedSnapshot?.equals(snapshot._id) : !plan.openingFilledAt && !plan.stoppingAt;
 }
 
 async function recordReference(market, now, session) {
@@ -437,6 +438,30 @@ async function scheduleMarketLiquidity(marketId, input, actorId, clock = () => n
     await recordReference(market, now, session);
     await ExchangeEvent.create([{ marketId, actorId, action: "liquidity-scheduled",
       detail: { startsAt, endsAt, referencePrice, reason } }], { session });
+  });
+}
+
+async function stopMarketLiquidity(marketId, actorId, clock = () => new Date()) {
+  return mongoose.connection.transaction(async (session) => {
+    const market = await lockMarket(marketId, session);
+    const now = clock();
+    const plan = market.liquidityPlan;
+    if (market.type !== "weekly" || market.phase !== "scheduled" || !plan?.endsAt || plan.endsAt <= now
+      || market.closeAt <= now) throw error(409, "종료할 운영자 호가 일정이 없습니다.");
+    if (!await User.exists({ _id: actorId, role: "admin" }).session(session)) {
+      throw error(403, "관리자 계정으로 운영자 호가를 종료할 수 있습니다.");
+    }
+    if (plan.stoppingAt) return;
+    plan.stoppingAt = now;
+    plan.endsAt = new Date(Math.min(+plan.endsAt, +market.closeAt, +now + LIQUIDITY_CLOSE_ONLY_MS));
+    await cancelOperatorOrders(market, session, {
+      scheduledLiquidity: true, ...(plan.startsAt <= now ? { action: "open" } : {}),
+    });
+    if (plan.startsAt > now) plan.endsAt = now;
+    await market.save({ session });
+    await recordReference(market, now, session);
+    await ExchangeEvent.create([{ marketId, actorId, action: "liquidity-stop",
+      detail: { endsAt: plan.endsAt } }], { session });
   });
 }
 
@@ -616,4 +641,4 @@ async function processMarket(market, now = new Date()) {
   });
 }
 
-module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity, setMarketMakerEnabled, setPaused };
+module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity, stopMarketLiquidity, setMarketMakerEnabled, setPaused };

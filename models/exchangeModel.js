@@ -44,6 +44,7 @@ const market = new Schema({
     endsAt: Date,
     referencePrice: Number,
     openingFilledAt: Date,
+    stoppingAt: Date,
   },
   mpiCheckedAt: Date,
   internalMpi: Number,

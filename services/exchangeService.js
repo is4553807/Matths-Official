@@ -123,25 +123,27 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
     view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
       market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
-      .select("price quantity tradedAt liquidityProvider").lean(),
+      .select("price quantity tradedAt -_id").lean(),
     chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
     marketSamples(market, now, 120),
     ownMarketState(market, userId, now),
     market.type === "weekly" ? ExchangeReference.find({
       marketId: market._id, at: { $gte: new Date(candleWindow(chartEnd, ms)), $lte: chartEnd },
-    }).sort({ at: -1, sequence: -1 }).limit(400).select("at price source").lean() : [],
+    }).sort({ at: -1, sequence: -1 }).limit(400).select("at price -_id").lean() : [],
   ]);
   references.reverse();
   const side = (key, sign) => book.filter((row) => row._id.side === key)
     .sort((a, b) => sign * (a._id.price - b._id.price)).slice(0, 10)
-    .map((row) => ({ price: row._id.price, quantity: row.quantity, operatorQuantity: row.operatorQuantity, scheduledQuantity: row.scheduledQuantity }));
+    .map((row) => ({ price: row._id.price, quantity: row.quantity, operatorQuantity: row.operatorQuantity }));
   const bids = side("buy", -1);
   const asks = side("sell", 1);
-  const reference = marketReference(bids[0], asks[0]);
+  const { price } = marketReference(bids[0], asks[0]);
+  const reference = { price };
   if (market.type === "weekly" && (reference.price !== null || references.at(-1)?.price != null)) {
     references.push({ at: chartEnd, ...reference });
   }
-  return { ...result, market: view, bids, asks, reference, references, trades, candles,
+  const publicLevels = (levels) => levels.map(({ price, quantity }) => ({ price, quantity }));
+  return { ...result, market: view, bids: publicLevels(bids), asks: publicLevels(asks), reference, references, trades, candles,
     ticks: ticks.reverse(), own: { ...own, eligible: own.eligible && view.status === "open" } };
 }
 
@@ -178,6 +180,7 @@ async function adminState(year, grade, now = new Date()) {
     ]);
     controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum, marketMakerEnabled: market.marketMakerEnabled !== false,
       pendingVerification: pending.length > 0, internalMpiCount: market.internalMpiCount, liquidityPlan: market.liquidityPlan,
+      liquidityPlanPending: market.liquidityPlan?.endsAt > now && !market.liquidityPlan?.stoppingAt,
       minimumAttempts: market.minimumAttempts ?? settings,
       minimumMpiAttempts: Math.max(5, market.minimumMpiAttempts ?? minimumMpiAttempts), mpiMinimumOverride: market.minimumMpiAttempts,
       escrow: market.escrow / TP_SCALE, reason: market.reason,

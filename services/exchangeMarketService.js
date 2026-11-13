@@ -185,7 +185,6 @@ function bookLevels(marketId, now, session, snapshotId, operatorWalletId, schedu
     { $group: {
       _id: { side: "$side", price: "$price" }, quantity: { $sum: "$remaining" },
       operatorQuantity: { $sum: { $cond: [operator, "$remaining", 0] } },
-      scheduledQuantity: { $sum: { $cond: [{ $eq: ["$scheduledLiquidity", true] }, "$remaining", 0] } },
     } },
   ]).session(session || null);
 }

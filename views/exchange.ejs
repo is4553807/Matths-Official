@@ -61,23 +61,26 @@
         <footer class="book-foot"><span class="bid">매수</span><span class="ask">매도</span></footer>
       </section>
       <section class="panel order-panel" aria-labelledby="order-heading">
-        <header class="panel-heading"><h2 id="order-heading">지정가 주문</h2><span class="demo-chip">모의거래</span></header>
+        <header class="panel-heading"><h2 id="order-heading">지정가 주문</h2></header>
         <form id="order-form">
-          <div class="order-modes" aria-label="주문 구분">
-            <button type="button" data-action="open" aria-pressed="true">신규</button>
-            <button type="button" data-action="close" aria-pressed="false">청산</button>
-          </div>
-          <div class="available"><span><%= exchangeWalletMode ? "Matths Exchange · 가용 TP" : "가용 TP" %></span><strong id="available-tp">—</strong></div>
-          <div class="available" id="fee-balance" hidden><span>수수료 가용 TP</span><strong id="available-fee-tp">—</strong></div>
-          <label>지정가 <span class="order-input"><input id="order-price" type="number" min="0" max="1000" step="1" required placeholder="0–1,000" /><span>선물가</span></span></label>
-          <label>수량 <span class="order-input"><input id="order-quantity" type="number" min="1" max="5" step="1" value="1" required /><span>계약</span></span></label>
-          <div class="margin"><span>최대 손실 <small>LONG / SHORT</small></span><strong id="order-margin">—</strong></div>
-          <div class="margin order-fee"><span>예상 체결 수수료 <small id="order-fee-rates"><%= exchangeWalletMode ? "메이커 0% / 테이커 0%" : "메이커 0.02% / 테이커 0.05%" %></small></span><strong id="order-fee">—</strong></div>
-          <div class="order-buttons">
-            <button class="long" type="submit" value="long" disabled>LONG</button>
-            <button class="short" type="submit" value="short" disabled>SHORT</button>
-          </div>
+          <fieldset class="order-fields" <%= signedIn ? "" : "disabled" %>>
+            <div class="order-modes" aria-label="주문 구분">
+              <button type="button" data-action="open" aria-pressed="true">신규</button>
+              <button type="button" data-action="close" aria-pressed="false">청산</button>
+            </div>
+            <div class="available"><span><%= exchangeWalletMode ? "Matths Exchange · 가용 TP" : "가용 TP" %></span><strong id="available-tp">—</strong></div>
+            <div class="available" id="fee-balance" hidden><span>수수료 가용 TP</span><strong id="available-fee-tp">—</strong></div>
+            <label>지정가 <span class="order-input"><input id="order-price" type="number" min="0" max="1000" step="1" required placeholder="0–1,000" /><span>선물가</span></span></label>
+            <label>수량 <span class="order-input"><input id="order-quantity" type="number" min="1" max="5" step="1" value="1" required /><span>계약</span></span></label>
+            <div class="margin"><span>최대 손실 <small>LONG / SHORT</small></span><strong id="order-margin">—</strong></div>
+            <div class="margin order-fee"><span>예상 체결 수수료 <small id="order-fee-rates"><%= exchangeWalletMode ? "메이커 0% / 테이커 0%" : "메이커 0.02% / 테이커 0.05%" %></small></span><strong id="order-fee">—</strong></div>
+            <div class="order-buttons">
+              <button class="long" type="submit" value="long" disabled>LONG</button>
+              <button class="short" type="submit" value="short" disabled>SHORT</button>
+            </div>
+          </fieldset>
           <p id="order-status" class="order-status" role="status"><%= initial.own?.reason || '개장 후 주문할 수 있습니다.' %></p>
+          <% if (!signedIn) { %><a class="small-link" href="<%= loginHref %>">로그인하고 주문하기</a><% } %>
           <a id="order-exam-link" class="small-link" hidden>해당 회차 모의고사 ↗</a>
         </form>
         <details class="calculator">
@@ -106,7 +109,7 @@
         <div class="activity-table" id="activity-content"><p>표시할 포지션이 없습니다.</p></div>
       </section>
     </div>
-    <footer class="terminal-footer"><%- include("partials/exchange-brand", { width: 118, height: 29 }) %><span>모의거래 · TP는 현금으로 전환할 수 없습니다.</span></footer>
+    <footer class="terminal-footer"><%- include("partials/exchange-brand", { width: 118, height: 29 }) %><span>거래소는 호가를 제공할 수 있습니다. TP는 현금으로 전환할 수 없습니다.</span></footer>
   </main>
 </body>
 </html>

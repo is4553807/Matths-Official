@@ -1,13 +1,14 @@
 const express = require("express");
 const { isObjectIdOrHexString } = require("mongoose");
 const auth = require("../middleware/authMiddleware");
-const { exchangeUrl } = require("../services/serviceUrlService");
+const { exchangeLogout } = require("../controllers/matthsController");
+const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
 const { ExchangeWallet } = require("../models/exchangeModel");
 const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
-const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, scheduleMarketLiquidity } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
@@ -52,6 +53,18 @@ function apiLogin(req, res, next) {
   return auth.isLoggedIn(req, res, next);
 }
 
+function exchangeNavigation(req) {
+  const signedIn = Boolean(viewer(req));
+  const next = req.originalUrl.startsWith("/exchange") ? req.originalUrl : `/exchange${req.originalUrl.slice(1)}`;
+  return {
+    signedIn,
+    loginHref: serviceUrl("public", `/login?${new URLSearchParams({ next })}`),
+    matthsHref: signedIn ? serviceUrl("app", "/main") : serviceUrl("public", "/"),
+  };
+}
+
+router.post("/exchange/logout", privateResponse, auth.isLoggedIn, exchangeLogout);
+
 function historyBefore(value) {
   if (value === undefined) return undefined;
   const date = new Date(Number(value));
@@ -68,6 +81,7 @@ function mpiSelection(req) {
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
   res.render("exchange-mpi", {
+    ...exchangeNavigation(req),
     initial: await mpiState(mpiSelection(req)),
     intervals: OPTIONS,
     disablePageAnalytics: true,
@@ -84,7 +98,7 @@ async function showFutures(req, res) {
   const chartInterval = intervalFor(req.query.interval).code;
   const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: chartInterval });
   const wallet = userId && !actorId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
-  res.render("exchange", { initial, exchangeWalletMode: Boolean(actorId), signedIn: Boolean(userId && !actorId), rankingVisible: wallet?.rankingVisible === true,
+  res.render("exchange", { ...exchangeNavigation(req), initial, exchangeWalletMode: Boolean(actorId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
     intervals: OPTIONS, chartInterval, disablePageAnalytics: true });
 }
@@ -101,7 +115,12 @@ const walletSections = [
   { id: "history", label: "포지션 히스토리", path: "/history" },
   { id: "fees", label: "수수료 내역", path: "/fees" },
 ];
-const walletAccess = [privateResponse, auth.isLoggedIn, auth.isStudent, exchangeWallet];
+function verifyWalletSession(req, res, next) {
+  if (!viewer(req)) return next();
+  return auth.isLoggedIn(req, res, next);
+}
+
+const walletAccess = [privateResponse, verifyWalletSession, exchangeWallet];
 
 function showDashboard(section) {
   return async (req, res) => {
@@ -109,9 +128,10 @@ function showDashboard(section) {
     if (section === "fees" && !actorId) throw error(403, "운영 월렛에서 수수료를 확인할 수 있습니다.");
     const sections = walletSections.filter((item) => item.id !== "fees" || actorId);
     res.render("exchange-dashboard", {
-      data: await dashboardState(userId, new Date(), { section }), section, sections,
-      exchangeWalletMode: Boolean(actorId), isAdmin: req.session.user.role === "admin",
-      accountName: actorId ? "Matths Exchange" : req.session.user.name || "내 Exchange 월렛",
+      ...exchangeNavigation(req), section, sections,
+      data: userId ? await dashboardState(userId, new Date(), { section }) : null,
+      exchangeWalletMode: Boolean(actorId), isAdmin: req.session?.user?.role === "admin",
+      accountName: actorId ? "Matths Exchange" : req.session?.user?.name || "내 Exchange 월렛",
       disablePageAnalytics: true,
     });
   };
@@ -191,6 +211,7 @@ router.post("/admin/exchange/markets/:marketId/action", ...admin, async (req, re
   if (action === "pause" || action === "resume") await setPaused(marketId, action === "pause", actorId, reason);
   else if (action === "mm-enable" || action === "mm-disable") await setMarketMakerEnabled(marketId, action === "mm-enable", actorId, reason);
   else if (action === "liquidity-schedule") await scheduleMarketLiquidity(marketId, req.body, actorId);
+  else if (action === "liquidity-stop") await stopMarketLiquidity(marketId, actorId);
   else if (action === "void") await voidMarket(marketId, actorId, reason);
   else if (action === "settle") await registerResult({ marketId, actorId, input: req.body });
   else throw error(400, "운영 작업을 선택해 주세요.");
