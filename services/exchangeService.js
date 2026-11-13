@@ -12,7 +12,6 @@ const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } 
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 const { isBootstrap, traderStopAt } = require("./exchangeBootstrapService");
-const { advanceExchangeScenario } = require("./exchangeScenarioService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
   verifying: "성적 검증 중", "awaiting-result": "성적 발표 대기", settling: "정산 중", settled: "정산 완료", void: "시장 취소" };
@@ -222,7 +221,6 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
   if (sample) {
     const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now } }).select("+botSeed").lean();
     for (const market of weekly) {
-      advanceExchangeScenario(market, now);
       try { await saveObservedMpi(market, now, clock); }
       catch (cause) { console.error("[exchange] MPI update failed", String(market._id), cause.message); }
     }

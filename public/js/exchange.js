@@ -205,7 +205,6 @@
 
   function render() {
     const market = selectedMarket();
-    window.MatthsExchangeScenario?.select(market);
     const isWeekly = market?.type === "weekly";
     text("order-market-rules", market?.bootstrap
       ? "잠정 MPI에 Exam Bot 점수가 반영될 수 있습니다. 만기 정산은 실제 유효 학생 성적을 사용합니다. 자동화 계정이 거래 상대방이 될 수 있습니다."

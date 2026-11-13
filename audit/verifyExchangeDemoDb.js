@@ -12,7 +12,7 @@ const { dashboardState, operatorBotsState } = require("../services/exchangeDashb
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState } = require("../services/exchangeMpiService");
 const { POLICY, weightedMpi, traderId, traderStopAt } = require("../services/exchangeBootstrapService");
-const { scenarioState, submittedBots, dueBotOrder, botParticipationForSchedule } = require("../services/exchangeScenarioService");
+const { submittedBots, dueBotOrder, botParticipationForSchedule } = require("../services/exchangeScenarioService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
 const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, maintainFundedBotOrders, setTradingBotsEnabled, setMarketMakerEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo, ExchangeOrder } = models;
@@ -85,8 +85,6 @@ async function testHttp() {
     const mpiHtml = await mpiResponse.text();
     assert.match(mpiHtml, /id="mpi-chart-heading">MPI 캔들/);
     assert.match(mpiHtml, /id="mpi-chart" role="img" aria-label="MPI 캔들"/);
-    assert.match(mpiHtml, /가상 모의고사 성적으로 계산한 지수입니다/);
-    assert.match(mpiHtml, /id="exchange-scenario"[\s\S]*?hidden>/);
     assert.doesNotMatch(mpiHtml, /시연|더미|공식 표본|mpi-demo-panel/);
     assert.match(mpiHtml, /회차가 공개되면 집계가 시작됩니다/);
     assert.match(mpiHtml, /제출 반영 기준 · KST/);
@@ -94,7 +92,11 @@ async function testHttp() {
     assert.match(mpiHtml, /id="exchange-theme-toggle"/);
     assert.match(mpiHtml, /id="exchange-login" href="[^"]*\/login\?next=%2Fexchange%2Fmpi"/);
     assert.doesNotMatch(mpiHtml, /data-mpi-source/);
-    assert.match(html, /자동화 계정 간 모의 체결입니다/);
+    for (const page of [mpiHtml, html, studentFuturesHtml]) {
+      assert.doesNotMatch(page, /시뮬레이션|모의 체결|exchange-scenario|scenarioIntervals/);
+      assert.equal((page.match(/<canvas\b/g) || []).length, 1);
+    }
+    assert.equal((await fetch(`${origin}/api/exchange/markets/${objectId()}/scenario`)).status, 404);
     assert.deepEqual(OPTIONS.slice(0, 5).map((item) => item.code), ["1s", "15m", "1h", "4h", "3d"]);
     for (const { code } of OPTIONS) {
       assert.ok(mpiHtml.includes(`data-interval="${code}"`));
@@ -544,39 +546,11 @@ async function main() {
     assert.deepEqual(tradeView.candles, [expectedFirst, expectedLast]);
     assert.deepEqual(await futuresChartHistory(candleMarket._id, "1m", candleNow, candleNow), [expectedFirst]);
 
-    const scenarioRound = { ...weekly.toObject(), opensAt: weekOpen, closeAt: weekClose };
-    const hour = 60 * 60 * 1000;
-    const simAt = (elapsed) => new Date(+weekOpen + elapsed);
-    const scenario = (elapsed, options = {}) => scenarioState(scenarioRound, { now: simAt(elapsed), ...options });
-    assert.equal(scenario(-1).latestMpi, null);
-    assert.equal(scenario(0).latestMpi, null);
-    const firstHour = scenario(hour - 1);
-    assert.equal(firstHour.latestMpi.populationCount, 1);
-    const firstSubmission = firstHour.latestMpi.at;
-    const atSubmission = scenario(firstSubmission - +weekOpen, { chart: "futures" });
-    assert.equal(atSubmission.latestTrade, null);
-    assert.equal(atSubmission.latestMpi.populationCount, 1);
-    const firstDay = scenario(24 * hour, { chart: "futures" });
-    assert.equal(firstDay.latestMpi.populationCount, 24);
-    assert.ok(firstDay.volume > 0);
-    const finalScenario = scenario(141 * hour, { chart: "futures" });
-    assert.equal(finalScenario.source, "simulation");
-    assert.equal(finalScenario.latestMpi.populationCount, 141);
-    assert.ok(finalScenario.latestTrade.at < +weekClose);
-    assert.ok(finalScenario.volume > firstDay.volume && finalScenario.volume <= 141);
-    assert.deepEqual(scenario(141 * hour + 1, { chart: "futures" }), finalScenario);
-    assert.deepEqual(scenario(24 * hour, { chart: "futures" }), firstDay);
-    assert.equal(scenarioState({ ...scenarioRound, type: "csat" }), null);
-    const earlier = scenario(141 * hour, { chart: "futures", before: finalScenario.candles.at(-1)._id });
-    assert.ok(earlier.candles.length);
-    assert.ok(earlier.candles.at(-1)._id < finalScenario.candles.at(-1)._id);
-
     const funded = await ExchangeMarket.create({ key: "weekly:funded-bot-audit", type: "weekly", examId: exam._id,
       title: "Funded bots", opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose,
       botParticipation: true, botSeed: randomBytes(32).toString("hex"), minimumMpiAttempts: 1 });
     const seeded = submittedBots(funded, weekClose);
     assert.equal(seeded.length, 141);
-    assert.equal(scenarioState(funded, { now: midweek }), null);
     const scheduled = seeded[67];
     const orderAt = new Date(scheduled.orderAt);
     const request = dueBotOrder(funded, orderAt);
@@ -720,6 +694,32 @@ async function main() {
     assert.deepEqual(botOrders.map((row) => row.botLabel), ["TraderBot1", "TraderBot2"]);
     assert.notEqual(String(botOrders[0].userId), String(botOrders[1].userId));
     assert.ok((await ExchangeWallet.findById(EXCHANGE_WALLET_ID)).available < exchangeBeforeCross);
+
+    // Both public screens must use the same funded round and ledger-backed series.
+    const { server: publicServer } = require("../server");
+    const listener = await new Promise((resolve) => {
+      const instance = publicServer.listen(0, "127.0.0.1", () => resolve(instance));
+    });
+    try {
+      const origin = `http://127.0.0.1:${listener.address().port}`;
+      const publicPaths = ["/exchange/mpi", "/exchange/futures"];
+      for (const path of publicPaths) {
+        const response = await fetch(`${origin}${path}?market=${botCrossId}`);
+        assert.equal(response.status, 200);
+        const html = await response.text();
+        assert.doesNotMatch(html, /시뮬레이션|모의 체결|exchange-scenario/);
+        assert.equal((html.match(/<canvas\b/g) || []).length, 1);
+        if (path.endsWith("mpi")) {
+          assert.match(html, /잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
+        } else {
+          assert.match(html, /<label id="trade-series-wrap" >[\s\S]*자동화 계정 간 체결/);
+        }
+      }
+      const marketApi = `${origin}/api/exchange/markets/${botCrossId}`;
+      assert.equal((await fetch(`${marketApi}/scenario`)).status, 404);
+    } finally {
+      await new Promise((resolve) => listener.close(resolve));
+    }
 
     const fullWeek = await ExchangeMarket.create({
       key: "weekly:bootstrap-full-clock", type: "weekly", title: "Bootstrap full week", examId: exam._id,

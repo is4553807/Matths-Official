@@ -19,18 +19,6 @@ function candleWindow(time, ms) {
   return bucketStart(time, ms) - (MAX_CANDLES - 1) * ms;
 }
 
-function pushPrice(candles, at, price, ms) {
-  const start = bucketStart(at, ms);
-  const tail = candles.at(-1);
-  if (tail?._id === start) {
-    tail.high = Math.max(tail.high, price);
-    tail.low = Math.min(tail.low, price);
-    tail.close = price;
-  } else {
-    candles.push({ _id: start, open: price, high: price, low: price, close: price });
-  }
-}
-
 // A sampled index holds its last value until the next calculation.
 function indexCandles(rows, ms, { prior, carryFrom } = {}) {
   if (!rows.length || (ms !== 1000 && !carryFrom)) return rows;
@@ -60,4 +48,4 @@ async function aggregateCandles(model, { match, dateField, priceField, ms, volum
   ]);
 }
 
-module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, bucketStart, candleWindow, pushPrice, indexCandles, aggregateCandles };
+module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, bucketStart, candleWindow, indexCandles, aggregateCandles };

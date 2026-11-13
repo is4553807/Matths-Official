@@ -35,7 +35,6 @@
   });
 
   function render() {
-    window.MatthsExchangeScenario?.select(state.market);
     const latest = state.latest;
     const marketKey = JSON.stringify(state.markets.map(({ id, title }) => [id, title]));
     if (marketKey !== select.dataset.options) {

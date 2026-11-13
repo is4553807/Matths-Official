@@ -174,17 +174,6 @@ a { color: inherit; text-decoration: none; }
 .calculator-head { color: var(--muted); font-size: 10px; }
 .calculator input { width: 100%; min-width: 0; padding: 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--body); color: var(--text); }
 #calculator-result { display: block; margin-top: 9px; color: var(--accent); }
-.scenario-panel { grid-column: 1 / -1; margin-bottom: 10px; scroll-margin-top: 10px; }
-.terminal-grid .scenario-panel { margin-bottom: 0; }
-.scenario-panel .panel-heading { flex-wrap: wrap; gap: 8px; }
-.scenario-tag { padding: 3px 7px; border: 1px solid var(--border); border-radius: 4px; color: var(--sample); font-size: 11px; }
-.scenario-note { margin: 8px 15px; color: var(--muted); font-size: 12px; line-height: 1.5; }
-.scenario-metrics { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 12px 15px; }
-.scenario-metrics dt { color: var(--muted); font-size: 11px; }
-.scenario-metrics dd { margin: 4px 0 0; font-size: 15px; font-weight: 600; }
-.scenario-panel canvas { display: block; width: 100%; height: 100%; }
-.scenario-trades { display: flex; flex-wrap: wrap; gap: 6px 20px; list-style: none; padding: 12px 15px; margin: 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
-.mpi-panel + .scenario-panel { margin-top: 10px; }
 .activity-panel { grid-column: 1 / -1; min-height: 146px; }
 .activity-tabs { display: flex; gap: 21px; padding: 0 15px; border-bottom: 1px solid var(--border); overflow: auto; }
 .activity-table { overflow: auto; }

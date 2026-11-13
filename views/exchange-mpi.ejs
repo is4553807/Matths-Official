@@ -9,7 +9,6 @@
   <script src="/js/exchange-theme.js"></script>
   <link rel="stylesheet" href="/css/exchange.css" />
   <script src="/js/exchange-chart.js" defer></script>
-  <script src="/js/exchange-scenario.js" defer></script>
   <script src="/js/exchange-mpi.js" defer></script>
 </head>
 <body>
@@ -35,7 +34,6 @@
     <section class="panel mpi-panel" aria-labelledby="mpi-chart-heading">
       <header class="panel-heading">
         <h2 id="mpi-chart-heading">MPI 캔들</h2>
-        <a class="small-link" href="#exchange-scenario" data-scenario-link <%= scenario ? "" : "hidden" %>>시뮬레이션 MPI ↓</a>
       </header>
       <%- include("partials/exchange-chart-controls", { intervals, activeInterval: initial.interval }) %>
       <output class="candle-summary" data-candle-summary aria-label="MPI 시가·고가·저가·종가"></output>
@@ -50,7 +48,6 @@
       </div>
       <footer class="chart-foot"><span id="mpi-connection" role="status"></span></footer>
     </section>
-    <%- include("partials/exchange-scenario", { kind: "mpi", scenario, intervals: scenarioIntervals }) %>
   </main>
 </body>
 </html>
