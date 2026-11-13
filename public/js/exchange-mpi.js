@@ -48,7 +48,7 @@
     text("mpi-market-name", state.market?.title || "맵쓰 주간 모의고사");
     text("mpi-value", latest ? number.format(latest.mpi) : "—");
     text("mpi-score", latest ? `${number.format(latest.mpi / 10)}점` : "—");
-    text("mpi-count", latest ? `${number.format(latest.populationCount)}명 / ${number.format(latest.sampleCount)}명` : "—");
+    text("mpi-count", latest ? `${number.format(latest.populationCount)}명` : "—");
     text("mpi-time", latest ? time.format(new Date(latest.sampledAt)) : "—");
     text("mpi-cutoff", latest?.dataCutoffAt ? time.format(new Date(latest.dataCutoffAt)) : "—");
     text("mpi-waiting", state.market

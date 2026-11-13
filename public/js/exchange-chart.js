@@ -25,6 +25,7 @@
     let selected = buttons.find((button) => button.getAttribute("aria-pressed") === "true") || buttons[0];
     let ms = Number(selected.dataset.ms);
     let candles = [];
+    let references = [];
     let span = 60;
     let offset = 0;
     let drag = null;
@@ -39,8 +40,10 @@
     const pointers = new Map();
 
     function limits() {
-      const last = candles.at(-1)?._id || 0;
-      const first = candles[0]?._id || last;
+      const lastReference = references.at(-1)?.at;
+      const referenceBucket = lastReference ? Math.floor(lastReference / ms) * ms : 0;
+      const last = Math.max(candles.at(-1)?._id || 0, referenceBucket);
+      const first = Math.min(candles[0]?._id ?? last, references[0]?.at ?? last);
       const full = Math.max(8, Math.round((last - first) / ms) + 1);
       const visible = Math.min(span, full);
       const pad = rightPad(visible);
@@ -115,7 +118,10 @@
       const end = last + (1 + pad - offset) * ms;
       const start = end - visible * ms;
       const rows = candles.filter((row) => row._id + ms / 2 >= start && row._id + ms / 2 < end);
-      const prices = rows.flatMap((row) => [row.low, row.high]);
+      const previousReference = references.findLast((row) => row.at < start);
+      const mid = previousReference ? [{ at: start, price: previousReference.price }] : [];
+      mid.push(...references.filter((row) => row.at >= start && row.at < end));
+      const prices = rows.flatMap((row) => [row.low, row.high]).concat(mid.flatMap((row) => row.price == null ? [] : [row.price]));
       renderedRange = priceRange || (prices.length
         ? [Math.max(0, Math.min(...prices) - 8), Math.min(1000, Math.max(...prices) + 8)]
         : [0, 1000]);
@@ -165,6 +171,20 @@
           ctx.globalAlpha = 1;
         }
       }
+      ctx.strokeStyle = color("--accent");
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath();
+      let previous = null;
+      for (const point of mid) {
+        if (previous !== null) ctx.lineTo(x(point.at), y(previous));
+        if (point.price !== null) {
+          if (previous === null) ctx.moveTo(x(point.at), y(point.price));
+          else ctx.lineTo(x(point.at), y(point.price));
+          ctx.fillRect(x(point.at) - 1, y(point.price) - 1, 2, 2);
+        }
+        previous = point.price;
+      }
+      ctx.stroke();
       ctx.restore();
       if (averages && rows.length) {
         ctx.save();
@@ -207,15 +227,16 @@
         ctx.fillText(number.format(price), right + 6, hover.y + 4);
       }
       showSummary(hovered || rows.at(-1) || candles.at(-1));
-      zoomIn.disabled = !candles.length || visible <= 3;
-      zoomOut.disabled = !candles.length || (visible >= full && (!onHistory || historyEnd));
-      zoomReset.disabled = !candles.length || (span === 60 && offset === 0 && !priceRange);
+      const hasData = candles.length || references.some((row) => row.price !== null);
+      zoomIn.disabled = !hasData || visible <= 3;
+      zoomOut.disabled = !hasData || (visible >= full && (!onHistory || historyEnd));
+      zoomReset.disabled = !hasData || (span === 60 && offset === 0 && !priceRange);
       scaleAuto.setAttribute("aria-pressed", String(!priceRange));
-      scaleAuto.disabled = !candles.length || !priceRange;
+      scaleAuto.disabled = !hasData || !priceRange;
     }
 
     function zoom(factor, anchor) {
-      if (!candles.length) return;
+      if (!candles.length && !references.length) return;
       const { full, visible, pad } = limits();
       const requested = visible * factor;
       const next = clamp(requested, 3, full);
@@ -341,7 +362,8 @@
     return {
       get interval() { return selected.dataset.interval; },
       reset,
-      update(rows, key = "") {
+      update(rows, key = "", referenceRows = []) {
+        references = referenceRows.map((row) => ({ at: Date.parse(row.at), price: row.price }));
         if (key !== seriesKey) {
           seriesKey = key;
           clearSeries();

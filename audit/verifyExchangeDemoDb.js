@@ -5,14 +5,14 @@ const models = require("../models/exchangeModel");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
-const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput, calculateSample } = require("../services/exchangeMarketService");
+const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
 const { dashboardState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
-const { mpiState, startMpiDemo } = require("../services/exchangeMpiService");
+const { mpiState } = require("../services/exchangeMpiService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
-const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket } = require("../services/exchangeTradingService");
-const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo } = models;
+const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker } = require("../services/exchangeTradingService");
+const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo, ExchangeOrder } = models;
 
 const time = (value) => new Date(value);
 const weekOpen = new Date();
@@ -125,7 +125,7 @@ async function testHttp() {
     assert.match(adminHtml, /matths-exchange-light\.svg/);
     assert.match(adminHtml, />10모<\/strong>[\s\S]+>수능<\/strong>/);
     assert.match(adminHtml, /name="minimumAttempts" value="0"/);
-    assert.match(adminHtml, /name="minimumMpiAttempts" value="1"/);
+    assert.match(adminHtml, /name="minimumMpiAttempts" value="5"/);
 
     function postMpiMinimum(cookie, value) {
       return fetch(`${origin}/admin/exchange/mpi-minimum`, {
@@ -135,9 +135,10 @@ async function testHttp() {
     }
     assert.equal((await postMpiMinimum(student, "3")).status, 403);
     assert.equal((await postMpiMinimum(admin, "0")).status, 400);
-    assert.equal((await postMpiMinimum(admin, "3")).status, 303);
-    assert.equal(await readMpiMinimum(), 3);
-    assert.equal((await postMpiMinimum(admin, "1")).status, 303);
+    assert.equal((await postMpiMinimum(admin, "3")).status, 400);
+    assert.equal((await postMpiMinimum(admin, "6")).status, 303);
+    assert.equal(await readMpiMinimum(), 6);
+    assert.equal((await postMpiMinimum(admin, "5")).status, 303);
 
     const registered = await fetch(`${origin}/admin/exchange/schedules`, {
       method: "POST", redirect: "manual", headers: { Cookie: admin, Origin: origin },
@@ -224,181 +225,50 @@ async function main() {
     await runExchangeTick(midweek, false);
     assert.equal(await ExchangeTick.countDocuments(), 0);
     assert.equal((await mpiState({ marketId: weekly._id, now: midweek })).latest, null);
-    const weighted = calculateSample([
-      ...Array.from({ length: 15 }, () => ({ exchangeMmrGrade: 1, score: 80 })),
-      ...Array.from({ length: 5 }, () => ({ exchangeMmrGrade: 5, score: 20 })),
-    ], () => 0);
-    assert.deepEqual(weighted, { mpi: 650, populationCount: 20, sampleCount: 3 });
-
-    const demo = await startMpiDemo({ marketId: weekly._id, examId: exam._id, actorId: admin, now: midweek });
-    assert.equal(demo.attempts.length, 90);
-    assert.equal(await PrivateMockExamAttempt.countDocuments({ examId: exam._id }), 0);
-    assert.equal(await ExchangeTick.countDocuments(), 0);
-    assert.equal(await ExchangeTrade.countDocuments(), 0);
-    const sampleNow = new Date(+midweek + 50_000);
-    const demoState = await mpiState({ marketId: weekly._id, interval: "1s", now: sampleNow });
-    assert.equal(demoState.source, "test");
-    assert.equal(demoState.latest.populationCount, 90);
-    assert.equal(+demoState.latest.sampledAt, +demoState.latest.dataCutoffAt);
-    assert.ok(new Set(demoState.candles.map((candle) => candle.close)).size > 10);
-    assert.ok(demoState.candles.some((row) => row.open !== row.close));
-    demoState.candles.slice(1).forEach((row, index) => {
-      assert.equal(row.open, demoState.candles[index].close);
-      assert.equal(row.high, Math.max(row.open, row.close));
-      assert.equal(row.low, Math.min(row.open, row.close));
-    });
-    const liveNow = new Date(+midweek + 250_000);
-    const recent = await mpiState({ marketId: weekly._id, interval: "1s", now: liveNow });
-    assert.equal(recent.source, "test");
-    const before = new Date(recent.candles[0]._id);
-    const earlier = await mpiState({ marketId: weekly._id, interval: "1s", before, now: liveNow });
-    assert.equal(earlier.candles.length, 120);
-    assert.equal(earlier.candles.at(-1)._id + 1000, recent.candles[0]._id);
-    assert.equal(earlier.candles.at(-1).close, recent.candles[0].open);
-    const larger = await mpiState({ marketId: weekly._id, interval: "15m", now: sampleNow });
-    assert.equal(larger.candles.length, 1);
-    assert.equal(larger.candles[0].open, demoState.candles[0].open);
-    assert.equal(larger.candles[0].close, demoState.latest.mpi);
-    assert.equal(larger.candles[0].high, Math.max(...demoState.candles.map((row) => row.high)));
-    assert.equal(larger.candles[0].low, Math.min(...demoState.candles.map((row) => row.low)));
-    const day = await mpiState({ marketId: weekly._id, interval: "3d", now: sampleNow });
-    assert.equal(day.interval, "3d");
-    assert.equal(day.candles.at(-1).close, demoState.latest.mpi);
-    const [buyer, seller, nextBuyer] = [objectId(), objectId(), objectId()];
-    const cohort = [buyer, seller, nextBuyer];
-    await PrivateMockExamAttempt.create(cohort.map((userId, index) => ({
-      userId, examId: exam._id, weekKey: exam.weekKey, formCode: "WEEKLY", attemptNumber: 1,
-      status: "submitted", submittedAt: new Date(+midweek - 1000), score: [70, 60, 80][index],
-      exchangeMmrGrade: index + 1, submissionFinalization: { status: "completed" },
+    const students = await User.create(Array.from({ length: 8 }, (_, index) => ({
+      name: `exchange-live-${index}`, email: `exchange-live-${index}@exchange.fixture.invalid`,
+      role: "student", passwordHash: "test",
     })));
+    const [buyer, seller, nextBuyer, fourth, fifth, late, invalid, excluded] = students.map((student) => student._id);
+    const cohort = [buyer, seller, nextBuyer];
+    function attempt(userId, score, extra = {}) {
+      return PrivateMockExamAttempt.create({ examId: exam._id, userId, weekKey: exam.weekKey, formCode: "WEEKLY", attemptNumber: 1,
+        status: "submitted", submittedAt: new Date(+midweek - 1000), score,
+        submissionFinalization: { status: "completed" }, ...extra });
+    }
+    await Promise.all(cohort.map((userId, i) => attempt(userId, [70, 60, 80][i])));
     await ArchiveItem.updateOne({ _id: exam.archiveItemId }, { $set: { deletedAt: midweek } });
     assert.equal((await terminalState({ now: midweek })).market, null);
     await assert.rejects(order(weekly, buyer, "long", 650, 1, midweek), { status: 409 });
     await ArchiveItem.updateOne({ _id: exam.archiveItemId }, { $set: { deletedAt: null } });
-
-    await ExchangeTick.create({
-      marketId: weekly._id, mpi: 999, populationCount: 10, sampleCount: 1,
-      sampledAt: new Date(+midweek - 29 * 60_000), publishAt: new Date(+midweek + 60_000),
-      expiresAt: new Date(+weekClose + 60_000),
-    });
-    const firstMinute = new Date(+midweek + 60_000);
-    const secondMinute = new Date(+firstMinute + 60_000);
-    const thirdMinute = new Date(+secondMinute + 60_000);
-    const legacyHistoryAt = new Date(+midweek - 1000);
-    const rollingHistoryAt = new Date(+firstMinute - 1000);
-    await ExchangeTick.create([
-      { mpi: 640, sampledAt: new Date(+legacyHistoryAt - 30 * 60_000), publishAt: legacyHistoryAt },
-      { mpi: 660, sampledAt: rollingHistoryAt, publishAt: rollingHistoryAt, dataCutoffAt: new Date(+rollingHistoryAt - 30 * 60_000) },
-      { mpi: 998, sampledAt: new Date(+firstMinute + 1000), publishAt: new Date(+firstMinute + 1000),
-        dataCutoffAt: new Date(+firstMinute + 1000 - 30 * 60_000) },
-    ].map((tick) => ({ ...tick, marketId: weekly._id, populationCount: 10, sampleCount: 1, expiresAt: weekClose })));
-
-    function attempt(fields) {
-      return PrivateMockExamAttempt.create({ userId: objectId(), examId: exam._id, weekKey: exam.weekKey,
-        formCode: "WEEKLY", attemptNumber: 1, status: "submitted", ...fields });
-    }
-
-    const pending = await attempt({
-      submittedAt: new Date(+firstMinute - 20_000), score: 100, exchangeMmrGrade: 4,
-      submissionFinalization: { status: "pending" },
-    });
-    const afterCutoff = await attempt({
-      submittedAt: new Date(+firstMinute + 1000), score: 90, exchangeMmrGrade: 5,
-      submissionFinalization: { status: "completed", completedAt: new Date(+firstMinute + 2000) },
-    });
-    const underReview = await attempt({
-      submittedAt: new Date(+firstMinute - 1000), score: 70, exchangeMmrGrade: 6,
-      integrityStatus: "PENDING_INTEGRITY_REVIEW",
-    });
-
-    const collectedAt = new Date(+firstMinute + 2000);
-    assert.equal(seoulInput(firstMinute).slice(-5), "09:11");
-    await Promise.all([runExchangeTick(collectedAt, false), runExchangeTick(collectedAt, false)]);
-    const combined = await mpiState({ marketId: weekly._id, now: collectedAt });
-    assert.equal(combined.source, "test");
-    assert.equal(combined.interval, "1m");
-    assert.equal(combined.minimumMpiAttempts, 1);
-    assert.equal(combined.latest.populationCount, 93);
-    assert.equal(combined.latest.sampleCount, 12);
-    assert.equal(+combined.latest.dataCutoffAt, +firstMinute);
-    assert.equal(+combined.startedAt, +demo.startedAt);
-    assert.equal(combined.candles.at(-1).close, combined.latest.mpi);
-    assert.ok(!("demo" in combined) && !("attempts" in combined));
-    assert.equal(await ExchangeTick.countDocuments({ minuteSample: true }), 1);
-
-    const raw = (await terminalState({ marketId: String(weekly._id), now: collectedAt })).ticks.at(-1);
-    assert.equal(raw.populationCount, 3);
-    assert.equal(raw.mpi, 700);
-    assert.equal(+raw.sampledAt, +collectedAt);
-    assert.equal(+raw.publishAt, +collectedAt);
-
-    await saveMpiMinimum({ marketId: weekly._id, value: "4", actorId: admin, now: collectedAt });
-    assert.equal(await readMpiMinimum(), 1);
-    const gated = await mpiState({ marketId: weekly._id, now: collectedAt });
-    assert.equal(gated.market.status, "open");
-    assert.equal(gated.source, "test");
-    assert.equal(gated.minimumMpiAttempts, 4);
-    assert.equal(gated.latest.populationCount, 90);
-    assert.equal(combined.latest.mpi, Math.round((gated.latest.mpi * 90 + raw.mpi * 3) / 93 * 100) / 100);
-    assert.notEqual(combined.latest.mpi, gated.latest.mpi);
-    assert.deepEqual((await terminalState({ marketId: String(weekly._id), now: collectedAt })).ticks, []);
-
-    await runExchangeTick(secondMinute, false);
-    const published = await mpiState({ marketId: weekly._id, interval: "1s", now: secondMinute });
-    assert.equal(published.source, "test");
-    assert.equal(published.latest.populationCount, 94);
-    assert.equal(published.latest.sampleCount, 13);
-    assert.equal(published.candles.at(-1).close, published.latest.mpi);
-    const historyBeforePublication = await mpiState({
-      marketId: weekly._id, interval: "1s", before: secondMinute, now: secondMinute,
-    });
-    assert.equal(historyBeforePublication.latest.populationCount, 100, "Earlier qualifying tick is used for history");
-    assert.ok(historyBeforePublication.candles.at(-1)._id < +secondMinute);
-    const visibleTicks = (await terminalState({ marketId: String(weekly._id), now: secondMinute })).ticks;
-    assert.equal(visibleTicks.at(-1).mpi, 750);
-    assert.ok(visibleTicks.every((tick) => tick.populationCount >= 4));
-
-    await ExchangeMpiDemo.deleteOne({ _id: weekly._id });
-    await saveMpiMinimum({ marketId: weekly._id, value: "", actorId: admin, now: secondMinute });
-    const official = await mpiState({ marketId: weekly._id, now: collectedAt });
-    assert.equal(official.source, "official");
-    assert.equal(official.latest.mpi, 700);
-    assert.equal(official.latest.populationCount, 3);
-    const history = await mpiState({ marketId: weekly._id, before: firstMinute, now: collectedAt });
-    assert.ok(history.candles.some((row) => row.close === 640));
-    assert.equal(history.candles.at(-1).close, 660);
-    assert.ok(official.candles.every((row) => row.high < 998));
-
-    const minuteLater = await mpiState({ marketId: weekly._id, interval: "1s", now: secondMinute });
-    assert.equal(minuteLater.minimumMpiAttempts, 1);
-    assert.equal(minuteLater.latest.populationCount, 4);
-    assert.equal(minuteLater.latest.mpi, 750);
-    assert.equal(+minuteLater.latest.dataCutoffAt, +secondMinute);
-    assert.deepEqual(minuteLater.candles.at(-1), { _id: +secondMinute, open: 700, high: 750, low: 700, close: 750 });
-
-    await PrivateMockExamAttempt.updateOne({ _id: pending._id }, { $set: {
-      "submissionFinalization.status": "completed", "submissionFinalization.completedAt": new Date(+secondMinute + 20_000),
-    } });
-    await PrivateMockExamAttempt.updateOne({ _id: underReview._id }, { $set: {
-      integrityStatus: "CLEAR", integrityClearedAt: new Date(+secondMinute + 45_000),
-    } });
-    await runExchangeTick(new Date(+secondMinute + 50_000), false);
-    assert.equal(await ExchangeTick.countDocuments({ minuteSample: true }), 2);
-    await runExchangeTick(thirdMinute, false);
-    const third = await mpiState({ marketId: weekly._id, interval: "15m", now: thirdMinute });
-    assert.equal(third.latest.populationCount, 6);
-    assert.equal(third.latest.mpi, 783.33);
-    assert.deepEqual(third.candles.at(-1), { _id: third.candles.at(-1)._id, open: 640, high: 783.33, low: 640, close: 783.33 });
-
-    const idleMinute = new Date(+thirdMinute + 60_000);
-    await runExchangeTick(idleMinute, false);
-    const idle = await mpiState({ marketId: weekly._id, interval: "15m", now: idleMinute });
-    assert.equal(await ExchangeTick.countDocuments({ minuteSample: true }), 3);
-    assert.deepEqual(idle.latest, third.latest);
-    assert.deepEqual(idle.candles, third.candles);
-    await PrivateMockExamAttempt.deleteMany({ _id: { $in: [pending._id, afterCutoff._id, underReview._id] } });
-    await runExchangeTick(new Date(+idleMinute + 60_000), false);
-    assert.equal(await ExchangeTick.countDocuments({ minuteSample: true }), 3);
+    await attempt(excluded, 0, { demoBatchKey: "fixture" });
+    await User.updateOne({ _id: excluded }, { $set: { isTestAccount: true } });
+    await assert.rejects(order(weekly, excluded, "long", 650, 1, midweek), { status: 403 });
+    await runExchangeTick(new Date(+midweek + 60_000), false);
+    assert.equal(await ExchangeTick.countDocuments(), 0);
+    await Promise.all([attempt(fourth, 70), attempt(fifth, 70)]);
+    await ExchangeMpiDemo.create({ _id: weekly._id, examId: exam._id, startedAt: midweek, expiresAt: weekClose,
+      attempts: [{ accountKey: "old-simulation", score: 100, exchangeMmrGrade: 1, offsetSeconds: 0 }] });
+    await ExchangeTick.create({ marketId: weekly._id, sampledAt: midweek, publishAt: midweek, mpi: 999, populationCount: 90 });
+    const collectedAt = new Date(+midweek + 120_000);
+    const publicAt = new Date(+collectedAt + 30 * 60_000);
+    await runExchangeTick(collectedAt, false);
+    const early = new Date(+publicAt - 1);
+    await maintainMarketMaker(weekly._id, () => early);
+    assert.equal((await mpiState({ marketId: weekly._id, now: early })).latest, null);
+    const unpublished = await terminalState({ marketId: String(weekly._id), now: early });
+    assert.deepEqual(unpublished.ticks, []);
+    assert.equal(unpublished.bids.length, 0);
+    assert.equal(unpublished.asks.length, 0);
+    assert.equal(unpublished.market.internalMpi, undefined);
+    const published = await mpiState({ marketId: weekly._id, now: publicAt });
+    assert.equal(published.source, "official");
+    assert.equal(published.latest.mpi, 700);
+    assert.equal(published.latest.populationCount, 5);
+    assert.equal(+published.latest.publishAt - +published.latest.dataCutoffAt, 30 * 60_000);
+    assert.equal(published.latest.contributions, undefined);
+    assert.equal(published.candles.at(-1).close, 700);
+    assert.equal((await mpiState({ marketId: weekly._id, now: publicAt, before: publicAt })).candles.length, 0);
 
     const sell = await order(weekly, seller, "short", 640, 2, midweek);
     const commandId = randomUUID();
@@ -446,32 +316,43 @@ async function main() {
     assert.deepEqual(await futuresChartHistory(weekly._id, "1s", midweek, midweek), []);
     await assert.rejects(order(weekly, nextBuyer, "long", 650, 1, weekClose), { status: 409 });
 
-    await attempt({ score: 100, submittedAt: new Date(+weekClose - 1000), exchangeMmrGrade: 4 });
-    await attempt({ score: 0, submittedAt: new Date(+weekClose - 1000), integrityStatus: "INVALIDATED" });
+    await runExchangeTick(publicAt);
+    const mm = await terminalState({ marketId: String(weekly._id), now: publicAt });
+    assert.deepEqual(mm.reference, { price: 700, source: "operator" });
+    assert.equal(mm.asks[0].operatorQuantity, 1);
+    assert.equal(mm.bids[0].operatorQuantity, 1);
+    assert.equal(mm.market.volume, 2);
+    const mmFill = await order(weekly, fourth, "long", mm.asks[0].price, 1, publicAt);
+    assert.equal(mmFill.status, "filled");
+    await maintainMarketMaker(weekly._id, () => publicAt);
+    assert.equal(await ExchangeOrder.countDocuments({ liquidityProvider: "matths", status: "working", action: "open" }), 0);
+    assert.equal(await ExchangeTrade.countDocuments({ liquidityProvider: "matths" }), 1);
+    const oneSided = await terminalState({ marketId: String(weekly._id), now: publicAt });
+    assert.equal(oneSided.reference.price, null);
+    assert.equal(oneSided.bids[0].operatorQuantity, 1);
+    const expiry = new Date(+publicAt + 21_000);
+    assert.equal((await terminalState({ marketId: String(weekly._id), now: expiry })).bids.length, 0);
+
+    const lateAttempt = await attempt(late, 100, { submittedAt: new Date(+weekClose - 1000),
+      integrityStatus: "PENDING_INTEGRITY_REVIEW", submissionFinalization: { status: "pending" } });
+    await attempt(invalid, 0, { submittedAt: new Date(+weekClose - 1000), integrityStatus: "INVALIDATED" });
     await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "locked", settlementCompletedAt: weekClose } });
     await processMarket(await ExchangeMarket.findById(weekly._id), weekClose);
-    await processMarket(await ExchangeMarket.findById(weekly._id), weekClose);
+    assert.equal((await ExchangeMarket.findById(weekly._id)).phase, "scheduled");
+    await PrivateMockExamAttempt.updateOne({ _id: lateAttempt._id }, { $set: { "submissionFinalization.status": "completed" } });
+    await processMarket(await ExchangeMarket.findById(weekly._id), new Date(+weekClose + 30_000));
+    assert.equal((await ExchangeMarket.findById(weekly._id)).phase, "scheduled");
+    await PrivateMockExamAttempt.updateOne({ _id: lateAttempt._id }, { $set: { integrityStatus: "CLEAR" } });
+    await processMarket(await ExchangeMarket.findById(weekly._id), new Date(+weekClose + 60_000));
+    await processMarket(await ExchangeMarket.findById(weekly._id), new Date(+weekClose + 60_000));
     const result = await ExchangeMarket.findById(weekly._id);
     assert.equal(result.phase, "settled");
-    assert.equal(result.settlement, 775);
-    assert.equal(result.participantCount, 4);
-    await ExchangeMpiDemo.create(demo);
-    const closedIndex = await mpiState({ marketId: weekly._id, now: weekClose });
-    assert.equal(closedIndex.source, "official");
-    assert.equal(closedIndex.latest.populationCount, 6);
-    const another = await ExchangeMarket.create({
-      key: "weekly:demo-isolation-fixture", type: "weekly", examId: exam._id, title: "다른 회차",
-      opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose,
-    });
-    await assert.rejects(startMpiDemo({ marketId: another._id, now: midweek }), { status: 409 });
-    await ExchangeMpiDemo.create({ ...demo, _id: another._id });
-    const otherIndex = await mpiState({ marketId: another._id, now: midweek });
-    assert.equal(otherIndex.source, "official");
-    assert.equal(otherIndex.latest, null);
-    await ExchangeMarket.deleteOne({ _id: another._id });
+    assert.equal(result.settlement, 750);
+    assert.equal(result.participantCount, 6);
     assert.equal(result.escrow, 0);
     const balances = await Promise.all(cohort.map((userId) => ExchangeWallet.findById(userId)));
-    assert.deepEqual(balances.map((wallet) => wallet.available / 100), [2039.34, 1864.87, 2094.86]);
+    assert.deepEqual(balances.map((wallet) => wallet.available / 100), [2039.34, 1889.87, 2069.86]);
+    assert.equal((await ExchangeWallet.findById(result.marketMakerId)).available / 100, 1968);
 
     const externalInput = { year: "2026", grade: "1", round: "3", examDate: "2026-03-26", closeAt: "2026-03-30T20:00",
       settlementSource: "회차별 성적 집계", population: "고1 응시자", count2: "3", count3: "14", count4: "13" };
@@ -496,8 +377,8 @@ async function main() {
     assert.equal((await ExchangeMarket.findById(other._id)).phase, "void");
     assert.equal((await ExchangeWallet.findById(buyer)).available, 209034);
     feeWallet = await dashboardState(EXCHANGE_WALLET_ID, end, { section: "fees" });
-    assert.equal(feeWallet.available, 1.81);
-    assert.equal(feeWallet.collectedFees, 1.81);
+    assert.equal(feeWallet.available, 2.17);
+    assert.equal(feeWallet.collectedFees, 2.17);
     const ops = await saveSchedule({ ...externalInput, grade: "3", round: "3" }, admin, time("2026-03-01T00:00:00Z"));
     const input = { action: "open", direction: "long", price: 1, quantity: 1, commandId: randomUUID() };
     await assert.rejects(placeOrder({ marketId: ops._id, userId: EXCHANGE_WALLET_ID, clock: () => open, input }), { status: 403 });
@@ -507,11 +388,11 @@ async function main() {
     assert.equal(String(operationsOrder.actorId), String(admin));
     await order(ops, seller, "short", 1, 1, open);
     feeWallet = await dashboardState(EXCHANGE_WALLET_ID, open, { section: "fees" });
-    assert.equal(feeWallet.available, 0.81);
-    assert.equal(feeWallet.collectedFees, 1.81);
+    assert.equal(feeWallet.available, 1.17);
+    assert.equal(feeWallet.collectedFees, 2.17);
     assert.equal(feeWallet.positionCollateral, 1);
     assert.equal(feeWallet.positions.length, 1);
-    assert.equal(feeWallet.total, 1.81);
+    assert.equal(feeWallet.total, 2.17);
     const edge = await saveSchedule({ ...externalInput, grade: "3", round: "5" }, admin, time("2026-03-01T00:00:00Z"));
     await order(edge, seller, "short", 400, 1, open);
     await order(edge, buyer, "long", 400, 1, open);
@@ -529,7 +410,7 @@ async function main() {
     await order(edge, nextBuyer, "long", 600, 1, open);
     const legacyFill = await ExchangeTrade.findOne({ makerOrderId: legacyOrder._id });
     assert.deepEqual([legacyFill.makerFee, legacyFill.takerFee], [0, 30]);
-    console.log("Exchange demo verified: empty upload gate, HTTP and admin roles, schedules, minute sampling, public threshold, blended test chart, round isolation, legacy tick transition, theme, order book, wallet authorization, fee reconciliation, TP settlement and void.");
+    console.log("Exchange verified: delayed official MPI, legacy and demo exclusion, MM quotes, verification wait, fees, wallets and settlement.");
   } finally {
     await mongoose.disconnect();
   }

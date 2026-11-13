@@ -35,14 +35,14 @@
     <div class="terminal-grid">
       <section class="panel chart-panel" aria-labelledby="chart-heading">
         <header class="panel-heading">
-          <h2 id="chart-heading">선물 체결가</h2>
+          <h2 id="chart-heading">선물 가격</h2>
 
         </header>
-        <div class="chart-legend"><span class="legend-price">선물 체결가</span><span class="legend-ma">MA 5 · 10</span></div>
+        <div class="chart-legend"><span class="legend-price">선물 체결가</span><span class="legend-ma">MA 5 · 10</span><span id="mid-legend" class="legend-ma" hidden>호가 중간값</span></div>
         <%- include("partials/exchange-chart-controls", { intervals, activeInterval: chartInterval }) %>
         <output class="candle-summary" data-candle-summary aria-label="캔들 시가·고가·저가·종가"></output>
         <div class="chart-area">
-          <canvas id="exchange-chart" role="img" aria-label="선물 체결가 캔들과 거래량"></canvas>
+          <canvas id="exchange-chart" role="img" aria-label="선물 체결가 캔들, 거래량 및 호가 중간값"></canvas>
           <div class="chart-empty" id="chart-empty">
             <div class="chart-symbol" aria-hidden="true"><i></i><i></i><i></i></div>
             <strong id="chart-empty-title"><%= initial.market ? '체결을 기다리는 중' : '이번 주 시장이 아직 열리지 않았습니다' %></strong>
@@ -56,7 +56,7 @@
         <header class="panel-heading"><h2 id="book-heading">호가창</h2><span>선물가</span></header>
         <div class="book-labels"><span>가격</span><span>계약</span><span>누적</span></div>
         <div class="book-side ask" id="asks"><p>매도 호가 없음</p></div>
-        <div class="book-mid"><strong id="book-price">—</strong><span>최근 체결</span></div>
+        <div class="book-mid"><strong id="book-price">—</strong><span id="book-price-label">호가 중간값</span></div>
         <div class="book-side bid" id="bids"><p>매수 호가 없음</p></div>
         <footer class="book-foot"><span class="bid">매수</span><span class="ask">매도</span></footer>
       </section>

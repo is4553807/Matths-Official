@@ -36,6 +36,12 @@ const market = new Schema({
   lastPrice: Number,
   lastTradeAt: Date,
   volume: { type: Number, default: 0 },
+  marketMakerId: objectId,
+  marketMakerEnabled: { type: Boolean, default: true },
+  marketMakerUsedSnapshot: objectId,
+  mpiCheckedAt: Date,
+  internalMpi: Number,
+  internalMpiCount: Number,
 }, options);
 market.index({ phase: 1, closeAt: 1 });
 market.index({ type: 1, opensAt: -1 });
@@ -73,6 +79,9 @@ const order = new Schema({
   status: { type: String, enum: ["working", "filled", "cancelled"], required: true },
   sequence: { type: Number, required: true },
   acceptedAt: { type: Date, required: true },
+  liquidityProvider: String,
+  mpiSnapshotId: objectId,
+  expiresAt: Date,
   actorId: objectId,
   cancelledBy: objectId,
   feeReserved: Number,
@@ -104,6 +113,7 @@ const trade = new Schema({
   makerFee: Number,
   takerFee: Number,
   feeCollected: Boolean,
+  liquidityProvider: String,
   price: Number,
   quantity: Number,
   tradedAt: Date,
@@ -122,6 +132,8 @@ const tick = new Schema({
   mpi: Number,
   populationCount: Number,
   sampleCount: Number,
+  kind: String,
+  contributions: { type: [String], select: false, default: undefined },
 }, options);
 tick.index({ marketId: 1, sampledAt: 1 }, { unique: true });
 tick.index({ marketId: 1, publishAt: -1 });
@@ -144,6 +156,15 @@ const mpiDemo = new Schema({
   }],
 }, options);
 
+const reference = new Schema({
+  marketId: { type: objectId, required: true },
+  at: Date,
+  sequence: Number,
+  price: Number,
+  source: String,
+}, options);
+reference.index({ marketId: 1, at: -1, sequence: -1 });
+
 const event = new Schema({ marketId: objectId, actorId: objectId, action: String, detail: Schema.Types.Mixed }, options);
 event.index({ createdAt: -1 });
 
@@ -157,5 +178,6 @@ module.exports = {
   ExchangeTrade: model("ExchangeTrade", trade),
   ExchangeTick: model("ExchangeTick", tick),
   ExchangeMpiDemo: model("ExchangeMpiDemo", mpiDemo),
+  ExchangeReference: model("ExchangeReference", reference),
   ExchangeEvent: model("ExchangeEvent", event),
 };

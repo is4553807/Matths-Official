@@ -1,13 +1,13 @@
 const models = require("../models/exchangeModel");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const {
-  ExchangeMarket, ExchangeOrder, ExchangeTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent,
+  ExchangeMarket, ExchangeOrder, ExchangeTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent, ExchangeReference,
 } = models;
 const {
-  publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, isMpiTestMarket, syncWeeklyMarkets, saveSample,
-  publicSampleScope, sampleWithCutoff, sampleMinute,
+  publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
+  publishedMpiFilter, latestPublishedMpi, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
 } = require("./exchangeMarketService");
-const { TP_SCALE, processMarket } = require("./exchangeTradingService");
+const { TP_SCALE, processMarket, maintainMarketMaker } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
@@ -93,15 +93,10 @@ async function ownMarketState(market, userId, now) {
 
 async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
   if (market.type !== "weekly") return [];
-  const [{ filter }, minimumMpiAttempts] = await Promise.all([
-    publicSampleScope(market._id, now),
-    forAdmin ? null : readMpiMinimum(market),
-  ]);
-  const ticks = await ExchangeTick.find(forAdmin ? filter : { ...filter, mpi: { $gte: 0 } })
-    .sort({ publishAt: -1 }).limit(limit).select("mpi sampledAt dataCutoffAt publishAt populationCount sampleCount").lean();
-  if (forAdmin) return ticks.map(sampleWithCutoff);
-  if (!(ticks[0]?.populationCount >= minimumMpiAttempts)) return [];
-  return ticks.filter((tick) => tick.populationCount >= minimumMpiAttempts).map(sampleWithCutoff);
+  const filter = forAdmin ? { marketId: market._id, kind: "observed" }
+    : { ...publishedMpiFilter(market._id, now), populationCount: { $gte: await readMpiMinimum(market) } };
+  return ExchangeTick.find(filter).sort({ publishAt: -1 }).limit(limit)
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount").lean();
 }
 
 async function terminalState({ marketId, userId, interval = "1m", marketType, now = new Date() } = {}) {
@@ -121,22 +116,31 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
       view.statusLabel = STAGES.waiting;
     }
   }
-  const [book, trades, candles, ticks, own] = await Promise.all([
-    ExchangeOrder.aggregate([
-      { $match: { marketId: market._id, status: "working" } },
-      { $group: { _id: { side: "$side", price: "$price" }, quantity: { $sum: "$remaining" } } },
-    ]),
+  const snapshot = market.type === "weekly" ? await latestPublishedMpi(market, now) : undefined;
+  const chartEnd = new Date(Math.min(+now, +market.closeAt));
+  const { ms } = intervalFor(interval, "1m");
+  const [book, trades, candles, ticks, own, references] = await Promise.all([
+    view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID) : [],
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
-      .select("price quantity tradedAt").lean(),
+      .select("price quantity tradedAt liquidityProvider").lean(),
     chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
     marketSamples(market, now, 120),
     ownMarketState(market, userId, now),
+    market.type === "weekly" ? ExchangeReference.find({
+      marketId: market._id, at: { $gte: new Date(candleWindow(chartEnd, ms)), $lte: chartEnd },
+    }).sort({ at: -1, sequence: -1 }).limit(400).select("at price source").lean() : [],
   ]);
+  references.reverse();
   const side = (key, sign) => book.filter((row) => row._id.side === key)
     .sort((a, b) => sign * (a._id.price - b._id.price)).slice(0, 10)
-    .map((row) => ({ price: row._id.price, quantity: row.quantity }));
-  const showBook = view.status === "open" || view.status === "paused";
-  return { ...result, market: view, bids: showBook ? side("buy", -1) : [], asks: showBook ? side("sell", 1) : [], trades, candles,
+    .map((row) => ({ price: row._id.price, quantity: row.quantity, operatorQuantity: row.operatorQuantity }));
+  const bids = side("buy", -1);
+  const asks = side("sell", 1);
+  const reference = marketReference(bids[0], asks[0]);
+  if (market.type === "weekly" && (reference.price !== null || references.at(-1)?.price != null)) {
+    references.push({ at: chartEnd, ...reference });
+  }
+  return { ...result, market: view, bids, asks, reference, references, trades, candles,
     ticks: ticks.reverse(), own: { ...own, eligible: own.eligible && view.status === "open" } };
 }
 
@@ -165,20 +169,23 @@ async function adminState(year, grade, now = new Date()) {
   ]);
   const controls = [];
   for (const market of markets) {
-    const [openOrders, [latestTick]] = await Promise.all([
+    const [openOrders, [latestTick], pending] = await Promise.all([
       ExchangeOrder.countDocuments({ marketId: market._id, status: "working" }),
       marketSamples(market, now, 1, { forAdmin: true }),
+      market.type === "weekly" && publicState(market, now) === "verifying"
+        ? readWeeklyExam(market.examId).then((exam) => exam ? pendingAttempts(exam, now) : []) : [],
     ]);
-    controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum, mpiTestMarket: isMpiTestMarket(market),
+    controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum, marketMakerEnabled: market.marketMakerEnabled !== false,
+      pendingVerification: pending.length > 0, internalMpiCount: market.internalMpiCount,
       minimumAttempts: market.minimumAttempts ?? settings,
-      minimumMpiAttempts: market.minimumMpiAttempts ?? minimumMpiAttempts, mpiMinimumOverride: market.minimumMpiAttempts,
+      minimumMpiAttempts: Math.max(5, market.minimumMpiAttempts ?? minimumMpiAttempts), mpiMinimumOverride: market.minimumMpiAttempts,
       escrow: market.escrow / TP_SCALE, reason: market.reason,
       settlementSource: market.settlementSource, population: market.population });
   }
   const exams = [];
   for (const exam of sourceExams) {
     const [ready, count, file] = await Promise.all([
-      weeklyExamReady(exam), PrivateMockExamAttempt.countDocuments(validAttempts(exam, now)),
+      weeklyExamReady(exam), liveAttemptRows(validAttempts(exam, now)).append({ $count: "count" }).then(([row]) => row?.count ?? 0),
       exam.archiveItemId ? ArchiveItem.exists({ _id: exam.archiveItemId, deletedAt: null }) : null,
     ]);
     exams.push({ id: String(exam._id), title: exam.title, status: exam.status, releaseAt: exam.releaseAt, count, ready, file: Boolean(file) });
@@ -186,11 +193,14 @@ async function adminState(year, grade, now = new Date()) {
   return { markets: controls, settings, minimumMpiAttempts, events, schedules, exams };
 }
 
-async function runExchangeTick(now = new Date(), maintain = true, sample = true) {
+async function runExchangeTick(now = new Date(), maintain = true, sample = true, clock = () => now) {
   if (maintain) await syncWeeklyMarkets(now);
   if (sample) {
     const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now } }).lean();
-    for (const market of weekly) await saveSample(market, now);
+    for (const market of weekly) {
+      try { await saveObservedMpi(market, now, clock); }
+      catch (cause) { console.error("[exchange] MPI update failed", String(market._id), cause.message); }
+    }
   }
   if (!maintain) return;
   const markets = await ExchangeMarket.find({ $or: [
@@ -199,7 +209,12 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true)
     { phase: "scheduled", type: "weekly", opensAt: { $lte: now } },
   ] }).sort({ updatedAt: 1 }).limit(50).lean();
   for (const market of markets) {
-    try { await processMarket(market, now); }
+    try {
+      await processMarket(market, now);
+      if (market.type === "weekly" && market.openedAt && market.phase === "scheduled" && now < market.closeAt) {
+        await maintainMarketMaker(market._id, clock);
+      }
+    }
     catch (cause) { console.error("[exchange] market maintenance failed", String(market._id), cause.message); }
   }
 }
@@ -222,7 +237,7 @@ async function startExchangeScheduler() {
       const sample = minute !== lastSampleMinute;
       if (!maintain && !sample) return;
       await withSchedulerLease({ name: "exchange", leaseMs: 10_000 }, async () => {
-        await runExchangeTick(now, maintain, sample);
+        await runExchangeTick(now, maintain, sample, () => new Date());
         if (maintain) lastMaintenance = +now;
         if (sample) lastSampleMinute = minute;
       });

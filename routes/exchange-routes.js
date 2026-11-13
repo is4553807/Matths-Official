@@ -2,17 +2,17 @@ const express = require("express");
 const { isObjectIdOrHexString } = require("mongoose");
 const auth = require("../middleware/authMiddleware");
 const { exchangeUrl } = require("../services/serviceUrlService");
-const { ExchangeMpiDemo, ExchangeWallet } = require("../models/exchangeModel");
+const { ExchangeWallet } = require("../models/exchangeModel");
 const {
-  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, setPaused, syncWeeklyMarkets,
+  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
-const { placeOrder, cancelOrder, registerResult, voidMarket } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled } = require("../services/exchangeTradingService");
 const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
 const { dashboardState } = require("../services/exchangeDashboardService");
-const { startMpiDemo, mpiState } = require("../services/exchangeMpiService");
+const { mpiState } = require("../services/exchangeMpiService");
 
 const router = express.Router();
 
@@ -184,23 +184,12 @@ router.post("/admin/exchange/mpi-minimum", ...admin, async (req, res) => {
   adminRedirect(res, req.body);
 });
 
-router.post("/admin/exchange/markets/:marketId/mpi-demo", ...admin, async (req, res) => {
-  const marketId = id(req.params.marketId);
-  if (req.body.action === "remove") {
-    await ExchangeMpiDemo.deleteOne({ _id: marketId });
-    return adminRedirect(res);
-  }
-  if (req.body.action !== "start") throw error(400, "MPI 시연 작업을 선택해 주세요.");
-  await startMpiDemo({ marketId, actorId: viewer(req) });
-  const query = new URLSearchParams({ market: marketId });
-  return res.redirect(303, exchangeUrl(`/exchange/mpi?${query}`));
-});
-
 router.post("/admin/exchange/markets/:marketId/action", ...admin, async (req, res) => {
   const marketId = id(req.params.marketId);
   const actorId = viewer(req);
   const { action, reason } = req.body;
   if (action === "pause" || action === "resume") await setPaused(marketId, action === "pause", actorId, reason);
+  else if (action === "mm-enable" || action === "mm-disable") await setMarketMakerEnabled(marketId, action === "mm-enable", actorId, reason);
   else if (action === "void") await voidMarket(marketId, actorId, reason);
   else if (action === "settle") await registerResult({ marketId, actorId, input: req.body });
   else throw error(400, "운영 작업을 선택해 주세요.");
