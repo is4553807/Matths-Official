@@ -7,7 +7,7 @@ const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
-const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, scheduleMarketLiquidity } = require("../services/exchangeTradingService");
 const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
@@ -190,6 +190,7 @@ router.post("/admin/exchange/markets/:marketId/action", ...admin, async (req, re
   const { action, reason } = req.body;
   if (action === "pause" || action === "resume") await setPaused(marketId, action === "pause", actorId, reason);
   else if (action === "mm-enable" || action === "mm-disable") await setMarketMakerEnabled(marketId, action === "mm-enable", actorId, reason);
+  else if (action === "liquidity-schedule") await scheduleMarketLiquidity(marketId, req.body, actorId);
   else if (action === "void") await voidMarket(marketId, actorId, reason);
   else if (action === "settle") await registerResult({ marketId, actorId, input: req.body });
   else throw error(400, "운영 작업을 선택해 주세요.");

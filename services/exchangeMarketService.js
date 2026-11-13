@@ -160,11 +160,17 @@ function marketReference(bid, ask) {
   return { price: (bid.price + ask.price) / 2, source };
 }
 
-function bookLevels(marketId, now, session, snapshotId, operatorWalletId) {
+function activeLiquidityPlan(market, now) {
+  const plan = market.liquidityPlan;
+  return plan?.startsAt <= now && now < plan.endsAt ? plan : null;
+}
+
+function bookLevels(marketId, now, session, snapshotId, operatorWalletId, scheduledLiquidity = false) {
   const filter = activeBookOrders(marketId, now);
   if (snapshotId !== undefined) {
     filter.$and = [{ $or: [
-      { liquidityProvider: { $ne: "matths" } }, { action: "close" }, { mpiSnapshotId: snapshotId },
+      { liquidityProvider: { $ne: "matths" } },
+      snapshotId ? { mpiSnapshotId: snapshotId } : scheduledLiquidity ? { scheduledLiquidity: true } : { _id: null },
     ] }];
   }
   const operator = operatorWalletId ? { $or: [{ $eq: ["$liquidityProvider", "matths"] },
@@ -179,6 +185,7 @@ function bookLevels(marketId, now, session, snapshotId, operatorWalletId) {
     { $group: {
       _id: { side: "$side", price: "$price" }, quantity: { $sum: "$remaining" },
       operatorQuantity: { $sum: { $cond: [operator, "$remaining", 0] } },
+      scheduledQuantity: { $sum: { $cond: [{ $eq: ["$scheduledLiquidity", true] }, "$remaining", 0] } },
     } },
   ]).session(session || null);
 }
@@ -345,5 +352,5 @@ module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
   sampleMinute, saveObservedMpi, liveStudent, liveAttemptRows, pendingAttempts,
-  publishedMpiFilter, latestPublishedMpi, activeBookOrders, marketReference, bookLevels,
+  publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

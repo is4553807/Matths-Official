@@ -11,7 +11,7 @@ const { dashboardState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState } = require("../services/exchangeMpiService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
-const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo, ExchangeOrder } = models;
 
 const time = (value) => new Date(value);
@@ -410,7 +410,51 @@ async function main() {
     await order(edge, nextBuyer, "long", 600, 1, open);
     const legacyFill = await ExchangeTrade.findOne({ makerOrderId: legacyOrder._id });
     assert.deepEqual([legacyFill.makerFee, legacyFill.takerFee], [0, 30]);
-    console.log("Exchange verified: delayed official MPI, legacy and demo exclusion, MM quotes, verification wait, fees, wallets and settlement.");
+    // Use another order book with no published MPI and a genuine student counterparty.
+    await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "open" } });
+    const liquidityMarket = await ExchangeMarket.create({
+      key: "weekly:scheduled-liquidity-audit", type: "weekly", examId: exam._id, title: "Scheduled liquidity",
+      opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose,
+    });
+    const operator = await User.create({ name: "exchange-operator", email: "operator@exchange.fixture.invalid",
+      passwordHash: "unused", role: "admin" });
+    const startsAt = new Date(+midweek + 60_000);
+    const endsAt = new Date(+startsAt + 60 * 60_000);
+    const plan = { startsAt: seoulInput(startsAt), endsAt: seoulInput(endsAt), referencePrice: 600, reason: "scheduled liquidity audit" };
+    await assert.rejects(scheduleMarketLiquidity(liquidityMarket._id, plan, buyer, () => midweek), { status: 403 });
+    await scheduleMarketLiquidity(liquidityMarket._id, plan, operator._id, () => midweek);
+    await maintainMarketMaker(liquidityMarket._id, () => midweek);
+    const viewAt = (now) => terminalState({ marketId: String(liquidityMarket._id), now });
+    assert.equal((await viewAt(midweek)).bids.length, 0);
+
+    await maintainMarketMaker(liquidityMarket._id, () => startsAt);
+    const quoted = await viewAt(startsAt);
+    assert.deepEqual(quoted.bids, [{ price: 560, quantity: 1, operatorQuantity: 1, scheduledQuantity: 1 }]);
+    assert.deepEqual(quoted.asks, [{ price: 640, quantity: 1, operatorQuantity: 1, scheduledQuantity: 1 }]);
+    assert.deepEqual(quoted.reference, { price: 600, source: "operator" });
+    assert.deepEqual(quoted.ticks, []);
+    assert.equal(quoted.market.lastPrice, null);
+    assert.equal(quoted.market.volume, 0);
+    await order(liquidityMarket, buyer, "long", 640, 1, startsAt);
+    await maintainMarketMaker(liquidityMarket._id, () => startsAt);
+    const filled = await viewAt(startsAt);
+    assert.equal(filled.market.volume, 1);
+    assert.equal(filled.market.lastPrice, 640);
+    assert.equal(filled.trades[0].liquidityProvider, "matths");
+    assert.equal(filled.asks.length, 0);
+    assert.equal(filled.bids[0].scheduledQuantity, 1);
+
+    // Editing the plan or restarting the worker cannot replenish its opening limit.
+    await scheduleMarketLiquidity(liquidityMarket._id, { ...plan, referencePrice: 610 }, operator._id, () => startsAt);
+    const nearEnd = new Date(+endsAt - 1_000);
+    await maintainMarketMaker(liquidityMarket._id, () => nearEnd);
+    assert.equal((await viewAt(nearEnd)).asks.length, 0);
+    assert.equal((await viewAt(nearEnd)).bids.length, 1);
+    assert.equal((await viewAt(endsAt)).bids.length, 0);
+    assert.equal((await order(liquidityMarket, fifth, "short", 570, 1, endsAt)).status, "working");
+    assert.equal((await viewAt(endsAt)).market.volume, 1);
+
+    console.log("Exchange verified: delayed official MPI, legacy and demo exclusion, MM quotes and scheduled live liquidity, verification wait, fees, wallets and settlement.");
   } finally {
     await mongoose.disconnect();
   }

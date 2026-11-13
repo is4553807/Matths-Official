@@ -79,7 +79,8 @@
       button.type = "button";
       button.dataset.price = row.price;
       button.style.setProperty("--depth", `${total / sum * 100}%`);
-      button.append(el("span", row.operatorQuantity ? number(row.price) + " · MM" : number(row.price)), el("span", number(row.quantity)), el("span", number(total)));
+      const provider = row.scheduledQuantity ? " · 운영자" : row.operatorQuantity ? " · MM" : "";
+      button.append(el("span", number(row.price) + provider), el("span", number(row.quantity)), el("span", number(total)));
       return button;
     });
     if (id === "asks") nodes.reverse();

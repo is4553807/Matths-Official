@@ -5,7 +5,7 @@ const {
 } = models;
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
-  publishedMpiFilter, latestPublishedMpi, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
+  publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
 } = require("./exchangeMarketService");
 const { TP_SCALE, processMarket, maintainMarketMaker } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
@@ -120,7 +120,8 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   const chartEnd = new Date(Math.min(+now, +market.closeAt));
   const { ms } = intervalFor(interval, "1m");
   const [book, trades, candles, ticks, own, references] = await Promise.all([
-    view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID) : [],
+    view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
+      market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
       .select("price quantity tradedAt liquidityProvider").lean(),
     chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
@@ -133,7 +134,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   references.reverse();
   const side = (key, sign) => book.filter((row) => row._id.side === key)
     .sort((a, b) => sign * (a._id.price - b._id.price)).slice(0, 10)
-    .map((row) => ({ price: row._id.price, quantity: row.quantity, operatorQuantity: row.operatorQuantity }));
+    .map((row) => ({ price: row._id.price, quantity: row.quantity, operatorQuantity: row.operatorQuantity, scheduledQuantity: row.scheduledQuantity }));
   const bids = side("buy", -1);
   const asks = side("sell", 1);
   const reference = marketReference(bids[0], asks[0]);
@@ -176,7 +177,7 @@ async function adminState(year, grade, now = new Date()) {
         ? readWeeklyExam(market.examId).then((exam) => exam ? pendingAttempts(exam, now) : []) : [],
     ]);
     controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum, marketMakerEnabled: market.marketMakerEnabled !== false,
-      pendingVerification: pending.length > 0, internalMpiCount: market.internalMpiCount,
+      pendingVerification: pending.length > 0, internalMpiCount: market.internalMpiCount, liquidityPlan: market.liquidityPlan,
       minimumAttempts: market.minimumAttempts ?? settings,
       minimumMpiAttempts: Math.max(5, market.minimumMpiAttempts ?? minimumMpiAttempts), mpiMinimumOverride: market.minimumMpiAttempts,
       escrow: market.escrow / TP_SCALE, reason: market.reason,

@@ -6,7 +6,7 @@ const {
 } = require("../models/exchangeModel");
 const {
   error, integer, seoulDate, readWeeklyExam, weeklyExamReady, validAttempts, publicState,
-  liveAttemptRows, pendingAttempts, latestPublishedMpi, activeBookOrders, bookLevels, marketReference,
+  liveAttemptRows, pendingAttempts, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, bookLevels, marketReference,
 } = require("./exchangeMarketService");
 
 const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = require("./exchangeFees");
@@ -220,9 +220,10 @@ async function placeOrder({ marketId, userId, actorId, input, clock = () => new 
       const tradedAt = clock();
       if (publicState(market, tradedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
       if (isOperator(maker)) {
-        const snapshot = maker.action === "open" ? await latestPublishedMpi(market, tradedAt, session) : null;
+        const snapshot = await latestPublishedMpi(market, tradedAt, session);
+        const plan = snapshot ? null : activeLiquidityPlan(market, tradedAt);
         if (market.marketMakerEnabled === false || !maker.expiresAt || maker.expiresAt <= tradedAt
-          || (maker.action === "open" && !canFillOperatorOpen(market, maker, snapshot, tradedAt))) {
+          || !canFillOperatorOrder(market, maker, snapshot, plan, tradedAt)) {
           await cancel(maker, session);
           continue;
         }
@@ -243,7 +244,8 @@ async function placeOrder({ marketId, userId, actorId, input, clock = () => new 
       await applyFill(maker, trade, makerFee, session);
       await applyFill(order, trade, takerFee, session);
       if (isOperator(maker) && maker.action === "open") {
-        market.marketMakerUsedSnapshot = maker.mpiSnapshotId;
+        if (maker.scheduledLiquidity) market.liquidityPlan.openingFilledAt = tradedAt;
+        else market.marketMakerUsedSnapshot = maker.mpiSnapshotId;
         await cancelOperatorOrders(market, session, { action: "open" });
       }
       await collectFees(totalFee, session);
@@ -280,13 +282,17 @@ async function cancelOperatorOrders(market, session, filter = {}) {
   for (const order of working) await cancel(order, session);
 }
 
-function operatorOpenUntil(market, snapshot) {
-  return Math.min(+snapshot.sampledAt + MM_SNAPSHOT_MAX_AGE, +market.closeAt - MM_CLOSE_ONLY_WINDOW);
+function operatorOpenUntil(market, snapshot, plan) {
+  const referenceEndsAt = snapshot ? +snapshot.sampledAt + MM_SNAPSHOT_MAX_AGE : +plan.endsAt;
+  return Math.min(referenceEndsAt, +market.closeAt - MM_CLOSE_ONLY_WINDOW);
 }
 
-function canFillOperatorOpen(market, order, snapshot, now) {
-  return snapshot && order.mpiSnapshotId?.equals(snapshot._id)
-    && !market.marketMakerUsedSnapshot?.equals(snapshot._id) && +now < operatorOpenUntil(market, snapshot);
+function canFillOperatorOrder(market, order, snapshot, plan, now) {
+  const matchingReference = snapshot ? order.mpiSnapshotId?.equals(snapshot._id) : plan && order.scheduledLiquidity;
+  if (!matchingReference) return false;
+  if (order.action === "close") return true;
+  if (+now >= operatorOpenUntil(market, snapshot, plan)) return false;
+  return snapshot ? !market.marketMakerUsedSnapshot?.equals(snapshot._id) : !plan.openingFilledAt;
 }
 
 async function recordReference(market, now, session) {
@@ -294,7 +300,7 @@ async function recordReference(market, now, session) {
   let reference = marketReference();
   if (publicState(market, now) === "open") {
     const snapshot = await latestPublishedMpi(market, now, session);
-    const book = await bookLevels(market._id, now, session, snapshot?._id ?? null, EXCHANGE_WALLET_ID);
+    const book = await bookLevels(market._id, now, session, snapshot?._id ?? null, EXCHANGE_WALLET_ID, Boolean(activeLiquidityPlan(market, now)));
     const bid = book.filter((row) => row._id.side === "buy").sort((a, b) => b._id.price - a._id.price)[0];
     const ask = book.filter((row) => row._id.side === "sell").sort((a, b) => a._id.price - b._id.price)[0];
     reference = marketReference(bid && { ...bid, price: bid._id.price }, ask && { ...ask, price: ask._id.price });
@@ -333,7 +339,8 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
       && exam?.status === "open" && +exam.releaseAt === +market.opensAt && +exam.closeAt === +market.closeAt
       && await weeklyExamReady(exam, session);
     const snapshot = enabled ? await latestPublishedMpi(market, now, session) : null;
-    if (!snapshot) {
+    const plan = enabled && !snapshot ? activeLiquidityPlan(market, now) : null;
+    if (!snapshot && !plan) {
       await cancelOperatorOrders(market, session);
       await recordReference(market, now, session);
       return;
@@ -344,18 +351,19 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
     const positions = await ExchangePosition.find(filter).sort({ _id: 1 }).session(session).lean();
     const working = await ExchangeOrder.find({ ...filter, status: "working" }).session(session);
     if (working.some((order) => order.expiresAt <= now)) await recordReference(market, now, session);
-    const levels = await bookLevels(market._id, now, session, snapshot._id);
+    const levels = await bookLevels(market._id, now, session, snapshot?._id ?? null, undefined, Boolean(plan));
     const manualOrders = await ExchangeOrder.find({ ...activeBookOrders(market._id, now), userId: EXCHANGE_WALLET_ID })
       .select("side price").session(session).lean();
     const net = positions.reduce((sum, row) => sum + (row.direction === "long" ? row.remaining : -row.remaining), 0);
-    const center = snapshot.mpi - 4 * net;
-    const halfSpread = Math.max(8, Math.ceil(40 / Math.sqrt(snapshot.populationCount)));
+    const center = (snapshot?.mpi ?? plan.referencePrice) - 4 * net;
+    const halfSpread = snapshot ? Math.max(8, Math.ceil(40 / Math.sqrt(snapshot.populationCount))) : 40;
+    const reference = snapshot ? { mpiSnapshotId: snapshot._id } : { scheduledLiquidity: true };
     const candidates = [
       { side: "buy", direction: net < 0 ? "short" : "long", action: net < 0 ? "close" : "open", price: Math.floor(center - halfSpread) },
       { side: "sell", direction: net > 0 ? "long" : "short", action: net > 0 ? "close" : "open", price: Math.ceil(center + halfSpread) },
     ].filter((candidate) => {
       if (candidate.price < 1 || candidate.price > 999 || !operatorRiskAllows(positions, candidate)) return false;
-      if (candidate.action === "open" && !canFillOperatorOpen(market, { mpiSnapshotId: snapshot._id }, snapshot, now)) return false;
+      if (!canFillOperatorOrder(market, { ...candidate, ...reference }, snapshot, plan, now)) return false;
       if (manualOrders.some((row) => row.side !== candidate.side
         && (candidate.side === "buy" ? row.price <= candidate.price : row.price >= candidate.price))) return false;
       return !levels.some((row) => row.quantity > row.operatorQuantity && (
@@ -368,7 +376,7 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
     for (const order of working) {
       const candidate = candidates.find((row) => row.side === order.side);
       if (order.expiresAt <= now || !candidate || order.action !== candidate.action || order.direction !== candidate.direction
-        || order.price !== candidate.price || !order.mpiSnapshotId?.equals(snapshot._id)) {
+        || order.price !== candidate.price || !canFillOperatorOrder(market, order, snapshot, plan, now)) {
         await cancel(order, session);
       }
     }
@@ -381,8 +389,8 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
     for (const candidate of candidates) {
       const at = clock();
       if (publicState(market, at) !== "open") break;
-      const expiresAt = new Date(Math.min(+at + MM_QUOTE_LIFETIME, +market.closeAt,
-        candidate.action === "open" ? operatorOpenUntil(market, snapshot) : Infinity));
+      const expiresAt = new Date(Math.min(+at + MM_QUOTE_LIFETIME, +market.closeAt, plan ? +plan.endsAt : Infinity,
+        candidate.action === "open" ? operatorOpenUntil(market, snapshot, plan) : Infinity));
       if (expiresAt <= at) continue;
       const existing = working.find((order) => order.status === "working" && order.side === candidate.side);
       if (existing) {
@@ -392,7 +400,7 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
       }
       const order = new ExchangeOrder({ ...candidate, marketId: market._id, userId, commandId: randomUUID(),
         quantity: 1, remaining: 1, status: "working", sequence: market.revision, acceptedAt: at,
-        liquidityProvider: "matths", mpiSnapshotId: snapshot._id, expiresAt });
+        liquidityProvider: "matths", ...reference, expiresAt });
       if (candidate.action === "open") {
         const account = await ExchangeAccount.findOne(filter).session(session).lean();
         const wallet = await ExchangeWallet.findById(userId).session(session).lean();
@@ -402,6 +410,33 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
       await order.save({ session });
     }
     await recordReference(market, clock(), session);
+  });
+}
+
+async function scheduleMarketLiquidity(marketId, input, actorId, clock = () => new Date()) {
+  const startsAt = seoulDate(input.startsAt);
+  const endsAt = seoulDate(input.endsAt);
+  const referencePrice = integer(input.referencePrice, 1, 999, "운영자 기준가");
+  const reason = String(input.reason || "").trim().slice(0, 300);
+  if (!reason || startsAt >= endsAt) throw error(400, "호가 시작·종료 시각과 설정 사유를 확인해 주세요.");
+
+  return mongoose.connection.transaction(async (session) => {
+    const market = await lockMarket(marketId, session);
+    const now = clock();
+    if (market.type !== "weekly" || market.phase !== "scheduled" || startsAt < market.opensAt
+      || endsAt > market.closeAt || endsAt <= now) {
+      throw error(409, "주간 시장 거래 시간 안에서 호가 일정을 설정해 주세요.");
+    }
+    if (!await User.exists({ _id: actorId, role: "admin" }).session(session)) {
+      throw error(403, "관리자 계정으로 운영자 호가 일정을 설정할 수 있습니다.");
+    }
+    const openingFilledAt = market.liquidityPlan?.openingFilledAt;
+    await cancelOperatorOrders(market, session, { scheduledLiquidity: true });
+    market.liquidityPlan = { startsAt, endsAt, referencePrice, openingFilledAt };
+    await market.save({ session });
+    await recordReference(market, now, session);
+    await ExchangeEvent.create([{ marketId, actorId, action: "liquidity-scheduled",
+      detail: { startsAt, endsAt, referencePrice, reason } }], { session });
   });
 }
 
@@ -581,4 +616,4 @@ async function processMarket(market, now = new Date()) {
   });
 }
 
-module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, setMarketMakerEnabled, setPaused };
+module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity, setMarketMakerEnabled, setPaused };
