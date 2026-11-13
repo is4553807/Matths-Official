@@ -15,7 +15,10 @@
   <main class="admin-main exchange-admin">
     <header class="admin-heading">
       <div><img src="/images/brand/matths-exchange-light.svg" alt="Matths Exchange" width="157" height="50" /><h1>선물시장 운영</h1><span>주간 시험 연결, 실제 시험 일정, 거래 마감과 TP 정산을 관리합니다.</span></div>
-      <a class="exchange-admin-link" href="<%= exchangeHref %>">Exchange 화면 ↗</a>
+      <div>
+        <a class="exchange-admin-link" href="<%= exchangeWalletHref %>">Matths Exchange 월렛 ↗</a>
+        <a class="exchange-admin-link" href="<%= exchangeHref %>">Exchange 화면 ↗</a>
+      </div>
     </header>
     <% if (saved) { %><p class="exchange-admin-notice" role="status">운영 설정을 저장했습니다.</p><% } %>
 

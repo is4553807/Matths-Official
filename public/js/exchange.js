@@ -5,6 +5,8 @@
   const canvas = get("exchange-chart");
   const select = get("market-select");
   const form = get("order-form");
+  const wallet = root.dataset.wallet;
+  const walletQuery = wallet ? "?wallet=exchange" : "";
   const price = get("order-price");
   const quantity = get("order-quantity");
   const format = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
@@ -107,23 +109,23 @@
     let rows;
     get("ranking-controls").hidden = activity !== "ranking";
     if (activity === "ranking") {
-      headers = ["순위", "닉네임", "확정 손익 (TP)"];
+      headers = ["순위", "닉네임", "거래 손익 (TP)"];
       rows = ranking.map((row, index) => [index + 1, row.name, number(row.profit)]);
     } else if (activity === "positions") {
-      headers = ["방향", "진입가", "보유 수량", "확정 손익 (TP)"];
+      headers = ["방향", "진입가", "보유 수량", "거래 손익 (TP)"];
       rows = (own?.positions || []).map((row) => [row.direction.toUpperCase(), number(row.price), row.remaining, number(row.realized)]);
     } else if (activity === "trades") {
       headers = ["체결 시각 (KST)", "체결가", "수량"];
       rows = (market ? state.trades || [] : []).map((row) => [time.format(new Date(row.tradedAt)), number(row.price), row.quantity]);
     } else {
-      headers = ["접수 시각 (KST)", "방향", "지정가", "주문 수량", "미체결", "상태"];
+      headers = ["접수 시각 (KST)", "방향", "지정가", "주문 수량", "미체결", "지불 수수료 (TP)", "상태"];
       rows = (own?.orders || []).filter((row) => activity !== "working" || row.status === "working").map((row) => {
         const cancel = el("button", "취소");
         cancel.type = "button";
         cancel.dataset.cancel = row.id;
         const status = row.status === "working" ? cancel : row.status === "filled" ? "체결 완료" : "취소됨";
         return [time.format(new Date(row.acceptedAt)), `${row.direction.toUpperCase()} ${row.action === "close" ? "청산" : "신규"}`,
-          number(row.price), row.quantity, row.status === "working" ? row.remaining : 0, status];
+          number(row.price), row.quantity, row.status === "working" ? row.remaining : 0, number(row.feesPaid ?? 0), status];
       });
     }
     const destination = get("activity-content");
@@ -155,6 +157,12 @@
       button.textContent = `${button.value.toUpperCase()}${action === "close" ? " 청산" : ""}`;
     }
     text("available-tp", number(own?.available));
+    get("fee-balance").hidden = Boolean(wallet) || own?.feeAvailable == null || own.feeAvailable === own.available;
+    text("available-fee-tp", number(own?.feeAvailable));
+    const rates = own?.feeRates || (wallet ? { maker: 0, taker: 0 } : { maker: 2, taker: 5 });
+    const estimate = (rate) => number(Math.round(value * rate / 100) * qty / 100);
+    text("order-fee-rates", `메이커 ${number(rates.maker / 100)}% / 테이커 ${number(rates.taker / 100)}%`);
+    text("order-fee", valid ? `${estimate(rates.maker)} / ${estimate(rates.taker)} TP` : "—");
     text("order-margin", action === "open" && valid ? `${number(value * qty)} / ${number((1000 - value) * qty)} TP` : "—");
     text("order-status", Date.now() < noticeUntil ? message : own?.reason || (enabled ? "" : "개장 후 주문할 수 있습니다."));
   }
@@ -233,6 +241,7 @@
     try {
       const params = new URLSearchParams({ interval: chart.interval });
       if (marketId) params.set("market", marketId);
+      if (wallet) params.set("wallet", wallet);
       const updated = await fetchJson(`/api/exchange/markets?${params}`);
       if (sequence !== request) return;
       state = updated;
@@ -284,7 +293,7 @@
     const key = [marketId, action, direction, price.value, quantity.value].join(":");
     if (pendingOrder?.key !== key) pendingOrder = { key, commandId: crypto.randomUUID() };
     try {
-      const result = await fetchJson(`/api/exchange/markets/${marketId}/orders`, {
+      const result = await fetchJson(`/api/exchange/markets/${marketId}/orders${walletQuery}`, {
         action, direction, price: price.value, quantity: quantity.value, commandId: pendingOrder.commandId,
       });
       pendingOrder = undefined;
@@ -313,7 +322,7 @@
     const button = event.target.closest("[data-cancel]");
     if (!button || button.disabled) return;
     button.disabled = true;
-    try { await fetchJson(`/api/exchange/orders/${button.dataset.cancel}/cancel`, {}); await refresh(); }
+    try { await fetchJson(`/api/exchange/orders/${button.dataset.cancel}/cancel${walletQuery}`, {}); await refresh(); }
     catch (cause) { report(cause.message); button.disabled = false; }
   });
   get("ranking-visible")?.addEventListener("change", async (event) => {

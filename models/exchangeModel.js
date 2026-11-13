@@ -45,7 +45,9 @@ const setting = new Schema({
   minimumAttempts: { type: Number, default: 0 },
   minimumMpiAttempts: { type: Number, default: 1 },
 }, options);
-const wallet = new Schema({ _id: objectId, available: balance(), rankingVisible: { type: Boolean, default: false } }, options);
+const wallet = new Schema({
+  _id: objectId, available: balance(), collectedFees: balance(), rankingVisible: { type: Boolean, default: false },
+}, options);
 const account = new Schema({
   marketId: { type: objectId, required: true },
   userId: { type: objectId, required: true },
@@ -71,6 +73,10 @@ const order = new Schema({
   status: { type: String, enum: ["working", "filled", "cancelled"], required: true },
   sequence: { type: Number, required: true },
   acceptedAt: { type: Date, required: true },
+  actorId: objectId,
+  cancelledBy: objectId,
+  feeReserved: Number,
+  feesPaid: Number,
 }, options);
 order.index({ userId: 1, commandId: 1 }, { unique: true });
 order.index({ marketId: 1, status: 1, side: 1, price: 1, sequence: 1 });
@@ -95,12 +101,16 @@ const trade = new Schema({
   marketId: objectId,
   makerOrderId: objectId,
   takerOrderId: objectId,
+  makerFee: Number,
+  takerFee: Number,
+  feeCollected: Boolean,
   price: Number,
   quantity: Number,
   tradedAt: Date,
   sequence: Number,
 }, options);
 trade.index({ marketId: 1, tradedAt: -1, _id: -1 });
+trade.index({ tradedAt: -1, _id: -1 }, { partialFilterExpression: { feeCollected: true } });
 
 const tick = new Schema({
   marketId: objectId,

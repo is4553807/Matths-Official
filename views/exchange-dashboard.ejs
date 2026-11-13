@@ -1,6 +1,7 @@
 <%
   const number = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
   const format = (value) => value == null ? "—" : number.format(value);
+  const query = exchangeWalletMode ? "?wallet=exchange" : "";
   const date = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" });
 %>
 <!doctype html>
@@ -13,23 +14,57 @@
   <link rel="icon" type="image/svg+xml" sizes="any" href="/images/brand/matths-exchange-x.svg" />
   <script src="/js/exchange-theme.js"></script>
   <link rel="stylesheet" href="/css/exchange.css" />
+  <link rel="stylesheet" href="/css/exchange-wallet.css" />
 </head>
 <body>
-  <%- include("partials/exchange-header", { exchangePage: "dashboard" }) %>
-  <main class="terminal exchange-dashboard">
-    <section class="market-bar" aria-labelledby="dashboard-title">
-      <div class="market-identity">
-        <h1 id="dashboard-title">Exchange 대시보드</h1>
-      </div>
-      <dl class="market-metrics dashboard-balances">
-        <div><dt>총 잔액</dt><dd><%= format(data.total) %> TP</dd></div>
-        <div><dt>공용 가용 잔액</dt><dd><%= format(data.available) %> TP</dd></div>
-        <div><dt>시장별 잔액 합계</dt><dd><%= format(data.marketCash) %> TP</dd></div>
-        <div><dt>포지션 증거금</dt><dd><%= format(data.positionCollateral) %> TP</dd></div>
-        <div><dt>미체결 주문 예약</dt><dd><%= format(data.reserved) %> TP</dd></div>
-      </dl>
-    </section>
+  <%- include("partials/exchange-header", { exchangePage: "dashboard", exchangeWalletMode }) %>
+  <main class="wallet-shell">
+    <aside class="wallet-sidebar">
+      <nav aria-label="Exchange 월렛 메뉴">
+        <div class="wallet-nav-group">월렛</div>
+        <% for (const item of sections) { %>
+          <% if (item.id === "positions") { %><div class="wallet-nav-group">선물</div><% } %>
+          <% if (item.id === "fees") { %><div class="wallet-nav-group">운영</div><% } %>
+          <a href="/exchange/dashboard<%= item.path %><%= query %>" <%= section === item.id ? 'aria-current=page' : '' %>><%= item.label %></a>
+        <% } %>
+        <% if (isAdmin) { %>
+          <div class="wallet-nav-group">계정</div>
+          <a href="/exchange/dashboard<%= exchangeWalletMode ? '' : '?wallet=exchange' %>">
+            <%= exchangeWalletMode ? "내 월렛으로 전환" : "Matths Exchange 월렛" %>
+          </a>
+        <% } %>
+      </nav>
+    </aside>
+    <div class="wallet-content">
+      <header class="wallet-profile">
+        <span class="wallet-avatar" aria-hidden="true"><%= exchangeWalletMode ? "M" : Array.from(accountName.trim())[0] || "M" %></span>
+        <div><p><%= accountName %></p><h1 id="dashboard-title"><%= sections.find((item) => item.id === section).label %></h1></div>
+        <a class="wallet-trade" href="/exchange/futures<%= query %>">선물 거래 <span aria-hidden="true">↗</span></a>
+      </header>
+      <% if (section === "overview") { %>
+        <section class="panel wallet-balance" aria-labelledby="wallet-balance-title">
+          <h2 id="wallet-balance-title">총 잔액</h2>
+          <p class="wallet-total"><%= format(data.total) %> <span>TP</span></p>
+          <dl class="wallet-breakdown">
+            <div><dt>공용 가용 잔액</dt><dd><%= format(data.available) %> TP</dd></div>
+            <div><dt>시장별 가용 잔액 합계</dt><dd><%= format(data.marketCash) %> TP</dd></div>
+            <div><dt>포지션 담보</dt><dd><%= format(data.positionCollateral) %> TP</dd></div>
+            <div><dt>미체결 주문 예약</dt><dd><%= format(data.reserved) %> TP</dd></div>
+            <% if (exchangeWalletMode) { %>
+              <div><dt>누적 수수료</dt><dd><a href="/exchange/dashboard/fees<%= query %>"><%= format(data.collectedFees) %> TP ↗</a></dd></div>
+            <% } %>
+          </dl>
+        </section>
+        <section class="panel wallet-account-summary">
+          <header class="panel-heading"><h2>선물 계정</h2></header>
+          <div class="wallet-summary-links">
+            <a href="/exchange/dashboard/positions<%= query %>">현재 포지션 <strong><%= data.positions.length %>건</strong></a>
+            <a href="/exchange/dashboard/orders<%= query %>">미체결 주문 <strong><%= data.orders.length %>건</strong></a>
+          </div>
+        </section>
+      <% } %>
 
+    <% if (section === "positions") { %>
     <section class="panel dashboard-panel" aria-labelledby="positions-heading">
       <header class="panel-heading"><h2 id="positions-heading">현재 포지션</h2><span><%= data.positions.length %>건</span></header>
       <div class="activity-table">
@@ -38,7 +73,7 @@
             <thead><tr><th scope="col">시장</th><th scope="col">방향</th><th scope="col">계약 수</th><th scope="col">진입가</th><th scope="col">진입 금액</th><th scope="col">증거금</th><th scope="col">평가 손익</th></tr></thead>
             <tbody>
               <% for (const row of data.positions) { %>
-                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
                   <td class="<%= row.direction === 'long' ? 'bid' : 'ask' %>"><%= row.direction.toUpperCase() %></td>
                   <td><%= row.remaining %></td><td><%= format(row.price) %></td><td><%= format(row.notional) %> TP</td>
                   <td><%= format(row.collateral) %> TP</td><td><%= row.unrealized == null ? '—' : format(row.unrealized) + ' TP' %></td></tr>
@@ -49,16 +84,18 @@
       </div>
     </section>
 
+    <% } %>
+    <% if (section === "orders") { %>
     <section class="panel dashboard-panel" aria-labelledby="open-orders-heading">
       <header class="panel-heading"><h2 id="open-orders-heading">미체결 주문</h2><span><%= data.orders.length %>건</span></header>
       <div class="activity-table">
         <% if (!data.orders.length) { %><p>미체결 주문이 없습니다.</p><% } else { %>
           <table>
-            <thead><tr><th scope="col">시장</th><th scope="col">주문</th><th scope="col">지정가</th><th scope="col">미체결 수량</th></tr></thead>
+            <thead><tr><th scope="col">시장</th><th scope="col">주문</th><th scope="col">지정가</th><th scope="col">미체결 수량</th><th scope="col">예약 수수료</th></tr></thead>
             <tbody>
               <% for (const row of data.orders) { %>
-                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
-                  <td><%= row.direction.toUpperCase() %> · <%= row.action === 'open' ? '신규' : '청산' %></td><td><%= format(row.price) %></td><td><%= row.remaining %></td></tr>
+                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                  <td><%= row.direction.toUpperCase() %> · <%= row.action === 'open' ? '신규' : '청산' %></td><td><%= format(row.price) %></td><td><%= row.remaining %></td><td><%= format(row.feeReserved) %> TP</td></tr>
               <% } %>
             </tbody>
           </table>
@@ -66,15 +103,17 @@
       </div>
     </section>
 
+    <% } %>
+    <% if (section === "history") { %>
     <section class="panel dashboard-panel" aria-labelledby="history-heading">
       <header class="panel-heading"><h2 id="history-heading">포지션 히스토리</h2><span>최근 50건</span></header>
       <div class="activity-table">
         <% if (!data.history.length) { %><p>청산하거나 정산한 포지션이 없습니다.</p><% } else { %>
           <table>
-            <thead><tr><th scope="col">시장</th><th scope="col">방향</th><th scope="col">종료 수량</th><th scope="col">진입가</th><th scope="col">확정 손익</th><th scope="col">상태</th><th scope="col">갱신 · KST</th></tr></thead>
+            <thead><tr><th scope="col">시장</th><th scope="col">방향</th><th scope="col">종료 수량</th><th scope="col">진입가</th><th scope="col">거래 손익 (수수료 제외)</th><th scope="col">상태</th><th scope="col">갱신 · KST</th></tr></thead>
             <tbody>
               <% for (const row of data.history) { %>
-                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
                   <td><%= row.direction.toUpperCase() %></td><td><%= row.closed %></td><td><%= format(row.price) %></td>
                   <td><%= format(row.realized) %> TP</td><td><%= row.status %></td><td><%= row.updatedAt ? date.format(new Date(row.updatedAt)) : '—' %></td></tr>
               <% } %>
@@ -83,7 +122,39 @@
         <% } %>
       </div>
     </section>
-    <footer class="terminal-footer"><%- include("partials/exchange-brand", { width: 118, height: 29 }) %><span>무료 모의거래 · TP는 현금으로 전환할 수 없습니다.</span></footer>
+    <% } %>
+    <% if (section === "fees") { %>
+      <section class="panel wallet-balance">
+        <h2>누적 수수료</h2>
+        <p class="wallet-total"><%= format(data.collectedFees) %> <span>TP</span></p>
+        <dl class="wallet-breakdown">
+          <div><dt>공용 가용 잔액</dt><dd><%= format(data.available) %> TP</dd></div>
+          <div><dt>총 잔액</dt><dd><%= format(data.total) %> TP</dd></div>
+        </dl>
+      </section>
+      <section class="panel dashboard-panel" aria-labelledby="fee-history-heading">
+        <header class="panel-heading"><h2 id="fee-history-heading">수수료 적립 내역</h2><span>최근 50건</span></header>
+        <div class="activity-table">
+          <% if (!data.feeTrades.length) { %><p>적립된 거래 수수료가 없습니다.</p><% } else { %>
+            <table>
+              <thead><tr><th scope="col">시장</th><th scope="col">체결가</th><th scope="col">수량</th><th scope="col">메이커</th><th scope="col">테이커</th><th scope="col">적립</th><th scope="col">체결 · KST</th></tr></thead>
+              <tbody>
+                <% for (const row of data.feeTrades) { %>
+                  <tr>
+                    <td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                    <td><%= format(row.price) %></td><td><%= row.quantity %></td>
+                    <td><%= format(row.makerFee) %> TP</td><td><%= format(row.takerFee) %> TP</td>
+                    <td class="bid">+<%= format(row.total) %> TP</td><td><%= date.format(new Date(row.at)) %></td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+      </section>
+    <% } %>
+      <footer class="terminal-footer"><%- include("partials/exchange-brand", { width: 118, height: 29 }) %><span>모의거래 · TP는 현금으로 전환할 수 없습니다.</span></footer>
+    </div>
   </main>
 </body>
 </html>

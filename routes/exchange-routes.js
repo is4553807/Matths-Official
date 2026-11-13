@@ -6,7 +6,8 @@ const { ExchangeMpiDemo, ExchangeWallet } = require("../models/exchangeModel");
 const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, setPaused, syncWeeklyMarkets,
 } = require("../services/exchangeMarketService");
-const { INITIAL_TP, placeOrder, cancelOrder, registerResult, voidMarket } = require("../services/exchangeTradingService");
+const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
+const { placeOrder, cancelOrder, registerResult, voidMarket } = require("../services/exchangeTradingService");
 const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
@@ -23,6 +24,22 @@ function id(value) {
 function viewer(req) {
   const user = req.session?.user;
   return user && ["student", "test", "admin"].includes(user.role) ? user.id : undefined;
+}
+
+function exchangeWallet(req, res, next) {
+  if (req.query.wallet !== "exchange") {
+    req.exchangeAccount = { userId: viewer(req) };
+    return next();
+  }
+  function selectWallet(cause) {
+    if (cause) return next(cause);
+    return auth.isAdmin(req, res, (denied) => {
+      if (denied) return next(denied);
+      req.exchangeAccount = { userId: EXCHANGE_WALLET_ID, actorId: viewer(req) };
+      return next();
+    });
+  }
+  return req.authenticatedUser ? selectWallet() : auth.isLoggedIn(req, res, selectWallet);
 }
 
 function privateResponse(_req, res, next) {
@@ -62,32 +79,55 @@ router.get("/api/exchange/mpi", privateResponse, async (req, res) => {
 });
 
 async function showFutures(req, res) {
-  const userId = viewer(req);
+  const { userId, actorId } = req.exchangeAccount;
   const selection = req.params.marketId || req.query.market;
   const chartInterval = intervalFor(req.query.interval).code;
   const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: chartInterval });
-  const wallet = userId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
-  res.render("exchange", { initial, signedIn: Boolean(userId), rankingVisible: wallet?.rankingVisible === true,
+  const wallet = userId && !actorId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
+  res.render("exchange", { initial, exchangeWalletMode: Boolean(actorId), signedIn: Boolean(userId && !actorId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
     intervals: OPTIONS, chartInterval, disablePageAnalytics: true });
 }
 
-router.get("/exchange", privateResponse, showFutures);
-router.get("/exchange/futures", privateResponse, showFutures);
-router.get("/exchange/markets/:marketId", privateResponse, showFutures);
-router.get("/exchange/rankings", privateResponse, showFutures);
+router.get("/exchange", privateResponse, exchangeWallet, showFutures);
+router.get("/exchange/futures", privateResponse, exchangeWallet, showFutures);
+router.get("/exchange/markets/:marketId", privateResponse, exchangeWallet, showFutures);
+router.get("/exchange/rankings", privateResponse, exchangeWallet, showFutures);
 
-async function showDashboard(req, res) {
-  res.render("exchange-dashboard", { data: await dashboardState(viewer(req)), disablePageAnalytics: true });
+const walletSections = [
+  { id: "overview", label: "월렛 개요", path: "" },
+  { id: "positions", label: "현재 포지션", path: "/positions" },
+  { id: "orders", label: "미체결 주문", path: "/orders" },
+  { id: "history", label: "포지션 히스토리", path: "/history" },
+  { id: "fees", label: "수수료 내역", path: "/fees" },
+];
+const walletAccess = [privateResponse, auth.isLoggedIn, auth.isStudent, exchangeWallet];
+
+function showDashboard(section) {
+  return async (req, res) => {
+    const { userId, actorId } = req.exchangeAccount;
+    if (section === "fees" && !actorId) throw error(403, "운영 월렛에서 수수료를 확인할 수 있습니다.");
+    const sections = walletSections.filter((item) => item.id !== "fees" || actorId);
+    res.render("exchange-dashboard", {
+      data: await dashboardState(userId, new Date(), { section }), section, sections,
+      exchangeWalletMode: Boolean(actorId), isAdmin: req.session.user.role === "admin",
+      accountName: actorId ? "Matths Exchange" : req.session.user.name || "내 Exchange 월렛",
+      disablePageAnalytics: true,
+    });
+  };
 }
 
-router.get("/exchange/dashboard", privateResponse, auth.isLoggedIn, auth.isStudent, showDashboard);
-router.get("/exchange/portfolio", privateResponse, auth.isLoggedIn, auth.isStudent, showDashboard);
+router.get("/exchange/dashboard", ...walletAccess, showDashboard("overview"));
+router.get("/exchange/dashboard/positions", ...walletAccess, showDashboard("positions"));
+router.get("/exchange/dashboard/orders", ...walletAccess, showDashboard("orders"));
+router.get("/exchange/dashboard/history", ...walletAccess, showDashboard("history"));
+router.get("/exchange/dashboard/fees", ...walletAccess, showDashboard("fees"));
+router.get("/exchange/portfolio", ...walletAccess, showDashboard("overview"));
 
 router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exchange/markets/:marketId",
-  "/api/exchange/markets/:marketId/chart"], privateResponse, async (req, res) => {
+  "/api/exchange/markets/:marketId/chart"], privateResponse, exchangeWallet, async (req, res) => {
   const selection = req.params.marketId || req.query.market;
-  res.json(await terminalState({ userId: viewer(req), marketId: selection ? id(selection) : undefined,
+  res.json(await terminalState({ userId: req.exchangeAccount.userId, marketId: selection ? id(selection) : undefined,
     marketType: req.path === "/api/exchange/markets/current" ? "weekly" : undefined,
     interval: typeof req.query.interval === "string" ? req.query.interval : undefined }));
 });
@@ -103,12 +143,12 @@ router.post("/api/exchange/rankings/visibility", privateResponse, apiLogin, auth
     $setOnInsert: { available: INITIAL_TP } }, { upsert: true, setDefaultsOnInsert: false });
   res.json({ visible: req.body.visible });
 });
-router.post("/api/exchange/markets/:marketId/orders", privateResponse, apiLogin, auth.isStudent, async (req, res) => {
-  const order = await placeOrder({ marketId: id(req.params.marketId), userId: viewer(req), input: req.body });
+router.post("/api/exchange/markets/:marketId/orders", privateResponse, apiLogin, auth.isStudent, exchangeWallet, async (req, res) => {
+  const order = await placeOrder({ marketId: id(req.params.marketId), ...req.exchangeAccount, input: req.body });
   res.json(orderView(order));
 });
-router.post("/api/exchange/orders/:orderId/cancel", privateResponse, apiLogin, auth.isStudent, async (req, res) => {
-  res.json(orderView(await cancelOrder({ orderId: id(req.params.orderId), userId: viewer(req) })));
+router.post("/api/exchange/orders/:orderId/cancel", privateResponse, apiLogin, auth.isStudent, exchangeWallet, async (req, res) => {
+  res.json(orderView(await cancelOrder({ orderId: id(req.params.orderId), ...req.exchangeAccount })));
 });
 
 const admin = [privateResponse, auth.isLoggedIn, auth.isAdmin];
@@ -124,7 +164,8 @@ router.get("/admin/exchange", ...admin, async (req, res) => {
   const grade = req.query.grade ? integer(req.query.grade, 1, 3, "학년") : 1;
   const data = await adminState(year, grade);
   res.render("admin-exchange", { ...data, year, grade, rounds: ROUNDS[grade], seoulInput,
-    saved: req.query.saved === "1", exchangeHref: exchangeUrl(), disablePageAnalytics: true });
+    saved: req.query.saved === "1", exchangeHref: exchangeUrl(),
+    exchangeWalletHref: exchangeUrl("/exchange/dashboard?wallet=exchange"), disablePageAnalytics: true });
 });
 
 router.post("/admin/exchange/schedules", ...admin, async (req, res) => {

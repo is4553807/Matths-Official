@@ -6,6 +6,7 @@ const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
 const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput, calculateSample } = require("../services/exchangeMarketService");
+const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
 const { dashboardState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState, startMpiDemo } = require("../services/exchangeMpiService");
@@ -88,7 +89,25 @@ async function testHttp() {
     const dashboard = await fetch(`${origin}/exchange/dashboard`, { headers: { Cookie: student } });
     assert.equal(dashboard.status, 200);
     const dashboardHtml = await dashboard.text();
-    assert.match(dashboardHtml, /Exchange 대시보드[\s\S]+2,000 TP[\s\S]+현재 포지션[\s\S]+포지션 히스토리/);
+    assert.match(dashboardHtml, /aria-label="Exchange 월렛 메뉴"/);
+    assert.match(dashboardHtml, /월렛 개요[\s\S]+2,000[\s\S]+현재 포지션/);
+    assert.doesNotMatch(dashboardHtml, /id="positions-heading"|id="history-heading"/);
+    for (const [section, heading] of [["positions", "positions-heading"], ["orders", "open-orders-heading"], ["history", "history-heading"]]) {
+      const sectionResponse = await fetch(`${origin}/exchange/dashboard/${section}`, { headers: { Cookie: student } });
+      assert.equal(sectionResponse.status, 200);
+      const sectionHtml = await sectionResponse.text();
+      assert.ok(sectionHtml.includes(`id="${heading}"`));
+      assert.doesNotMatch(sectionHtml, /id="wallet-balance-title"/);
+    }
+    const feePath = "/exchange/dashboard/fees?wallet=exchange";
+    assert.equal((await fetch(origin + feePath, { headers: { Cookie: student } })).status, 403);
+    assert.equal((await fetch(origin + "/api/exchange/markets/current?wallet=exchange", { headers: { Cookie: student } })).status, 403);
+    const fees = await fetch(origin + feePath, { headers: { Cookie: admin } });
+    assert.equal(fees.status, 200);
+    assert.match(await fees.text(), /Matths Exchange[\s\S]+누적 수수료[\s\S]+수수료 적립 내역/);
+    const operatorFutures = await fetch(origin + "/exchange/futures?wallet=exchange", { headers: { Cookie: admin } });
+    assert.equal(operatorFutures.status, 200);
+    assert.match(await operatorFutures.text(), /data-wallet="exchange"[\s\S]+Matths Exchange · 가용 TP/);
     assert.match(dashboardHtml, /href="\/exchange\/dashboard" aria-current=page/);
     assert.match(dashboardHtml, /matths-exchange-x\.svg/);
     assert.match(dashboardHtml, /id="exchange-theme-toggle"/);
@@ -133,6 +152,33 @@ async function testHttp() {
       body: JSON.stringify({ action: "open", direction: "long", price: 650, quantity: 1, commandId: randomUUID() }),
     });
     assert.equal(blocked.status, 409);
+    const routeNow = Date.now();
+    await ExchangeMarket.updateOne({ _id: csat._id }, {
+      $set: { opensAt: new Date(routeNow - 60_000), closeAt: new Date(routeNow + 60_000) },
+    });
+    const adminWalletOrders = `${origin}/api/exchange/markets/${csat._id}/orders?wallet=exchange`;
+    const orderBody = { action: "open", direction: "long", price: 1, quantity: 1, commandId: randomUUID() };
+    function postOrder(cookie) {
+      return fetch(adminWalletOrders, {
+        method: "POST", headers: { Cookie: cookie, Origin: origin, "Content-Type": "application/json" },
+        body: JSON.stringify(orderBody),
+      });
+    }
+    assert.equal((await postOrder(student)).status, 403);
+    assert.equal((await postOrder(admin)).status, 409, "Operations wallet cannot use the student signup credit");
+    await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID }, { $set: { available: 150 } }, { upsert: true });
+    const posted = await postOrder(admin);
+    assert.equal(posted.status, 200);
+    const postedOrder = await posted.json();
+    const cancelUrl = `${origin}/api/exchange/orders/${postedOrder.id}/cancel?wallet=exchange`;
+    const operatorCancel = await fetch(cancelUrl, { method: "POST", headers: { Cookie: admin, Origin: origin } });
+    assert.equal(operatorCancel.status, 200);
+    const auditedOrder = await models.ExchangeOrder.findById(postedOrder.id);
+    assert.equal(String(auditedOrder.userId), EXCHANGE_WALLET_ID);
+    assert.ok(auditedOrder.actorId.equals(auditedOrder.cancelledBy));
+    await models.ExchangeOrder.deleteOne({ _id: postedOrder.id });
+    await models.ExchangeAccount.deleteOne({ marketId: csat._id, userId: EXCHANGE_WALLET_ID });
+    await ExchangeWallet.deleteOne({ _id: EXCHANGE_WALLET_ID });
     await ExchangeMarket.deleteOne({ _id: csat._id });
   } finally {
     await new Promise((resolve) => http.close(resolve));
@@ -361,16 +407,25 @@ async function main() {
     assert.equal(String(replay._id), String(buy._id));
     assert.equal(buy.status, "filled");
     const sellerDashboard = await dashboardState(seller, midweek);
-    assert.equal(sellerDashboard.available, 1280);
+    assert.equal(sellerDashboard.available, 1279.74);
     assert.equal(sellerDashboard.positionCollateral, 360);
-    assert.equal(sellerDashboard.reserved, 360);
-    assert.equal(sellerDashboard.total, 2000);
+    assert.equal(sellerDashboard.reserved, 360.13);
+    assert.equal(sellerDashboard.total, 1999.87);
     assert.equal(sellerDashboard.positions[0].notional, 640);
     assert.equal(sellerDashboard.orders[0].remaining, 1);
     assert.equal((await dashboardState(objectId(), midweek)).positions.length, 0);
     assert.equal(await ExchangeTrade.countDocuments(), 1);
     assert.equal((await ExchangeMarket.findById(weekly._id)).lastPrice, 640);
-    await cancelOrder({ orderId: sell._id, userId: seller });
+    const firstTrade = await ExchangeTrade.findOne({ marketId: weekly._id });
+    assert.deepEqual([firstTrade.makerFee, firstTrade.takerFee], [13, 32]);
+    let feeWallet = await dashboardState(EXCHANGE_WALLET_ID, midweek, { section: "fees" });
+    assert.equal(feeWallet.available, 0.45);
+    assert.equal(feeWallet.collectedFees, 0.45);
+    assert.equal(feeWallet.feeTrades.length, 1);
+    assert.equal(feeWallet.feeTrades[0].total, 0.45);
+    const cancelled = await cancelOrder({ orderId: sell._id, userId: seller });
+    assert.equal(cancelled.feeReserved, 0);
+    assert.equal((await dashboardState(seller, midweek)).available, 1279.87);
     await order(weekly, nextBuyer, "long", 680, 1, midweek);
     await order(weekly, buyer, "long", 680, 1, midweek, { action: "close" });
     const view = await terminalState({ marketId: String(weekly._id), userId: buyer, now: midweek });
@@ -380,7 +435,10 @@ async function main() {
     assert.equal(buyerDashboard.positions.length, 0);
     assert.equal(buyerDashboard.history[0].status, "청산 완료");
     assert.equal(buyerDashboard.history[0].realized, 40);
-    assert.equal(buyerDashboard.total, 2040);
+    assert.equal(buyerDashboard.total, 2039.34);
+    feeWallet = await dashboardState(EXCHANGE_WALLET_ID, midweek, { section: "fees" });
+    assert.equal(feeWallet.available, 0.93);
+    assert.equal(feeWallet.collectedFees, 0.93);
     const tradeCandles = await terminalState({ marketId: String(weekly._id), interval: "1s", now: midweek });
     assert.deepEqual(tradeCandles.candles.map((row) => [row.open, row.high, row.low, row.close]), [[640, 680, 640, 680]]);
     const priorTrades = await futuresChartHistory(weekly._id, "1s", new Date(+midweek + 1000), midweek);
@@ -413,7 +471,7 @@ async function main() {
     await ExchangeMarket.deleteOne({ _id: another._id });
     assert.equal(result.escrow, 0);
     const balances = await Promise.all(cohort.map((userId) => ExchangeWallet.findById(userId)));
-    assert.deepEqual(balances.map((wallet) => wallet.available / 100), [2040, 1865, 2095]);
+    assert.deepEqual(balances.map((wallet) => wallet.available / 100), [2039.34, 1864.87, 2094.86]);
 
     const externalInput = { year: "2026", grade: "1", round: "3", examDate: "2026-03-26", closeAt: "2026-03-30T20:00",
       settlementSource: "회차별 성적 집계", population: "고1 응시자", count2: "3", count3: "14", count4: "13" };
@@ -428,7 +486,7 @@ async function main() {
       publishedAt: "2026-03-30T19:30" }, actorId: admin, now: end });
     await processMarket(await ExchangeMarket.findById(external._id), end);
     assert.equal((await ExchangeMarket.findById(external._id)).settlement, 651.25);
-    assert.equal((await ExchangeWallet.findById(buyer)).available, 209125);
+    assert.equal((await ExchangeWallet.findById(buyer)).available, 209047);
 
     const other = await saveSchedule({ ...externalInput, grade: "2" }, admin, time("2026-03-01T00:00:00Z"));
     await order(other, buyer, "long", 650, 1, open);
@@ -436,8 +494,42 @@ async function main() {
     await voidMarket(other._id, admin, "테스트 취소");
     await processMarket(await ExchangeMarket.findById(other._id), end);
     assert.equal((await ExchangeMarket.findById(other._id)).phase, "void");
-    assert.equal((await ExchangeWallet.findById(buyer)).available, 209125);
-    console.log("Exchange demo verified: empty upload gate, HTTP and admin roles, schedules, minute sampling, public threshold, blended test chart, round isolation, legacy tick transition, theme, order book, TP settlement and void.");
+    assert.equal((await ExchangeWallet.findById(buyer)).available, 209034);
+    feeWallet = await dashboardState(EXCHANGE_WALLET_ID, end, { section: "fees" });
+    assert.equal(feeWallet.available, 1.81);
+    assert.equal(feeWallet.collectedFees, 1.81);
+    const ops = await saveSchedule({ ...externalInput, grade: "3", round: "3" }, admin, time("2026-03-01T00:00:00Z"));
+    const input = { action: "open", direction: "long", price: 1, quantity: 1, commandId: randomUUID() };
+    await assert.rejects(placeOrder({ marketId: ops._id, userId: EXCHANGE_WALLET_ID, clock: () => open, input }), { status: 403 });
+    const operationsOrder = await placeOrder({
+      marketId: ops._id, userId: EXCHANGE_WALLET_ID, actorId: admin, clock: () => open, input,
+    });
+    assert.equal(String(operationsOrder.actorId), String(admin));
+    await order(ops, seller, "short", 1, 1, open);
+    feeWallet = await dashboardState(EXCHANGE_WALLET_ID, open, { section: "fees" });
+    assert.equal(feeWallet.available, 0.81);
+    assert.equal(feeWallet.collectedFees, 1.81);
+    assert.equal(feeWallet.positionCollateral, 1);
+    assert.equal(feeWallet.positions.length, 1);
+    assert.equal(feeWallet.total, 1.81);
+    const edge = await saveSchedule({ ...externalInput, grade: "3", round: "5" }, admin, time("2026-03-01T00:00:00Z"));
+    await order(edge, seller, "short", 400, 1, open);
+    await order(edge, buyer, "long", 400, 1, open);
+    const buyerBeforeClose = await ExchangeWallet.findById(buyer);
+    await ExchangeWallet.updateOne({ _id: buyer }, { $set: { available: 0 } });
+    await order(edge, nextBuyer, "long", 500, 1, open);
+    const closeWithoutCash = await order(edge, buyer, "long", 500, 1, open, { action: "close" });
+    assert.equal(closeWithoutCash.feesPaid, 25);
+    assert.equal((await dashboardState(buyer, open)).marketCash, 499.75);
+    await ExchangeWallet.updateOne({ _id: buyer }, { $set: { available: buyerBeforeClose.available } });
+    const legacySeller = objectId();
+    const legacyOrder = await order(edge, legacySeller, "short", 600, 1, open);
+    await models.ExchangeOrder.updateOne({ _id: legacyOrder._id }, { $unset: { feeReserved: "" } });
+    await ExchangeWallet.updateOne({ _id: legacySeller }, { $inc: { available: legacyOrder.feeReserved } });
+    await order(edge, nextBuyer, "long", 600, 1, open);
+    const legacyFill = await ExchangeTrade.findOne({ makerOrderId: legacyOrder._id });
+    assert.deepEqual([legacyFill.makerFee, legacyFill.takerFee], [0, 30]);
+    console.log("Exchange demo verified: empty upload gate, HTTP and admin roles, schedules, minute sampling, public threshold, blended test chart, round isolation, legacy tick transition, theme, order book, wallet authorization, fee reconciliation, TP settlement and void.");
   } finally {
     await mongoose.disconnect();
   }

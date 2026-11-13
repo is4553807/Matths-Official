@@ -7,7 +7,8 @@ const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, isMpiTestMarket, syncWeeklyMarkets, saveSample,
   publicSampleScope, sampleWithCutoff, sampleMinute,
 } = require("./exchangeMarketService");
-const { INITIAL_TP, TP_SCALE, processMarket } = require("./exchangeTradingService");
+const { TP_SCALE, processMarket } = require("./exchangeTradingService");
+const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
@@ -59,7 +60,8 @@ async function futuresChartHistory(marketId, interval, before, now = new Date())
 
 function orderView(row) {
   return { id: String(row._id), action: row.action, direction: row.direction, side: row.side, price: row.price,
-    quantity: row.quantity, remaining: row.remaining, status: row.status, acceptedAt: row.acceptedAt };
+    quantity: row.quantity, remaining: row.remaining, feeReserved: (row.feeReserved ?? 0) / TP_SCALE,
+    feesPaid: (row.feesPaid ?? 0) / TP_SCALE, status: row.status, acceptedAt: row.acceptedAt };
 }
 
 async function ownMarketState(market, userId, now) {
@@ -77,9 +79,12 @@ async function ownMarketState(market, userId, now) {
     const exam = await readWeeklyExam(market.examId);
     if (exam?.status !== "open" || !await weeklyExamReady(exam)
       || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt) reason = "주간 모의고사 공개를 기다리는 중입니다.";
-    else if (!await PrivateMockExamAttempt.exists({ ...validAttempts(exam, now), userId })) reason = "이번 주 모의고사를 완료하면 주문할 수 있습니다.";
+    else if (String(userId) !== EXCHANGE_WALLET_ID && !await PrivateMockExamAttempt.exists({ ...validAttempts(exam, now), userId })) reason = "이번 주 모의고사를 완료하면 주문할 수 있습니다.";
   }
-  return { eligible: !reason, reason, available: ((wallet?.available ?? INITIAL_TP) + (account?.cash ?? 0)) / TP_SCALE,
+  const walletBalance = wallet?.available ?? initialBalance(userId);
+  return { eligible: !reason, reason, available: (walletBalance + (account?.cash ?? 0)) / TP_SCALE,
+    feeAvailable: walletBalance / TP_SCALE,
+    feeRates: String(userId) === EXCHANGE_WALLET_ID ? { maker: 0, taker: 0 } : FEE_RATES,
     orders: orders.map(orderView), positions: positions.map((row) => ({
       id: String(row._id), direction: row.direction, price: row.price, quantity: row.quantity,
       remaining: row.remaining, realized: market.decision === "void" ? 0 : row.realized / TP_SCALE,
@@ -201,6 +206,8 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true)
 
 async function startExchangeScheduler() {
   await Promise.all(Object.values(models).map((model) => model.init()));
+  await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
+    { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, setDefaultsOnInsert: false });
   if (process.env.DISABLE_SCHEDULERS === "1") return;
   let running = false;
   let lastMaintenance = 0;

@@ -314,6 +314,14 @@
           priceRange = [anchor - size * (1 - at), anchor + size * at];
         } else if (drag?.mode === "pan") {
           offset = drag.offset + (point.x - drag.point.x) * drag.visible / plotWidth();
+          const dy = point.y - drag.point.y;
+          if (drag.vertical || Math.abs(dy) >= 3) {
+            drag.vertical = true;
+            const [min, max] = drag.range;
+            const height = Math.max(80, canvas.clientHeight - (volume ? 69 : 44));
+            const shift = clamp(dy * (max - min) / height, -max + 1, 999 - min);
+            priceRange = [min + shift, max + shift];
+          }
         }
       }
       draw();

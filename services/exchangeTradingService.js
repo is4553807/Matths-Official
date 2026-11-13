@@ -5,8 +5,7 @@ const {
 } = require("../models/exchangeModel");
 const { error, integer, seoulDate, readWeeklyExam, weeklyExamReady, validAttempts, publicState } = require("./exchangeMarketService");
 
-const TP_SCALE = 100;
-const INITIAL_TP = 2000 * TP_SCALE;
+const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = require("./exchangeFees");
 const MARKET_LIMIT = 5;
 
 function collateral(direction, price, quantity) {
@@ -29,6 +28,7 @@ async function ensureTradeAccess(market, userId, now, session) {
     || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt || !await weeklyExamReady(exam, session)) {
     throw error(409, "공개된 주간 모의고사 문제지가 있어야 시장이 열립니다.");
   }
+  if (String(userId) === EXCHANGE_WALLET_ID) return;
   if (!await PrivateMockExamAttempt.exists({ ...validAttempts(exam, now), userId }).session(session)) {
     throw error(403, "이번 주 모의고사를 완료하면 주문할 수 있습니다.");
   }
@@ -39,21 +39,58 @@ async function accountFor(marketId, userId, session) {
     || new ExchangeAccount({ marketId, userId });
 }
 
+async function debitWallet(userId, amount, session) {
+  if (!amount) return;
+  const debited = await ExchangeWallet.updateOne({ _id: userId, available: { $gte: amount } },
+    { $inc: { available: -amount } }, { session });
+  if (!debited.modifiedCount) throw error(409, "주문 담보와 수수료에 필요한 가용 TP가 부족합니다.");
+}
+
 async function reserve(market, order, session) {
-  const account = await accountFor(market._id, order.userId, session);
-  const amount = collateral(order.direction, order.price, order.quantity);
-  await ExchangeWallet.updateOne({ _id: order.userId }, { $setOnInsert: { available: INITIAL_TP } },
+  const account = order.action === "open" ? await accountFor(market._id, order.userId, session) : null;
+  const amount = account ? collateral(order.direction, order.price, order.quantity) : 0;
+  const difference = account ? Math.max(0, amount - account.cash) : 0;
+  const fees = feeReserveFor(order, "taker");
+  await ExchangeWallet.updateOne({ _id: order.userId }, { $setOnInsert: { available: initialBalance(order.userId) } },
     { session, upsert: true, setDefaultsOnInsert: false });
-  if (account.cash < amount) {
-    const difference = amount - account.cash;
-    const debited = await ExchangeWallet.updateOne({ _id: order.userId, available: { $gte: difference } },
-      { $inc: { available: -difference } }, { session });
-    if (!debited.modifiedCount) throw error(409, "주문에 필요한 가용 TP가 부족합니다.");
-    account.cash += difference;
+  await debitWallet(order.userId, difference + fees, session);
+  order.feeReserved = fees;
+  if (account) {
+    account.cash += difference - amount;
     account.allocated += difference;
+    await account.save({ session });
   }
-  account.cash -= amount;
-  await account.save({ session });
+}
+
+function feeReserveFor(order, role) {
+  if (String(order.userId) === EXCHANGE_WALLET_ID) return 0;
+  if (order.action === "close") {
+    // The limit price bounds any fee that the proceeds cannot cover.
+    const fee = tradeFee(order.price, order.remaining, role);
+    return Math.max(0, fee - collateral(order.direction, order.price, order.remaining));
+  }
+  const highestPrice = role === "taker" && order.side === "sell" ? 1000 : order.price;
+  return tradeFee(highestPrice, order.remaining, role);
+}
+
+function feeForFill(order, price, quantity, role) {
+  // Orders already on the book before fees were introduced carry no fee reservation.
+  if (order.feeReserved == null || String(order.userId) === EXCHANGE_WALLET_ID) return 0;
+  return tradeFee(price, quantity, role);
+}
+
+async function releaseFeeReserve(order, keep, session) {
+  if (order.feeReserved == null) return;
+  const released = order.feeReserved - keep;
+  if (released < 0) throw new Error("Exchange fee reserve is insufficient");
+  if (released) await ExchangeWallet.updateOne({ _id: order.userId }, { $inc: { available: released } }, { session });
+  order.feeReserved = keep;
+}
+
+async function collectFees(amount, session) {
+  if (!amount) return;
+  await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID }, { $inc: { available: amount, collectedFees: amount } },
+    { session, upsert: true, setDefaultsOnInsert: false });
 }
 
 async function creditMarket(marketId, userId, amount, session) {
@@ -82,7 +119,7 @@ async function checkPositionLimit(order, session) {
   }
 }
 
-async function applyFill(order, trade, session) {
+async function applyFill(order, trade, fee, session) {
   const { marketId, userId, direction } = order;
   const { price, quantity } = trade;
   const payout = collateral(direction, price, quantity);
@@ -105,7 +142,13 @@ async function applyFill(order, trade, session) {
       left -= closed;
     }
     if (left) throw new Error("Exchange close exceeds reserved position");
-    await creditMarket(marketId, userId, payout, session);
+    await creditMarket(marketId, userId, Math.max(0, payout - fee), session);
+  }
+  if (fee) {
+    const fromReserve = order.action === "open" ? fee : Math.max(0, fee - payout);
+    if (fromReserve > order.feeReserved) throw new Error("Exchange fill exceeds fee reserve");
+    order.feeReserved -= fromReserve;
+    order.feesPaid = (order.feesPaid ?? 0) + fee;
   }
   order.remaining -= quantity;
   if (!order.remaining) order.status = "filled";
@@ -123,7 +166,8 @@ function normalizedOrder(input) {
     quantity: integer(input.quantity, 1, MARKET_LIMIT, "수량") };
 }
 
-async function placeOrder({ marketId, userId, input, clock = () => new Date() }) {
+async function placeOrder({ marketId, userId, actorId, input, clock = () => new Date() }) {
+  if (String(userId) === EXCHANGE_WALLET_ID && !actorId) throw error(403, "운영 월렛 주문에는 관리자 계정이 필요합니다.");
   const orderInput = normalizedOrder(input);
   return mongoose.connection.transaction(async (session) => {
     const market = await lockMarket(marketId, session);
@@ -136,10 +180,10 @@ async function placeOrder({ marketId, userId, input, clock = () => new Date() })
       return existing;
     }
     await ensureTradeAccess(market, userId, clock(), session);
-    const order = new ExchangeOrder({ ...orderInput, marketId, userId, remaining: orderInput.quantity,
+    const order = new ExchangeOrder({ ...orderInput, marketId, userId, actorId, remaining: orderInput.quantity,
       status: "working", sequence: market.revision, acceptedAt: clock() });
     await checkPositionLimit(order, session);
-    if (order.action === "open") await reserve(market, order, session);
+    await reserve(market, order, session);
     order.acceptedAt = clock();
     if (publicState(market, order.acceptedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
     await order.save({ session });
@@ -154,39 +198,49 @@ async function placeOrder({ marketId, userId, input, clock = () => new Date() })
       if (String(maker.userId) === String(userId)) throw error(409, "자신의 반대 주문을 취소한 후 다시 시도해 주세요.");
       const tradedAt = clock();
       if (publicState(market, tradedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
+      const quantity = Math.min(order.remaining, maker.remaining);
+      const makerFee = feeForFill(maker, maker.price, quantity, "maker");
+      const takerFee = feeForFill(order, maker.price, quantity, "taker");
+      const totalFee = makerFee + takerFee;
       const trade = await new ExchangeTrade({
-        marketId, makerOrderId: maker._id, takerOrderId: order._id,
-        price: maker.price, quantity: Math.min(order.remaining, maker.remaining), tradedAt, sequence: market.volume + 1,
+        marketId, makerOrderId: maker._id, takerOrderId: order._id, makerFee, takerFee, feeCollected: totalFee > 0,
+        price: maker.price, quantity, tradedAt, sequence: market.volume + 1,
       }).save({ session });
-      await applyFill(maker, trade, session);
-      await applyFill(order, trade, session);
+      await applyFill(maker, trade, makerFee, session);
+      await applyFill(order, trade, takerFee, session);
+      await collectFees(totalFee, session);
       const opens = Number(maker.action === "open") + Number(order.action === "open");
       market.escrow += (opens - 1) * 1000 * TP_SCALE * trade.quantity;
       market.lastPrice = trade.price;
       market.lastTradeAt = trade.tradedAt;
       market.volume += trade.quantity;
     }
+    await releaseFeeReserve(order, feeReserveFor(order, "maker"), session);
+    await order.save({ session });
     await market.save({ session });
     return order;
   });
 }
 
-async function cancel(order, session) {
+async function cancel(order, session, actorId) {
   if (order.status !== "working") return;
   if (order.action === "open") {
     await creditMarket(order.marketId, order.userId, collateral(order.direction, order.price, order.remaining), session);
   }
+  await releaseFeeReserve(order, 0, session);
   order.status = "cancelled";
+  if (actorId) order.cancelledBy = actorId;
   await order.save({ session });
 }
 
-async function cancelOrder({ orderId, userId }) {
+async function cancelOrder({ orderId, userId, actorId }) {
+  if (String(userId) === EXCHANGE_WALLET_ID && !actorId) throw error(403, "운영 월렛 주문에는 관리자 계정이 필요합니다.");
   const found = await ExchangeOrder.findOne({ _id: orderId, userId }).select("marketId").lean();
   if (!found) throw error(404, "주문을 찾을 수 없습니다.");
   return mongoose.connection.transaction(async (session) => {
     await lockMarket(found.marketId, session);
     const order = await ExchangeOrder.findOne({ _id: orderId, userId }).session(session);
-    await cancel(order, session);
+    await cancel(order, session, actorId);
     return order;
   });
 }
