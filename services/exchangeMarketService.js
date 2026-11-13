@@ -228,7 +228,12 @@ function publicState(market, now = new Date()) {
   return "open";
 }
 
+async function exchangeAutomationDisabled(session) {
+  return Boolean(await ExchangeSetting.exists({ _id: "default", automatedTradingDisabled: true }).session(session || null));
+}
+
 async function syncWeeklyMarkets(now = new Date()) {
+  const automationDisabled = await exchangeAutomationDisabled();
   const exams = await PrivateMockExam.find({
     ...weeklyExamQuery(), status: { $in: ["scheduled", "open"] }, closeAt: { $gt: now },
   }).sort({ releaseAt: 1 }).limit(12)
@@ -238,9 +243,9 @@ async function syncWeeklyMarkets(now = new Date()) {
     if (!await weeklyExamReady(exam)) continue;
     const key = `weekly:${exam._id}`;
     const questionCounts = [2, 3, 4].map((point) => exam.points.filter((value) => value === point).length);
-    const botParticipation = botParticipationForSchedule(exam.releaseAt, exam.closeAt);
+    const botParticipation = !automationDisabled && botParticipationForSchedule(exam.releaseAt, exam.closeAt);
     const botRules = botParticipation ? { botParticipation, botSeed: randomBytes(32).toString("hex"),
-      bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1 } : { botParticipation };
+      bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1 } : { botParticipation, ...(automationDisabled ? { marketMakerEnabled: false } : {}) };
     await ExchangeMarket.updateOne({ key }, { $setOnInsert: {
       key, type: "weekly", examId: exam._id, title: exam.title,
       opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts,
@@ -351,6 +356,7 @@ async function activateNovember14ExamBots(now = new Date()) {
   const closeAt = new Date("2026-11-14T03:00:00Z");
   if (+now + MPI_DELAY_MS >= +closeAt) return;
   await mongoose.connection.transaction(async (session) => {
+    if (await exchangeAutomationDisabled(session)) return;
     const market = await ExchangeMarket.findOne({ _id: marketId, type: "weekly", closeAt,
       phase: "scheduled", paused: { $ne: true }, openedAt: { $ne: null }, botParticipation: { $ne: true },
       "bootstrapPolicy.version": null })
@@ -377,6 +383,7 @@ async function backfillNovember14ExamBots(now = new Date(), clock = () => now) {
   const closeAt = new Date("2026-11-14T03:00:00Z");
   if (+now + MPI_DELAY_MS >= +closeAt) return;
   await mongoose.connection.transaction(async (session) => {
+    if (await exchangeAutomationDisabled(session)) return;
     const market = await ExchangeMarket.findOneAndUpdate({ _id: marketId, type: "weekly", closeAt,
       phase: "scheduled", paused: { $ne: true }, openedAt: { $ne: null }, replayRecordedAt: null,
       "bootstrapPolicy.version": OPEN_ROUND_POLICY.version, "mpiFade.startedAt": null,
@@ -490,11 +497,12 @@ async function saveObservedMpi(market, now, clock) {
     if (exam?.status !== "open" || +exam.releaseAt !== +current.opensAt || +exam.closeAt !== +current.closeAt
       || !await weeklyExamReady(exam, session)) return;
     const attempts = await liveAttemptRows(validAttempts(exam, now), session);
-    const bootstrap = isBootstrap(current);
-    const bots = bootstrap ? await recordExamBots(current, exam, now, session) : submittedBots(current, now);
+    const automationAllowed = (isBootstrap(current) || current.botParticipation) && !await exchangeAutomationDisabled(session);
+    const bootstrap = automationAllowed && isBootstrap(current);
+    const bots = bootstrap ? await recordExamBots(current, exam, now, session) : automationAllowed ? submittedBots(current, now) : [];
     const humanScoreSum = attempts.reduce((sum, row) => sum + row.score, 0);
     const botScoreSum = bots.reduce((sum, bot) => sum + bot.score, 0);
-    const { weight: botWeight, step } = bootstrap ? fadeAt(current, now) : { weight: current.botParticipation ? 1 : 0, step: 0 };
+    const { weight: botWeight, step } = bootstrap ? fadeAt(current, now) : { weight: automationAllowed ? 1 : 0, step: 0 };
     const mpi = weightedMpi(humanScoreSum, attempts.length, botScoreSum, bots.length, botWeight);
     const populationCount = attempts.length + (botWeight > 0 ? bots.length : 0);
     const last = await ExchangeTick.findOne({ marketId: current._id, kind: OBSERVED_MPI, supersededAt: null })
@@ -522,7 +530,7 @@ async function saveObservedMpi(market, now, clock) {
       .concat(botWeight > 0 ? bots.map((bot) => `${bot.botId ?? bot.id}:${bot.score}`) : []);
     if (!available && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return;
     if (available && last && !last.unavailable && step === previousStep
-      && changedContributors(last.contributions || [], contributions) < (bootstrap || current.botParticipation ? 1 : MPI_BATCH_SIZE)) return;
+      && changedContributors(last.contributions || [], contributions) < (automationAllowed ? 1 : MPI_BATCH_SIZE)) return;
     const sampledAt = clock();
     const publishAt = new Date(+sampledAt + MPI_DELAY_MS);
     await ExchangeTick.create([{
@@ -538,5 +546,5 @@ module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
   sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
-  mpiDataCutoff, publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
+  exchangeAutomationDisabled, mpiDataCutoff, publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

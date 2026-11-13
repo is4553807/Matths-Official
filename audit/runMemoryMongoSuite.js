@@ -25,6 +25,7 @@ const defaultTargets = [
   { target: "audit/verifyWeeklyMockWindowDb.js", dropAfter: true },
   { target: "audit/verifyExchangeDemoDb.js", dropAfter: true },
   { target: "audit/verifyExchangeBootstrapStudentHttpDb.js", dropAfter: true },
+  { target: "audit/verifyExchangeBotCleanupDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];
 

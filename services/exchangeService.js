@@ -6,7 +6,7 @@ const {
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
   publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
-  applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
+  applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots, exchangeAutomationDisabled,
 } = require("./exchangeMarketService");
 const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
@@ -242,6 +242,7 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
     }
   }
   if (!maintain) return;
+  const automationDisabled = await exchangeAutomationDisabled();
   const markets = await ExchangeMarket.find({ $or: [
     { phase: "settling" },
     { phase: "scheduled", bookClosedAt: null, closeAt: { $lte: now } },
@@ -253,7 +254,7 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
       console.error("[exchange] market maintenance failed", String(market._id), cause.message);
       continue;
     }
-    if (market.type !== "weekly" || !market.openedAt || market.phase !== "scheduled" || now >= market.closeAt) continue;
+    if (automationDisabled || market.type !== "weekly" || !market.openedAt || market.phase !== "scheduled" || now >= market.closeAt) continue;
     if (!market.botParticipation || isBootstrap(market)) {
       try { await maintainMarketMaker(market._id, clock); }
       catch (cause) { console.error("[exchange] MM maintenance failed", String(market._id), cause.message); }
@@ -270,8 +271,8 @@ async function startExchangeScheduler() {
   await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
     { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, setDefaultsOnInsert: false });
   if (process.env.DISABLE_SCHEDULERS === "1") return;
-  if (process.env.NODE_ENV === "production") {
-    await applyNovember14MpiMinimum();
+  if (process.env.NODE_ENV === "production") await applyNovember14MpiMinimum();
+  if (process.env.NODE_ENV === "production" && !await exchangeAutomationDisabled()) {
     await activateNovember14ExamBots();
     const startedAt = new Date();
     try { await backfillNovember14ExamBots(startedAt, () => new Date()); }

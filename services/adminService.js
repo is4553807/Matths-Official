@@ -14,6 +14,7 @@ const {
   UserNotification,
 } = require("../models/matthsModel");
 const { ArenaCompetitiveProfile } = require("../models/goatArenaModel");
+const { ExchangeSetting } = require("../models/exchangeModel");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const { randomBytes } = require("node:crypto");
@@ -1257,6 +1258,9 @@ async function ensureOperationsTestAccounts(adminUserId) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       return await mongoose.connection.transaction(async (session) => {
+        if (await ExchangeSetting.exists({ _id: "default", automatedTradingDisabled: true }).session(session)) {
+          throw statusError(409, "Exchange 운영 테스트 계정 생성이 중지되었습니다.");
+        }
         const existing = await User.find({ email: { $in: emails } })
           .select("email role isTestAccount testBatchKey").session(session).lean();
         if (existing.some((user) => user.role !== "test" || user.isTestAccount !== true

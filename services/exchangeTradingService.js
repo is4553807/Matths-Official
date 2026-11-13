@@ -6,7 +6,7 @@ const {
 } = require("../models/exchangeModel");
 const {
   error, integer, seoulDate, readWeeklyExam, weeklyExamReady, validAttempts, publicState,
-  liveAttemptRows, liveStudent, pendingAttempts, latestPublishedMpi, publishedMpiFilter, activeBookOrders, activeLiquidityPlan, bookLevels, marketReference,
+  liveAttemptRows, liveStudent, pendingAttempts, exchangeAutomationDisabled, latestPublishedMpi, publishedMpiFilter, activeBookOrders, activeLiquidityPlan, bookLevels, marketReference,
 } = require("./exchangeMarketService");
 
 const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = require("./exchangeFees");
@@ -209,6 +209,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
       }
       return existing;
     }
+    if (bot && await exchangeAutomationDisabled(session)) return;
     const bootstrapOrder = bot && isBootstrap(market);
     if (bootstrapOrder) {
       if (!tradersEnabledAt(market, clock())) return;
@@ -381,6 +382,7 @@ async function cancelFundedBotOrders(marketId, session, filter = {}) {
 
 async function initializeBotFunding(marketId, now) {
   await mongoose.connection.transaction(async (session) => {
+    if (await exchangeAutomationDisabled(session)) return;
     await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
       { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, session });
     const result = await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID, botFundingAt: null },
@@ -499,6 +501,7 @@ async function setTradingBotsEnabled(marketId, enabled, actorId, reason, now = n
     if (!isBootstrap(market) || market.phase !== "scheduled" || now >= market.closeAt) {
       throw error(409, "마감 전 Bootstrap 회차만 거래 봇을 설정할 수 있습니다.");
     }
+    if (enabled && await exchangeAutomationDisabled(session)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
     if (enabled && now >= traderStopAt(market)) throw error(409, "이 회차의 Trading Bot 운영 시간이 끝났습니다.");
     if (market.tradingBotsEnabled === enabled) return;
     market.tradingBotsEnabled = enabled;
@@ -568,7 +571,7 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
   return mongoose.connection.transaction(async (session) => {
     const market = await lockMarket(marketId, session);
     const now = clock();
-    if (market.type !== "weekly" || !market.openedAt) return;
+    if (market.type !== "weekly" || !market.openedAt || await exchangeAutomationDisabled(session)) return;
     const exam = await readWeeklyExam(market.examId, session);
     const enabled = market.marketMakerEnabled !== false && publicState(market, now) === "open"
       && exam?.status === "open" && +exam.releaseAt === +market.opensAt && +exam.closeAt === +market.closeAt
@@ -659,6 +662,7 @@ async function scheduleMarketLiquidity(marketId, input, actorId, clock = () => n
   return mongoose.connection.transaction(async (session) => {
     const market = await lockMarket(marketId, session);
     const now = clock();
+    if (await exchangeAutomationDisabled(session)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
     if (market.botParticipation && !isBootstrap(market)) throw error(409, "운영 봇 참여 회차는 시간별 운영 봇이 호가를 공급합니다.");
     if (market.type !== "weekly" || market.phase !== "scheduled" || startsAt < market.opensAt
       || endsAt > market.closeAt || endsAt <= now) {
@@ -709,6 +713,7 @@ async function setMarketMakerEnabled(marketId, enabled, actorId, reason, now = n
     if (market.type !== "weekly" || market.phase !== "scheduled" || now >= market.closeAt) {
       throw error(409, "마감 전 주간 시장에서 운영자 호가를 설정할 수 있습니다.");
     }
+    if (enabled && await exchangeAutomationDisabled(session)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
     market.marketMakerEnabled = enabled;
     await market.save({ session });
     if (!enabled) {

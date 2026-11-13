@@ -81,6 +81,7 @@ const setting = new Schema({
   _id: String,
   minimumAttempts: { type: Number, default: 0 },
   minimumMpiAttempts: { type: Number, default: 1 },
+  automatedTradingDisabled: Boolean,
 }, options);
 const wallet = new Schema({
   _id: objectId, available: balance(), collectedFees: balance(), rankingVisible: { type: Boolean, default: false },
