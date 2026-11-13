@@ -11,6 +11,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const MINUTE_MS = 60_000;
 const MPI_DELAY_MS = 30 * 60 * 1000;
 const MPI_BATCH_SIZE = 5;
+const DEFAULT_MPI_MINIMUM = 5;
 const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -195,9 +196,9 @@ async function readSetting(session) {
 }
 
 async function readMpiMinimum(market, session) {
-  if (market?.minimumMpiAttempts != null) return Math.max(MPI_BATCH_SIZE, market.minimumMpiAttempts);
+  if (market?.minimumMpiAttempts != null) return Math.max(1, market.minimumMpiAttempts);
   const setting = await ExchangeSetting.findById("default").select("minimumMpiAttempts").session(session || null).lean();
-  return Math.max(MPI_BATCH_SIZE, setting?.minimumMpiAttempts ?? 0);
+  return Math.max(DEFAULT_MPI_MINIMUM, setting?.minimumMpiAttempts ?? 0);
 }
 
 function publicState(market, now = new Date()) {
@@ -287,7 +288,8 @@ async function saveMinimum({ marketId, value, actorId }) {
 }
 
 async function saveMpiMinimum({ marketId, value, actorId, now = new Date() }) {
-  const minimumMpiAttempts = marketId && value === "" ? null : integer(value, MPI_BATCH_SIZE, 1_000_000, "공식 MPI 공개 최소 인원");
+  const minimumMpiAttempts = marketId && value === "" ? null
+    : integer(value, marketId ? 1 : DEFAULT_MPI_MINIMUM, 1_000_000, "공식 MPI 공개 최소 인원");
   await mongoose.connection.transaction(async (session) => {
     if (marketId) {
       const update = minimumMpiAttempts === null ? { $unset: { minimumMpiAttempts: "" } } : { $set: { minimumMpiAttempts } };
@@ -299,6 +301,22 @@ async function saveMpiMinimum({ marketId, value, actorId, now = new Date() }) {
       await ExchangeSetting.updateOne({ _id: "default" }, { $set: { minimumMpiAttempts } }, { upsert: true, session });
     }
     await new ExchangeEvent({ marketId, actorId, action: "mpi-minimum", detail: { minimumMpiAttempts } }).save({ session });
+  });
+}
+
+// Apply the rollout once to the requested weekly round. Later admin edits take precedence.
+async function applyNovember14MpiMinimum(now = new Date()) {
+  const marketId = new mongoose.Types.ObjectId("6af57a46ad86b97eba7fda52");
+  const closeAt = new Date("2026-11-14T03:00:00Z");
+  if (now >= closeAt) return;
+  const action = "mpi-minimum";
+  const source = "2026-11-14-weekly-release";
+  await mongoose.connection.transaction(async (session) => {
+    if (await ExchangeEvent.exists({ marketId, action, "detail.source": source }).session(session)) return;
+    const updated = await ExchangeMarket.updateOne({ _id: marketId, type: "weekly", phase: "scheduled", closeAt },
+      { $set: { minimumMpiAttempts: 1 }, $inc: { revision: 1 } }, { session });
+    if (!updated.matchedCount) return;
+    await ExchangeEvent.create([{ marketId, action, detail: { minimumMpiAttempts: 1, source } }], { session });
   });
 }
 
@@ -350,6 +368,6 @@ async function saveObservedMpi(market, now, clock) {
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
-  sampleMinute, saveObservedMpi, liveStudent, liveAttemptRows, pendingAttempts,
+  sampleMinute, saveObservedMpi, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum,
   publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

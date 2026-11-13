@@ -5,7 +5,8 @@ const models = require("../models/exchangeModel");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
-const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput } = require("../services/exchangeMarketService");
+const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput,
+  saveObservedMpi, applyNovember14MpiMinimum } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
 const { dashboardState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
@@ -262,7 +263,29 @@ async function main() {
         status: "submitted", submittedAt: new Date(+midweek - 1000), score,
         submissionFinalization: { status: "completed" }, ...extra });
     }
-    await Promise.all(cohort.map((userId, i) => attempt(userId, [70, 60, 80][i])));
+    const singleStudentRound = await ExchangeMarket.create({
+      key: "weekly:single-student-publication", type: "weekly", examId: exam._id, title: "Single student MPI",
+      opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose,
+    });
+    await saveMpiMinimum({ marketId: singleStudentRound._id, value: 1, actorId: admin, now: midweek });
+    const singleRound = await ExchangeMarket.findById(singleStudentRound._id).lean();
+    assert.equal(await readMpiMinimum(singleRound), 1);
+    assert.equal(await readMpiMinimum(weekly), 5);
+    await saveObservedMpi(singleRound, midweek, () => midweek);
+    assert.equal(await ExchangeTick.countDocuments({ marketId: singleRound._id }), 0);
+    await attempt(buyer, 70);
+    const singleSampleAt = new Date(+midweek + 60_000);
+    await saveObservedMpi(singleRound, singleSampleAt, () => singleSampleAt);
+    const singlePublicAt = new Date(+singleSampleAt + 30 * 60_000);
+    const singleState = (now) => mpiState({ marketId: singleRound._id, now });
+    assert.equal((await singleState(new Date(+singlePublicAt - 1))).latest, null);
+    const { latest: singleMpi, minimumMpiAttempts: singleMinimum } = await singleState(singlePublicAt);
+    assert.equal(singleMinimum, 1);
+    assert.equal(singleMpi.mpi, 700);
+    assert.equal(singleMpi.populationCount, 1);
+    await ExchangeTick.deleteMany({ marketId: singleRound._id });
+    await ExchangeMarket.deleteOne({ _id: singleRound._id });
+    await Promise.all([attempt(seller, 60), attempt(nextBuyer, 80)]);
     await ArchiveItem.updateOne({ _id: exam.archiveItemId }, { $set: { deletedAt: midweek } });
     assert.equal((await terminalState({ now: midweek })).market, null);
     await assert.rejects(order(weekly, buyer, "long", 650, 1, midweek), { status: 409 });
@@ -507,6 +530,17 @@ async function main() {
     const expectedLast = { _id: +midweek + 120_000, open: 620, high: 620, low: 620, close: 620, volume: 4 };
     assert.deepEqual(tradeView.candles, [expectedFirst, expectedLast]);
     assert.deepEqual(await futuresChartHistory(candleMarket._id, "1m", candleNow, candleNow), [expectedFirst]);
+
+    const rolloutAt = new Date("2026-11-13T09:00:00Z");
+    const rolloutRound = await ExchangeMarket.create({
+      _id: "6af57a46ad86b97eba7fda52", key: "weekly:one-person-rollout", type: "weekly", title: "One-person rollout",
+      opensAt: new Date("2026-11-08T06:00:00Z"), closeAt: new Date("2026-11-14T03:00:00Z"),
+    });
+    await applyNovember14MpiMinimum(rolloutAt);
+    assert.equal(await readMpiMinimum(await ExchangeMarket.findById(rolloutRound._id)), 1);
+    await saveMpiMinimum({ marketId: rolloutRound._id, value: 6, actorId: admin, now: rolloutAt });
+    await applyNovember14MpiMinimum(rolloutAt);
+    assert.equal(await readMpiMinimum(await ExchangeMarket.findById(rolloutRound._id)), 6);
 
     console.log("Exchange verified: delayed official MPI, legacy and demo exclusion, MM quotes and scheduled live liquidity, verification wait, fees, wallets and settlement.");
   } finally {

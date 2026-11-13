@@ -6,6 +6,7 @@ const {
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
   publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
+  applyNovember14MpiMinimum,
 } = require("./exchangeMarketService");
 const { TP_SCALE, processMarket, maintainMarketMaker } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
@@ -185,7 +186,8 @@ async function adminState(year, grade, now = new Date()) {
       pendingVerification: pending.length > 0, internalMpiCount: market.internalMpiCount, liquidityPlan: market.liquidityPlan,
       liquidityPlanPending: market.liquidityPlan?.endsAt > now && !market.liquidityPlan?.stoppingAt,
       minimumAttempts: market.minimumAttempts ?? settings,
-      minimumMpiAttempts: Math.max(5, market.minimumMpiAttempts ?? minimumMpiAttempts), mpiMinimumOverride: market.minimumMpiAttempts,
+      minimumMpiAttempts: market.minimumMpiAttempts == null ? minimumMpiAttempts : await readMpiMinimum(market),
+      mpiMinimumOverride: market.minimumMpiAttempts,
       escrow: market.escrow / TP_SCALE, reason: market.reason,
       settlementSource: market.settlementSource, population: market.population });
   }
@@ -231,6 +233,7 @@ async function startExchangeScheduler() {
   await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
     { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, setDefaultsOnInsert: false });
   if (process.env.DISABLE_SCHEDULERS === "1") return;
+  if (process.env.NODE_ENV === "production") await applyNovember14MpiMinimum();
   let running = false;
   let lastMaintenance = 0;
   let lastSampleMinute;

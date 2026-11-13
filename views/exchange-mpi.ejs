@@ -37,7 +37,7 @@
         <div class="chart-empty" id="mpi-empty" <%= initial.candles.length ? "hidden" : "" %>>
           <strong>MPI 공개 대기</strong>
           <p id="mpi-waiting"><%= initial.market
-            ? `유효 응시 ${initial.minimumMpiAttempts.toLocaleString("ko-KR")}명부터 표시됩니다.`
+            ? `유효 응시 ${initial.minimumMpiAttempts.toLocaleString("ko-KR")}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
             : "주간 모의고사 회차가 공개되면 집계가 시작됩니다." %></p>
         </div>
       </div>

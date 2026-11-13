@@ -52,7 +52,7 @@
     text("mpi-time", latest ? time.format(new Date(latest.sampledAt)) : "—");
     text("mpi-cutoff", latest?.dataCutoffAt ? time.format(new Date(latest.dataCutoffAt)) : "—");
     text("mpi-waiting", state.market
-      ? `유효 응시 ${number.format(state.minimumMpiAttempts)}명부터 표시됩니다.`
+      ? `유효 응시 ${number.format(state.minimumMpiAttempts)}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
       : "주간 모의고사 회차가 공개되면 집계가 시작됩니다.");
     get("mpi-empty").hidden = Boolean(state.candles.length);
     chart.update(state.candles, latest ? seriesKey(state) : "");
