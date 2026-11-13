@@ -9,7 +9,7 @@ const {
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
 const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
-const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
+const { terminalState, futuresChartHistory, replayChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
 const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
@@ -81,7 +81,7 @@ function historyBefore(value) {
 
 function mpiSelection(req) {
   return { marketId: req.query.market ? id(req.query.market) : undefined,
-    interval: req.query.interval, before: historyBefore(req.query.before) };
+    interval: req.query.interval, before: historyBefore(req.query.before), series: req.query.series };
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
@@ -166,7 +166,10 @@ router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exch
 });
 router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (req, res) => {
   const interval = intervalFor(req.query.interval, "1m").code;
-  const candles = await futuresChartHistory(id(req.params.marketId), interval, historyBefore(req.query.before), new Date(), req.query.series === "bots");
+  const marketId = id(req.params.marketId);
+  const before = historyBefore(req.query.before);
+  const candles = req.query.series === "replay" ? await replayChartHistory(marketId, interval, before)
+    : await futuresChartHistory(marketId, interval, before, new Date(), req.query.series === "bots");
   res.json({ interval, candles });
 });
 router.get("/api/exchange/rankings", privateResponse, async (_req, res) => res.json(await leaderboard()));

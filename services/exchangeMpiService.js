@@ -1,4 +1,4 @@
-const { ExchangeTick } = require("../models/exchangeModel");
+const { ExchangeTick, ExchangeBotReplayMpi } = require("../models/exchangeModel");
 const { readMpiMinimum, publishedMpiFilter } = require("./exchangeMarketService");
 const { marketList, marketView } = require("./exchangeService");
 const { intervalFor, bucketStart, candleWindow, indexCandles, aggregateCandles } = require("./exchangeChartService");
@@ -45,21 +45,35 @@ async function officialChart(visible, now, latest, interval) {
   return result;
 }
 
-async function mpiState({ marketId, interval: requestedInterval, before, now = new Date() } = {}) {
+async function mpiState({ marketId, interval: requestedInterval, before, series, now = new Date() } = {}) {
   const interval = intervalFor(requestedInterval, "1m");
   const choices = (await marketList(now)).filter((market) => market.type === "weekly");
   const selected = marketId ? choices.find((market) => String(market._id) === String(marketId))
     : choices.find((market) => market.opensAt <= now && now < market.closeAt && market.phase === "scheduled")
       || choices.find((market) => market.opensAt > now);
   const markets = choices.map((market) => marketView(market, now));
+  const replay = series === "replay";
   const base = { market: selected ? marketView(selected, now) : null, markets, interval: interval.code,
-    latest: null, candles: [], source: "official" };
+    latest: null, candles: [], source: replay ? "bot_replay" : "official" };
   if (!selected) return { ...base, minimumMpiAttempts: await readMpiMinimum() };
 
   const minimumMpiAttempts = await readMpiMinimum(selected);
+  if (replay) {
+    if (!selected.replayMpiCount) return { ...base, minimumMpiAttempts };
+    const filter = { marketId: selected._id, reconstructedAt: { $lte: now } };
+    const latest = await ExchangeBotReplayMpi.findOne({ ...filter, publishAt: { $lte: now } })
+      .sort({ publishAt: -1 }).select("mpi sampledAt publishAt populationCount reconstructedAt -_id").lean();
+    const anchor = before ? await ExchangeBotReplayMpi.findOne({ ...filter, publishAt: { $lt: new Date(bucketStart(before, interval.ms)), $lte: now } })
+      .sort({ publishAt: -1 }).select("publishAt").lean() : latest;
+    const candles = anchor ? await aggregateCandles(ExchangeBotReplayMpi, {
+      match: { ...filter, publishAt: { $gte: new Date(candleWindow(anchor.publishAt, interval.ms)), $lte: anchor.publishAt } },
+      dateField: "publishAt", priceField: "mpi", ms: interval.ms,
+    }) : [];
+    return { ...base, minimumMpiAttempts, latest, candles };
+  }
   const visible = { ...publishedMpiFilter(selected._id, now), unavailable: { $ne: true }, populationCount: { $gte: minimumMpiAttempts } };
   const latest = await ExchangeTick.findOne(base.market.bootstrap ? publishedMpiFilter(selected._id, now) : visible).sort({ publishAt: -1 })
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount botWeight unavailable").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable").lean();
   const state = { ...base, minimumMpiAttempts };
   if (!latest) return state;
   if (latest.unavailable && !before) return { ...state, latest };

@@ -12,6 +12,7 @@ const {
   AcademyAccount,
 } = require("../models/academyModel");
 const {
+  exchangeUrl,
   serviceUrl,
 } = require("../services/serviceUrlService");
 const { accountLinkMismatch } = require("../services/accountLinkAccessService");
@@ -3239,6 +3240,7 @@ exports.adminUsersPage =
           user:
             req.session.user,
           showTests,
+          exchangeBotsHref: showTests ? exchangeUrl("/exchange/dashboard/bots?wallet=exchange") : null,
           usersData:
             await getAdminUsersData({
               query:

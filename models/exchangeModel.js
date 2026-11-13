@@ -35,6 +35,9 @@ const market = new Schema({
   botParticipantCount: Number,
   botParticipation: Boolean,
   examBotsStartedAt: Date,
+  replayRecordedAt: Date,
+  replayVolume: Number,
+  replayMpiCount: Number,
   bootstrapPolicy: {
     version: Number,
     fadeMinutes: Number,
@@ -170,6 +173,9 @@ const tick = new Schema({
   mpi: Number,
   populationCount: Number,
   botPopulationCount: Number,
+  reconstructedBotPopulationCount: Number,
+  supersededAt: Date,
+  reconstructedAt: Date,
   humanPopulationCount: Number,
   humanScoreSum: Number,
   botScoreSum: Number,
@@ -195,9 +201,37 @@ const examBotAttempt = new Schema({
   submittedAt: { type: Date, required: true },
   score: { type: Number, required: true, min: 0, max: 100 },
   correctByQuestion: [Boolean],
+  reconstructedAt: Date,
 }, options);
 examBotAttempt.index({ marketId: 1, botId: 1 }, { unique: true });
 examBotAttempt.index({ marketId: 1, submittedAt: 1 });
+
+const botReplayTrade = new Schema({
+  marketId: { type: objectId, required: true },
+  replayId: { type: String, required: true },
+  source: { type: String, enum: ["BOT_REPLAY"], required: true },
+  tradedAt: { type: Date, required: true },
+  reconstructedAt: { type: Date, required: true },
+  price: { type: Number, required: true },
+  quantity: { type: Number, required: true },
+  makerLabel: String,
+  takerLabel: String,
+  makerSource: String,
+  takerSource: String,
+  sequence: Number,
+}, options);
+botReplayTrade.index({ marketId: 1, replayId: 1 }, { unique: true });
+botReplayTrade.index({ marketId: 1, tradedAt: -1 });
+
+const botReplayMpi = new Schema({
+  marketId: { type: objectId, required: true },
+  sampledAt: { type: Date, required: true },
+  publishAt: { type: Date, required: true },
+  reconstructedAt: { type: Date, required: true },
+  mpi: { type: Number, required: true },
+  populationCount: { type: Number, required: true },
+}, options);
+botReplayMpi.index({ marketId: 1, publishAt: 1 }, { unique: true });
 
 const mpiDemo = new Schema({
   _id: objectId,
@@ -236,6 +270,8 @@ module.exports = {
   ExchangeTrade: model("ExchangeTrade", trade),
   ExchangeTick: model("ExchangeTick", tick),
   ExchangeExamBotAttempt: model("ExchangeExamBotAttempt", examBotAttempt),
+  ExchangeBotReplayTrade: model("ExchangeBotReplayTrade", botReplayTrade),
+  ExchangeBotReplayMpi: model("ExchangeBotReplayMpi", botReplayMpi),
   ExchangeMpiDemo: model("ExchangeMpiDemo", mpiDemo),
   ExchangeReference: model("ExchangeReference", reference),
   ExchangeEvent: model("ExchangeEvent", event),

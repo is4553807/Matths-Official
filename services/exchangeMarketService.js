@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 const { randomBytes } = require("node:crypto");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
-const { ExchangeMarket, ExchangeSetting, ExchangeTick, ExchangeEvent, ExchangeOrder } = require("../models/exchangeModel");
+const { ExchangeMarket, ExchangeSetting, ExchangeTick, ExchangeEvent, ExchangeOrder,
+  ExchangeExamBotAttempt, ExchangeBotReplayMpi, ExchangeBotReplayTrade } = require("../models/exchangeModel");
 
 const ROUNDS = Object.freeze({
   1: ["3", "6", "9", "10"],
@@ -16,7 +17,9 @@ const DEFAULT_MPI_MINIMUM = 5;
 const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const { botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
-const { POLICY, OPEN_ROUND_POLICY, isBootstrap, fadeAt, weightedMpi, recordExamBots } = require("./exchangeBootstrapService");
+const { POLICY, OPEN_ROUND_POLICY, isBootstrap, fadeAt, weightedMpi, recordExamBots, gradeExamBots, readExamBots } = require("./exchangeBootstrapService");
+
+const { replayBotFills } = require("./exchangeBotReplayService");
 
 function error(status, message) {
   return Object.assign(new Error(message), { status });
@@ -143,7 +146,7 @@ function pendingAttempts(exam, now, session) {
 }
 
 function publishedMpiFilter(marketId, now) {
-  return { marketId, kind: OBSERVED_MPI, publishAt: { $lte: now } };
+  return { marketId, kind: OBSERVED_MPI, publishAt: { $lte: now }, supersededAt: null };
 }
 
 async function latestPublishedMpi(market, now, session) {
@@ -361,6 +364,74 @@ async function activateNovember14ExamBots(now = new Date()) {
   });
 }
 
+async function backfillNovember14ExamBots(now = new Date(), clock = () => now) {
+  const marketId = new mongoose.Types.ObjectId("6af57a46ad86b97eba7fda52");
+  const closeAt = new Date("2026-11-14T03:00:00Z");
+  if (+now + MPI_DELAY_MS >= +closeAt) return;
+  await mongoose.connection.transaction(async (session) => {
+    const market = await ExchangeMarket.findOneAndUpdate({ _id: marketId, type: "weekly", closeAt,
+      phase: "scheduled", paused: { $ne: true }, openedAt: { $ne: null }, replayRecordedAt: null,
+      "bootstrapPolicy.version": OPEN_ROUND_POLICY.version, "mpiFade.startedAt": null,
+    }, { $inc: { revision: 1 } }, { session, returnDocument: "after" }).select("+botSeed").lean();
+    if (!market?.examBotsStartedAt || !market.botSeed) return;
+    const exam = await readWeeklyExam(market.examId, session);
+    if (exam?.status !== "open" || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt
+      || !await weeklyExamReady(exam, session)) return;
+
+    // Use a disjoint seed and the original hourly schedule for the missing interval.
+    // Keep post-activation bots and their original labels and IDs intact.
+    const historyMarket = { ...market, botParticipation: true, examBotsStartedAt: null,
+      botSeed: `${market.botSeed}:historical-v1` };
+    const historical = gradeExamBots(historyMarket, exam, submittedBots(historyMarket, new Date(+market.examBotsStartedAt - 1)))
+      .map((row) => ({ ...row, label: `ExamBotReplay${row.number}`, reconstructedAt: now }));
+    if (!historical.length) return;
+
+    let total = 0;
+    const snapshots = historical.map((attempt, index) => {
+      total += attempt.score;
+      return { marketId, sampledAt: attempt.submittedAt, publishAt: new Date(+attempt.submittedAt + MPI_DELAY_MS),
+        reconstructedAt: now, mpi: weightedMpi(0, 0, total, index + 1, 1), populationCount: index + 1 };
+    }).filter((snapshot) => snapshot.publishAt <= now);
+    const fills = replayBotFills(historical, snapshots, { before: market.examBotsStartedAt, reconstructedAt: now });
+    await ExchangeExamBotAttempt.insertMany(historical, { session });
+    if (snapshots.length) await ExchangeBotReplayMpi.insertMany(snapshots, { session });
+    if (fills.length) {
+      await ExchangeBotReplayTrade.insertMany(fills.map((row, sequence) => ({ ...row, marketId, sequence })), { session });
+    }
+
+    const [students, bots] = [
+      await liveAttemptRows(validAttempts(exam, now), session),
+      await readExamBots(market, now, session),
+    ];
+    const humanScoreSum = students.reduce((sum, row) => sum + row.score, 0);
+    const botScoreSum = bots.reduce((sum, row) => sum + row.score, 0);
+    const botWeight = market.botWeight || 1;
+    const mpi = weightedMpi(humanScoreSum, students.length, botScoreSum, bots.length, botWeight);
+    const sampledAt = clock();
+    const publishAt = new Date(+sampledAt + MPI_DELAY_MS);
+    const populationCount = students.length + bots.length;
+    const available = mpi != null && populationCount >= await readMpiMinimum(market, session);
+    // A pending pre-backfill sample must not replace the corrected sample later.
+    // Retain it in storage for audit and preserve every already public sample.
+    await ExchangeTick.updateMany({ marketId, kind: OBSERVED_MPI, publishAt: { $gt: sampledAt }, supersededAt: null },
+      { $set: { supersededAt: sampledAt } }, { session });
+    const contributions = students.map((row) => `${row._id}:${row.score}`)
+      .concat(bots.map((row) => `${row.botId}:${row.score}`));
+    await ExchangeTick.create([{ marketId, kind: OBSERVED_MPI, sampledAt, dataCutoffAt: now, publishAt,
+      expiresAt: new Date(+sampledAt + WEEK_MS * 2), mpi: available ? mpi : null, unavailable: !available,
+      populationCount, humanPopulationCount: students.length, botPopulationCount: bots.length, botWeight,
+      reconstructedBotPopulationCount: historical.length, humanScoreSum, botScoreSum, contributions }], { session });
+    await ExchangeMarket.updateOne({ _id: marketId }, { $set: { replayRecordedAt: now, replayMpiCount: snapshots.length,
+      replayVolume: fills.reduce((sum, row) => sum + row.quantity, 0), mpiCheckedAt: now,
+      internalMpi: mpi, internalMpiCount: students.length, internalBotCount: bots.length, humanScoreSum, botScoreSum,
+    } }, { session });
+    await ExchangeEvent.create([{ marketId, action: "exam-bots-backfill", detail: {
+      reconstructedAt: now, from: market.opensAt, before: market.examBotsStartedAt,
+      botSubmissions: historical.length, replayFills: fills.length, publishAt,
+    } }], { session });
+  });
+}
+
 function sampleMinute(now) {
   return new Date(Math.floor(+now / MINUTE_MS) * MINUTE_MS);
 }
@@ -418,7 +489,7 @@ async function saveObservedMpi(market, now, clock) {
     const { weight: botWeight, step } = bootstrap ? fadeAt(current, now) : { weight: current.botParticipation ? 1 : 0, step: 0 };
     const mpi = weightedMpi(humanScoreSum, attempts.length, botScoreSum, bots.length, botWeight);
     const populationCount = attempts.length + (botWeight > 0 ? bots.length : 0);
-    const last = await ExchangeTick.findOne({ marketId: current._id, kind: OBSERVED_MPI })
+    const last = await ExchangeTick.findOne({ marketId: current._id, kind: OBSERVED_MPI, supersededAt: null })
       .sort({ sampledAt: -1 }).select("+contributions").session(session).lean();
     const previousStep = current.mpiFadeStep ?? 0;
     if (bootstrap && step > previousStep) {
@@ -449,6 +520,7 @@ async function saveObservedMpi(market, now, clock) {
     await ExchangeTick.create([{
       marketId: current._id, kind: OBSERVED_MPI, sampledAt, dataCutoffAt: now, mpi: available ? mpi : null,
       unavailable: !available, populationCount, humanPopulationCount: attempts.length, botPopulationCount: bots.length,
+      reconstructedBotPopulationCount: bots.filter((bot) => bot.reconstructedAt).length,
       humanScoreSum, botScoreSum, botWeight, contributions, publishAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2),
     }], { session });
   });
@@ -457,6 +529,6 @@ async function saveObservedMpi(market, now, clock) {
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
-  sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots,
+  sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
   publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

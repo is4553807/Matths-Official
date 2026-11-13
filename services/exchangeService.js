@@ -1,12 +1,12 @@
 const models = require("../models/exchangeModel");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const {
-  ExchangeMarket, ExchangeOrder, ExchangeTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent, ExchangeReference,
+  ExchangeMarket, ExchangeOrder, ExchangeTrade, ExchangeBotReplayTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent, ExchangeReference,
 } = models;
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
   publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
-  applyNovember14MpiMinimum, activateNovember14ExamBots,
+  applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
 } = require("./exchangeMarketService");
 const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
@@ -24,6 +24,7 @@ function marketView(market, now) {
     opensAt: market.opensAt, closeAt: market.closeAt, status, statusLabel: STAGES[status],
     lastPrice: market.lastPrice ?? null, volume: market.volume, botParticipation: market.botParticipation === true || isBootstrap(market),
     bootstrap: isBootstrap(market), botOnlyVolume: market.botOnlyVolume ?? 0,
+    replayRecordedAt: market.replayRecordedAt, replayVolume: market.replayVolume ?? 0, replayMpiCount: market.replayMpiCount ?? 0,
     settlement: status === "settled" ? market.settlement : null,
     botParticipantCount: status === "settled" ? market.botParticipantCount : undefined,
     resultUrl: status === "settled" ? market.resultUrl : undefined,
@@ -65,6 +66,20 @@ async function futuresChartHistory(marketId, interval, before, now = new Date(),
   return latest ? chart(latest.marketId, interval, latest.tradedAt, botOnly) : [];
 }
 
+async function replayChartHistory(marketId, interval, before, now = new Date()) {
+  const { ms } = intervalFor(interval, "1m");
+  const id = ExchangeMarket.schema.path("_id").cast(marketId);
+  const tradedAt = before ? { $lt: new Date(bucketStart(before, ms)), $lte: now } : { $lte: now };
+  const latest = await ExchangeBotReplayTrade.findOne({ marketId: id, tradedAt, reconstructedAt: { $lte: now } })
+    .select("tradedAt").sort({ tradedAt: -1 }).lean();
+  if (!latest) return [];
+  return aggregateCandles(ExchangeBotReplayTrade, {
+    match: { marketId: id, reconstructedAt: { $lte: now },
+      tradedAt: { $gte: new Date(candleWindow(latest.tradedAt, ms)), $lte: latest.tradedAt } },
+    dateField: "tradedAt", priceField: "price", ms, volume: true,
+  });
+}
+
 function orderView(row) {
   return { id: String(row._id), action: row.action, direction: row.direction, side: row.side, price: row.price,
     quantity: row.quantity, remaining: row.remaining, feeReserved: (row.feeReserved ?? 0) / TP_SCALE,
@@ -100,10 +115,10 @@ async function ownMarketState(market, userId, now) {
 
 async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
   if (market.type !== "weekly") return [];
-  const filter = forAdmin ? { marketId: market._id, kind: "observed" }
+  const filter = forAdmin ? { marketId: market._id, kind: "observed", supersededAt: null }
     : { ...publishedMpiFilter(market._id, now), populationCount: { $gte: await readMpiMinimum(market) } };
   return ExchangeTick.find(filter).sort({ publishAt: -1 }).limit(limit)
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount botWeight unavailable").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable").lean();
 }
 
 async function terminalState({ marketId, userId, interval = "1m", marketType, now = new Date() } = {}) {
@@ -126,7 +141,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   const snapshot = market.type === "weekly" ? await latestPublishedMpi(market, now) : undefined;
   const chartEnd = new Date(Math.min(+now, +market.closeAt));
   const { ms } = intervalFor(interval, "1m");
-  const [book, trades, candles, ticks, own, references, botCandles] = await Promise.all([
+  const [book, trades, candles, ticks, own, references, botCandles, replayCandles] = await Promise.all([
     view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
       market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
@@ -138,6 +153,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
       marketId: market._id, at: { $gte: new Date(candleWindow(chartEnd, ms)), $lte: chartEnd },
     }).sort({ at: -1, sequence: -1 }).limit(400).select("at price -_id").lean() : [],
     market.botOnlyVolume ? futuresChartHistory(market._id, interval, undefined, chartEnd, true) : [],
+    market.replayVolume ? replayChartHistory(market._id, interval, undefined, now) : [],
   ]);
   references.reverse();
   const side = (key, sign) => book.filter((row) => row._id.side === key)
@@ -157,7 +173,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
     return liquidityProvider === "bot" ? { price, quantity, tradedAt, source: "bot" } : { price, quantity, tradedAt };
   });
   return { ...result, market: view, bids: publicLevels(bids), asks: publicLevels(asks), reference, references,
-    trades: publicTrades, candles, botCandles,
+    trades: publicTrades, candles, botCandles, replayCandles,
     ticks: ticks.reverse(), own: { ...own, eligible: own.eligible && view.status === "open" } };
 }
 
@@ -257,6 +273,12 @@ async function startExchangeScheduler() {
   if (process.env.NODE_ENV === "production") {
     await applyNovember14MpiMinimum();
     await activateNovember14ExamBots();
+    const startedAt = new Date();
+    try { await backfillNovember14ExamBots(startedAt, () => new Date()); }
+    catch (error) {
+      console.error("[exchange] Exam Bot history restoration failed", error.message);
+      throw error;
+    }
   }
   let running = false;
   let lastMaintenance = 0;
@@ -286,4 +308,4 @@ async function startExchangeScheduler() {
   void run();
 }
 
-module.exports = { marketList, marketView, terminalState, futuresChartHistory, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };
+module.exports = { marketList, marketView, terminalState, futuresChartHistory, replayChartHistory, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };

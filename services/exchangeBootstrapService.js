@@ -30,7 +30,7 @@ function weightedMpi(humanTotal, humanCount, botTotal, botCount, weight) {
 
 async function readExamBots(market, now, session) {
   return ExchangeExamBotAttempt.find({ marketId: market._id, submittedAt: { $lte: now } })
-    .select("botId number label score submittedAt").sort({ number: 1 }).session(session || null).lean();
+    .select("botId number label score submittedAt source reconstructedAt").sort({ submittedAt: 1, number: 1 }).session(session || null).lean();
 }
 
 async function recordExamBots(market, exam, now, session) {
@@ -41,8 +41,14 @@ async function recordExamBots(market, exam, now, session) {
     ? new Date(Math.min(+now, +market.mpiFade.startedAt + market.bootstrapPolicy.fadeMinutes * MINUTE - 1)) : now;
   const due = submittedBots(market, through).filter(({ id }) => !known.has(id));
   if (!due.length) return existing;
+  const rows = gradeExamBots(market, exam, due);
+  await ExchangeExamBotAttempt.insertMany(rows, { session });
+  return existing.concat(rows);
+}
+
+function gradeExamBots(market, exam, bots) {
   const { gradePrivateMockAnswers } = require("./privateMockExamService");
-  const rows = due.map((bot) => {
+  return bots.map((bot) => {
     const answers = Array(exam.questionCount).fill("");
     for (const [i, correctAnswer] of exam.answerKey.entries()) {
       const draw = createHash("sha256").update(`${market.botSeed}:${bot.id}:${i}`).digest().readUInt16BE() / 65_536;
@@ -54,8 +60,6 @@ async function recordExamBots(market, exam, now, session) {
     return { marketId: market._id, examId: exam._id, botId: bot.id, number: bot.number,
       source: "BOT", label: botLabel("ExamBot", bot.number), submittedAt: new Date(bot.submittedAt), score, correctByQuestion };
   });
-  await ExchangeExamBotAttempt.insertMany(rows, { session });
-  return existing.concat(rows);
 }
 
 const traderId = (botId) => createHash("sha256").update(`exchange-trader:${botId}`).digest("hex").slice(0, 24);
@@ -71,4 +75,4 @@ function traderSignal(bot, snapshot, previous, book) {
   return null;
 }
 
-module.exports = { POLICY, OPEN_ROUND_POLICY, isBootstrap, traderStopAt, tradersEnabledAt, fadeAt, weightedMpi, readExamBots, recordExamBots, traderId, botLabel, traderSignal };
+module.exports = { POLICY, OPEN_ROUND_POLICY, isBootstrap, traderStopAt, tradersEnabledAt, fadeAt, weightedMpi, readExamBots, recordExamBots, gradeExamBots, traderId, botLabel, traderSignal };

@@ -4,6 +4,7 @@
   const get = (id) => document.getElementById(id);
   const text = (id, value) => { get(id).textContent = value; };
   const select = get("mpi-select");
+  const series = get("mpi-series");
   const number = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
   const time = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul", hourCycle: "h23", hour: "2-digit", minute: "2-digit", second: "2-digit",
@@ -29,13 +30,18 @@
     async onHistory({ before, interval, seriesKey: current }) {
       const [market] = current.split("|");
       if (!market) return null;
-      const result = await readState(new URLSearchParams({ market, before: String(before), interval }));
+      const kind = current.split("|")[1];
+      const result = await readState(new URLSearchParams({ market, before: String(before), interval,
+        ...(kind === "bot_replay" ? { series: "replay" } : {}) }));
       return seriesKey(result) === current ? result.candles : null;
     },
   });
 
   function render() {
     const latest = state.latest;
+    const replay = state.source === "bot_replay";
+    series.hidden = !state.market?.replayMpiCount;
+    if (series.hidden) series.value = "official";
     const marketKey = JSON.stringify(state.markets.map(({ id, title }) => [id, title]));
     if (marketKey !== select.dataset.options) {
       const placeholder = new Option("회차 선택", "");
@@ -48,12 +54,17 @@
     text("mpi-market-name", state.market?.title || "맵쓰 주간 모의고사");
     text("mpi-value", latest?.mpi != null ? number.format(latest.mpi) : "—");
     text("mpi-score", latest?.mpi != null ? `${number.format(latest.mpi / 10)}점` : "—");
-    const botCount = latest?.botPopulationCount ?? 0;
+    const botCount = latest?.botPopulationCount ?? (replay ? latest?.populationCount : 0) ?? 0;
     get("mpi-bot-policy").hidden = !state.market?.botParticipation;
-    text("mpi-value-label", state.market?.bootstrap ? "잠정 MPI · 30분 지연" : "공개 MPI · 30분 지연");
-    text("mpi-bot-policy", state.market?.bootstrap
+    text("mpi-value-label", replay ? "과거 봇 MPI 재생" : state.market?.bootstrap ? "잠정 MPI · 30분 지연" : "공개 MPI · 30분 지연");
+    text("mpi-bot-policy", replay
+      ? `과거 봇 점수로 재생한 지수 · 복원 ${state.market?.replayRecordedAt ? time.format(new Date(state.market.replayRecordedAt)) + " KST" : "—"}`
+      : state.market?.bootstrap
       ? `공개 표본의 Exam Bot 가중치 ${latest?.botWeight == null ? "—" : number.format(latest.botWeight * 100) + "%"} · 최종 정산은 실제 유효 학생 성적 기준`
       : "학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다.");
+    if (!replay && latest?.reconstructedBotPopulationCount) {
+      get("mpi-bot-policy").textContent += ` · 과거 봇 점수 ${number.format(latest.reconstructedBotPopulationCount)}건 포함`;
+    }
     const humanCount = latest?.humanPopulationCount ?? ((latest?.populationCount ?? 0) - botCount);
     text("mpi-count", !latest ? "—" : state.market?.botParticipation
       ? `학생 ${number.format(humanCount)}명 · 봇 ${number.format(botCount)}명` : `${number.format(latest.populationCount)}명`);
@@ -70,6 +81,7 @@
     const version = ++request;
     const query = new URLSearchParams({ interval: chart.interval });
     if (selected) query.set("market", selected);
+    if (series.value === "replay") query.set("series", "replay");
     try {
       const result = await readState(query);
       if (version !== request) return;
@@ -81,7 +93,12 @@
     }
   }
 
+  series.addEventListener("change", () => {
+    chart.reset();
+    void refresh();
+  });
   select.addEventListener("change", () => {
+    series.value = "official";
     selected = select.value;
     chart.reset();
     void refresh();

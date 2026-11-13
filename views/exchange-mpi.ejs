@@ -34,6 +34,10 @@
     <section class="panel mpi-panel" aria-labelledby="mpi-chart-heading">
       <header class="panel-heading">
         <h2 id="mpi-chart-heading">MPI 캔들</h2>
+        <select id="mpi-series" aria-label="MPI 데이터" <%= initial.market?.replayMpiCount ? "" : "hidden" %>>
+          <option value="official" <%= initial.source === "official" ? "selected" : "" %>>공개 MPI</option>
+          <option value="replay" <%= initial.source === "bot_replay" ? "selected" : "" %>>과거 봇 MPI 재생</option>
+        </select>
       </header>
       <%- include("partials/exchange-chart-controls", { intervals, activeInterval: initial.interval }) %>
       <output class="candle-summary" data-candle-summary aria-label="MPI 시가·고가·저가·종가"></output>

@@ -6,7 +6,7 @@ const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
 const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput,
-  saveObservedMpi, applyNovember14MpiMinimum, startMpiBotFade, activateNovember14ExamBots } = require("../services/exchangeMarketService");
+  saveObservedMpi, applyNovember14MpiMinimum, startMpiBotFade, activateNovember14ExamBots, backfillNovember14ExamBots } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
 const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
@@ -829,6 +829,35 @@ async function main() {
     ]);
     const secondPublication = new Date(+secondHour + 30 * 60_000);
     assert.equal((await mpiState({ marketId: rolloutId, now: secondPublication })).latest.botPopulationCount, 2);
+    const replayAt = new Date(+secondPublication + 5 * 60_000);
+    const futurePreBackfill = await ExchangeTick.create({ marketId: rolloutRound._id, kind: "observed",
+      mpi: 123, populationCount: 2, sampledAt: new Date(+replayAt - 1000),
+      publishAt: new Date(+replayAt + 30 * 60_000 - 1000) });
+    await backfillNovember14ExamBots(replayAt);
+    await backfillNovember14ExamBots(new Date(+replayAt + 1000));
+    const history = await models.ExchangeExamBotAttempt.find({ marketId: rolloutRound._id, reconstructedAt: { $ne: null } }).sort({ submittedAt: 1 }).lean();
+    assert.ok(history.length > 100);
+    assert.match(history[0].label, /^ExamBotReplay1$/);
+    assert.ok(+history[0].submittedAt >= +rolloutRound.opensAt && +history.at(-1).submittedAt < +rolloutAt);
+    assert.ok(history.every((row) => row.source === "BOT" && +row.reconstructedAt === +replayAt));
+    assert.equal(await models.ExchangeEvent.countDocuments({ marketId: rolloutRound._id, action: "exam-bots-backfill" }), 1);
+    assert.equal(await ExchangeTrade.countDocuments({ marketId: rolloutRound._id }), 0);
+    assert.equal(await ExchangeOrder.countDocuments({ marketId: rolloutRound._id }), 0);
+    const restoredRound = await terminalState({ marketId: rolloutId, interval: "1h", now: replayAt });
+    assert.equal(restoredRound.market.volume, 0);
+    assert.ok(restoredRound.market.replayVolume > 0);
+    assert.ok(restoredRound.replayCandles.length > 0);
+    assert.deepEqual(restoredRound.trades, []);
+    assert.deepEqual(restoredRound.candles, []);
+    const replayMpi = await mpiState({ marketId: rolloutId, interval: "1h", now: replayAt, series: "replay" });
+    assert.equal(replayMpi.source, "bot_replay");
+    assert.ok(replayMpi.candles.length > 0);
+    const beforeBackfillPublication = await mpiState({ marketId: rolloutId, now: new Date(+replayAt + 30 * 60_000 - 1) });
+    assert.equal(beforeBackfillPublication.latest.botPopulationCount, 2);
+    assert.equal(+(await ExchangeTick.findById(futurePreBackfill._id)).supersededAt, +replayAt);
+    const backfillPublication = await mpiState({ marketId: rolloutId, now: new Date(+replayAt + 30 * 60_000) });
+    assert.equal(backfillPublication.latest.reconstructedBotPopulationCount, history.length);
+    assert.equal(backfillPublication.latest.botPopulationCount, history.length + 2);
     await PrivateMockExam.updateOne({ _id: rolloutExam._id }, { $set: { status: "locked", settlementCompletedAt: rolloutRound.closeAt } });
     await processMarket(await ExchangeMarket.findById(rolloutRound._id), rolloutRound.closeAt);
     const rolloutSettlement = await ExchangeMarket.findById(rolloutRound._id).lean();

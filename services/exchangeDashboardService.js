@@ -96,7 +96,7 @@ async function operatorBotsState(marketId, now = new Date()) {
     const accounts = bootstrap ? await ExchangeAccount.find({ marketId: market._id, userId: { $in: wallets.map((row) => row._id) },
       releasedAt: null }).session(session).lean() : [];
     const cash = new Map(accounts.map((row) => [String(row.userId), row.cash / TP_SCALE]));
-    const bots = roster.reverse().map(({ id, botId, number, label, score, submittedAt }) => {
+    const bots = roster.reverse().map(({ id, botId, number, label, score, submittedAt, reconstructedAt }) => {
       const key = String(botId ?? id);
       const botOrders = orders.filter((row) => String(row.botId) === key);
       const botPositions = positions.filter((row) => String(row.botId) === key);
@@ -107,7 +107,7 @@ async function operatorBotsState(marketId, now = new Date()) {
         ? botPositions.reduce((sum, row) => sum + (reference - row.price) * row.remaining * (row.direction === "long" ? 1 : -1), 0) : null;
       const child = bootstrap ? traderId(key) : "";
       const available = bootstrap ? (balances.get(child) ?? 0) + (cash.get(child) ?? 0) : null;
-      return { number, score, submittedAt, order: botOrders.at(-1), position: botPositions.at(-1),
+      return { number, score, submittedAt, reconstructedAt, order: botOrders.at(-1), position: botPositions.at(-1),
         examLabel: label ?? botLabel("ExamBot", number), traderLabel: botLabel("TraderBot", number),
         orders: botOrders, positions: botPositions, available, reserved, locked, pnl,
         realized: botPositions.length ? (market.decision === "void" ? 0 : botPositions.reduce((sum, row) => sum + row.realized, 0) / TP_SCALE) : null };

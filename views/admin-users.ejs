@@ -48,6 +48,7 @@
       <nav class="admin-user-tabs" aria-label="유저 관리 메뉴">
         <a class="<%= testTab ? '' : 'active' %>" href="/admin/users" <%- testTab ? '' : 'aria-current="page"' %>>사용자 목록</a>
         <a class="<%= testTab ? 'active' : '' %>" href="/admin/users?tab=test" <%- testTab ? 'aria-current="page"' : '' %>>운영 테스트 계정</a>
+        <% if (testTab && exchangeBotsHref) { %><a href="<%= exchangeBotsHref %>">Exchange 운영 봇 대시보드 ↗</a><% } %>
         <a href="/admin/users/sanctions">최근 제재 내역</a>
       </nav>
       <% if (typeof feedback !== "undefined" && feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>

@@ -196,7 +196,7 @@
 
     <section class="exchange-admin-section" aria-labelledby="event-title">
       <h2 id="event-title">최근 운영 이력</h2>
-      <% const actions = { "exam-bots-start": "Exam Bot 점수 공급 시작", "mpi-bot-fade-start": "MPI 봇 기여도 단계적 종료 시작", "mpi-bot-weight": "Exam Bot 가중치 변경", "trading-bots-disable": "Trading Bots 중단", "trading-bots-enable": "Trading Bots 활성화", "bot-initial-funding": "운영 봇 초기 TP 지급", schedule: "일정 저장", minimum: "개장 최소 인원 변경", "mpi-minimum": "공식 MPI 공개 기준 변경", "liquidity-scheduled": "운영자 호가 예약", "liquidity-stop": "운영자 호가 단계적 중단", pause: "거래 중지", resume: "거래 재개", normal: "정산 등록", void: "시장 무효" }; %>
+      <% const actions = { "exam-bots-backfill": "Exam Bot 과거 점수 복원", "exam-bots-start": "Exam Bot 점수 공급 시작", "mpi-bot-fade-start": "MPI 봇 기여도 단계적 종료 시작", "mpi-bot-weight": "Exam Bot 가중치 변경", "trading-bots-disable": "Trading Bots 중단", "trading-bots-enable": "Trading Bots 활성화", "bot-initial-funding": "운영 봇 초기 TP 지급", schedule: "일정 저장", minimum: "개장 최소 인원 변경", "mpi-minimum": "공식 MPI 공개 기준 변경", "liquidity-scheduled": "운영자 호가 예약", "liquidity-stop": "운영자 호가 단계적 중단", pause: "거래 중지", resume: "거래 재개", normal: "정산 등록", void: "시장 무효" }; %>
       <% if (!events.length) { %><p class="exchange-admin-empty">저장된 운영 이력이 없습니다.</p><% } %>
       <% for (const event of events) {
         const minimum = event.detail?.minimumMpiAttempts ?? event.detail?.minimumAttempts;

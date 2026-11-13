@@ -23,7 +23,8 @@
   <% } %>
 </section>
 <section class="panel dashboard-panel" aria-labelledby="bots-heading">
-  <header class="panel-heading"><h2 id="bots-heading">회차별 운영 봇</h2><span><%= data.bots.length %>명 응시</span></header>
+  <% const liveBotCount = data.bots.filter((bot) => !bot.reconstructedAt).length; %>
+  <header class="panel-heading"><h2 id="bots-heading">회차별 운영 봇</h2><span>응시 <%= liveBotCount %>건<%= liveBotCount === data.bots.length ? "" : ` · 과거 점수 복원 ${data.bots.length - liveBotCount}건` %></span></header>
   <div class="activity-table">
     <% if (!data.bots.length) { %><p>이 회차에 응시한 운영 봇이 없습니다.</p><% } else { %>
       <table>
@@ -32,8 +33,10 @@
         <tbody>
           <% for (const bot of data.bots) { %>
             <tr>
-              <td><%= bot.examLabel %><br /><%= bot.traderLabel %></td>
-              <td><%= format(bot.score) %>점 · <%= date.format(new Date(bot.submittedAt)) %></td>
+              <td><%= bot.examLabel %><% if (bot.traderLabel && !bot.reconstructedAt) { %><br /><%= bot.traderLabel %><% } %></td>
+              <td><%= format(bot.score) %>점 · <%= date.format(new Date(bot.submittedAt)) %>
+                <% if (bot.reconstructedAt) { %><br /><strong>과거 점수 복원 · <%= date.format(new Date(bot.reconstructedAt)) %> KST</strong><% } %>
+              </td>
               <td><% if (!bot.orders.length) { %>—<% } %>
                 <% for (const order of bot.orders) { %><div><%= order.direction.toUpperCase() + " " + format(order.price) + " · " +
                   ({ working: "미체결", filled: "체결", cancelled: "취소" }[order.status]) %></div><% } %>

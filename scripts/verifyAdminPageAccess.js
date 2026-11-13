@@ -11,6 +11,7 @@ const bcrypt = require("bcrypt");
 const { MongoMemoryReplSet } = require("mongodb-memory-server-core");
 process.env.NODE_ENV = "development";
 process.env.DISABLE_SCHEDULERS = "1";
+process.env.EXCHANGE_BASE_URL = "https://exchange.fixture.invalid";
 process.env.API_TOKEN_SECRET = crypto.randomBytes(48).toString("hex");
 process.env.PASSWORD_RESET_SECRET = crypto.randomBytes(48).toString("hex");
 require("../services/emailService").sendEmail = async () => ({ delivered: false });
@@ -96,8 +97,10 @@ async function main() {
     const ordinaryUsers = await request("/admin/users", adminCookie);
     assert.match(ordinaryUsers.text, /href="\/admin\/users\?tab=test"/);
     assert.doesNotMatch(ordinaryUsers.text, /test@fixture\.invalid/);
+    assert.doesNotMatch(ordinaryUsers.text, /Exchange 운영 봇 대시보드/);
     const testList = await request("/admin/users?tab=test", adminCookie);
     assert.match(testList.text, /test@fixture\.invalid/);
+    assert.match(testList.text, /href="https:\/\/exchange\.fixture\.invalid\/exchange\/dashboard\/bots\?wallet=exchange"/);
     const preparePath = "/admin/users/operations-test";
     const studentCookieForTestAccounts = await login("/student/login", student.email);
     await request(preparePath, studentCookieForTestAccounts, { method: "POST" }, 403);

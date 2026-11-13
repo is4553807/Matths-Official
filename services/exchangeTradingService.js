@@ -465,7 +465,8 @@ async function maintainBootstrapTraders(market, now, clock) {
   const heldByBot = new Map(holdings.map((row) => [String(row.botId), row.direction]));
   const recentlySubmitted = new Set(roster.slice(-4).map((row) => String(row.botId)));
   // Older bots with positions can react too, so they can close before maturity.
-  const participants = roster.filter((row) => heldByBot.has(String(row.botId)) || recentlySubmitted.has(String(row.botId)));
+  const participants = roster.filter((row) => !row.reconstructedAt
+    && (heldByBot.has(String(row.botId)) || recentlySubmitted.has(String(row.botId))));
   for (const examBot of participants) {
     const signal = traderSignal(examBot, snapshot, previous, book);
     if (!signal) continue;
