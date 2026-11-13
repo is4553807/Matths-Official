@@ -118,6 +118,8 @@ a { color: inherit; text-decoration: none; }
 .chart-legend .legend-price::before { background: var(--bid); }
 .chart-legend .legend-sample::before { background: var(--sample); }
 .chart-legend .legend-ma::before { background: var(--accent); }
+.chart-legend label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.chart-legend input { margin: 0; accent-color: var(--accent); }
 .chart-area { position: relative; height: 324px; }
 #exchange-chart { display: block; width: 100%; height: 100%; }
 .chart-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 9px; text-align: center; padding: 16px; }
@@ -145,6 +147,7 @@ a { color: inherit; text-decoration: none; }
 .book-mid span { color: var(--quiet); font-size: 11px; }
 .book-foot { margin-top: 10px; }
 .order-panel form { padding: 12px 14px 0; }
+.order-market-rules { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .order-fields { margin: 0; border: 0; padding: 0; min-inline-size: 0; }
 .order-modes { display: flex; background: var(--input); padding: 3px; border-radius: 5px; border: 1px solid var(--border); }
 .order-modes button { flex: 1; padding: 5px; color: var(--muted); background: transparent; border: 0; border-radius: 3px; font-size: 12px; }

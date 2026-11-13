@@ -59,11 +59,21 @@ async function testHttp() {
     assert.match(html, /value="long" disabled/);
     assert.doesNotMatch(html, /dashboard-sidebar/);
     assert.match(html, /href="\/exchange\/mpi"/);
+    assert.match(html, /id="chart-heading">선물 체결가 캔들/);
+    assert.match(html, /data-interval="1m"[^>]+aria-pressed="true"/);
+    assert.match(html, /type="checkbox" id="show-mid-price" \/>/);
     assert.match(html, /matths-exchange-header\.svg/);
     assert.match(html, /matths-exchange-header-light\.svg/);
     assert.match(html, /id="exchange-login" href="[^"]*\/login\?next=%2Fexchange"/);
     assert.match(html, /맵쓰로 돌아가기/);
+    const marketRules = /id="order-market-rules">거래소의 자동화 계정이 거래 상대방이 될 수 있습니다\. 공식 MPI와 만기 정산 지수는 실제 유효 응시 성적으로 계산합니다\./;
+    assert.match(html, marketRules);
     assert.match(html, /<fieldset class="order-fields" disabled>/);
+    const studentFutures = await fetch(`${origin}/exchange/futures`, { headers: { Cookie: student } });
+    assert.equal(studentFutures.status, 200);
+    const studentFuturesHtml = await studentFutures.text();
+    assert.match(studentFuturesHtml, marketRules);
+    assert.doesNotMatch(studentFuturesHtml, /<fieldset class="order-fields" disabled>/);
     assert.doesNotMatch(html, /href="\/exchange\/dashboard"|로그아웃/);
     assert.match(html, /matths-exchange-x\.svg/);
     assert.doesNotMatch(html, /id="sample-price"/);
@@ -453,6 +463,8 @@ async function main() {
     assert.deepEqual(quoted.ticks, []);
     assert.equal(quoted.market.lastPrice, null);
     assert.equal(quoted.market.volume, 0);
+    const { marketMakerId } = await ExchangeMarket.findById(liquidityMarket._id).lean();
+    assert.equal((await ExchangeWallet.findById(marketMakerId)).available, 108000);
     await order(liquidityMarket, buyer, "long", 640, 1, startsAt);
     await maintainMarketMaker(liquidityMarket._id, () => startsAt);
     const filled = await viewAt(startsAt);
@@ -460,6 +472,7 @@ async function main() {
     assert.equal(filled.market.lastPrice, 640);
     assert.deepEqual(Object.keys(filled.trades[0]).sort(), ["price", "quantity", "tradedAt"]);
     assert.equal(await ExchangeTrade.countDocuments({ marketId: liquidityMarket._id, liquidityProvider: "matths" }), 1);
+    assert.equal((await dashboardState(marketMakerId, startsAt)).positionCollateral, 360);
     assert.equal(filled.asks.length, 0);
     assert.deepEqual(filled.bids[0], { price: 564, quantity: 1 });
 
@@ -475,6 +488,25 @@ async function main() {
     assert.equal((await viewAt(stopEndsAt)).bids.length, 0);
     assert.equal((await order(liquidityMarket, fifth, "short", 570, 1, stopEndsAt)).status, "working");
     assert.equal((await viewAt(stopEndsAt)).market.volume, 1);
+
+    const candleMarket = await ExchangeMarket.create({
+      key: "ohlcv-audit", type: "mock", title: "OHLCV audit", opensAt: weekOpen, closeAt: weekClose,
+      lastTradeAt: new Date(+midweek + 120_000),
+    });
+    // Out-of-order inserts with the same timestamp still follow the execution sequence.
+    await ExchangeTrade.insertMany([
+      { offset: 0, sequence: 5, price: 590, quantity: 3 },
+      { offset: 0, sequence: 1, price: 600, quantity: 1 },
+      { offset: 0, sequence: 2, price: 630, quantity: 2 },
+      { offset: 0, sequence: 4, price: 580, quantity: 1 },
+      { offset: 120_000, sequence: 8, price: 620, quantity: 4 },
+    ].map(({ offset, ...trade }) => ({ ...trade, marketId: candleMarket._id, tradedAt: new Date(+midweek + offset) })));
+    const candleNow = new Date(+midweek + 140_000);
+    const tradeView = await terminalState({ marketId: String(candleMarket._id), interval: "1m", now: candleNow });
+    const expectedFirst = { _id: +midweek, open: 600, high: 630, low: 580, close: 590, volume: 7 };
+    const expectedLast = { _id: +midweek + 120_000, open: 620, high: 620, low: 620, close: 620, volume: 4 };
+    assert.deepEqual(tradeView.candles, [expectedFirst, expectedLast]);
+    assert.deepEqual(await futuresChartHistory(candleMarket._id, "1m", candleNow, candleNow), [expectedFirst]);
 
     console.log("Exchange verified: delayed official MPI, legacy and demo exclusion, MM quotes and scheduled live liquidity, verification wait, fees, wallets and settlement.");
   } finally {

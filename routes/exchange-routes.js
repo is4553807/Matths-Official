@@ -16,6 +16,11 @@ const { dashboardState } = require("../services/exchangeDashboardService");
 const { mpiState } = require("../services/exchangeMpiService");
 
 const router = express.Router();
+const FUTURES_QUICK_INTERVALS = ["1m", "1s", "5m", "15m", "1h"];
+const FUTURES_INTERVALS = [
+  ...FUTURES_QUICK_INTERVALS.map((code) => intervalFor(code)),
+  ...OPTIONS.filter(({ code }) => !FUTURES_QUICK_INTERVALS.includes(code)),
+];
 
 function id(value) {
   if (!isObjectIdOrHexString(value)) throw error(404, "시장 또는 주문을 찾을 수 없습니다.");
@@ -95,12 +100,12 @@ router.get("/api/exchange/mpi", privateResponse, async (req, res) => {
 async function showFutures(req, res) {
   const { userId, actorId } = req.exchangeAccount;
   const selection = req.params.marketId || req.query.market;
-  const chartInterval = intervalFor(req.query.interval).code;
+  const chartInterval = intervalFor(req.query.interval, "1m").code;
   const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: chartInterval });
   const wallet = userId && !actorId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
   res.render("exchange", { ...exchangeNavigation(req), initial, exchangeWalletMode: Boolean(actorId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
-    intervals: OPTIONS, chartInterval, disablePageAnalytics: true });
+    intervals: FUTURES_INTERVALS, chartInterval, disablePageAnalytics: true });
 }
 
 router.get("/exchange", privateResponse, exchangeWallet, showFutures);
@@ -152,7 +157,7 @@ router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exch
     interval: typeof req.query.interval === "string" ? req.query.interval : undefined }));
 });
 router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (req, res) => {
-  const interval = intervalFor(req.query.interval).code;
+  const interval = intervalFor(req.query.interval, "1m").code;
   const candles = await futuresChartHistory(id(req.params.marketId), interval, historyBefore(req.query.before));
   res.json({ interval, candles });
 });

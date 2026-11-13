@@ -205,10 +205,12 @@
         ctx.restore();
       }
       const hoverInPlot = hover && !drag && hover.x >= left && hover.x <= right && hover.y >= top && hover.y <= bottom;
-      const hovered = hoverInPlot ? rows.reduce((nearest, row) => (
+      const nearest = hoverInPlot ? rows.reduce((nearest, row) => (
         !nearest || Math.abs(x(row._id + ms / 2) - hover.x) < Math.abs(x(nearest._id + ms / 2) - hover.x)
           ? row : nearest
       ), null) : null;
+      const hovered = nearest && (!volume || Math.abs(x(nearest._id + ms / 2) - hover.x) < spacing / 2)
+        ? nearest : null;
       if (hovered) {
         const at = x(hovered._id + ms / 2);
         ctx.strokeStyle = color("--chart-crosshair");
@@ -226,7 +228,8 @@
         ctx.fillStyle = color("--chart-label-text");
         ctx.fillText(number.format(price), right + 6, hover.y + 4);
       }
-      showSummary(hovered || rows.at(-1) || candles.at(-1));
+      if (volume && hoverInPlot && !hovered) summary.textContent = "이 구간에는 체결이 없습니다.";
+      else showSummary(hovered || rows.at(-1) || candles.at(-1));
       const hasData = candles.length || references.some((row) => row.price !== null);
       zoomIn.disabled = !hasData || visible <= 3;
       zoomOut.disabled = !hasData || (visible >= full && (!onHistory || historyEnd));

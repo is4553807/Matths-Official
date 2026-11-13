@@ -13,7 +13,7 @@ const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
   verifying: "성적 검증 중", "awaiting-result": "성적 발표 대기", settling: "정산 중", settled: "정산 완료", void: "시장 취소" };
-const { intervalFor, candleWindow, aggregateCandles } = require("./exchangeChartService");
+const { intervalFor, bucketStart, candleWindow, aggregateCandles } = require("./exchangeChartService");
 
 function marketView(market, now) {
   const status = publicState(market, now);
@@ -52,8 +52,11 @@ async function chart(marketId, interval, now) {
 }
 
 async function futuresChartHistory(marketId, interval, before, now = new Date()) {
+  const { ms } = intervalFor(interval, "1m");
+  // History cursors are exclusive candle boundaries, including for off-boundary requests.
+  const tradedAt = before ? { $lt: new Date(bucketStart(before, ms)), $lte: now } : { $lte: now };
   const latest = await ExchangeTrade.findOne({
-    marketId, tradedAt: before ? { $lt: before, $lte: now } : { $lte: now },
+    marketId, tradedAt,
   }).select("marketId tradedAt").sort({ tradedAt: -1 }).lean();
   return latest ? chart(latest.marketId, interval, latest.tradedAt) : [];
 }

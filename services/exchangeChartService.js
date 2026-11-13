@@ -50,7 +50,7 @@ async function aggregateCandles(model, { match, dateField, priceField, ms, volum
   const shifted = { $add: [{ $toLong: `$${dateField}` }, KST] };
   return model.aggregate([
     { $match: match },
-    { $sort: { [dateField]: 1, ...(volume ? { sequence: 1 } : {}) } },
+    { $sort: { [dateField]: 1, ...(volume ? { sequence: 1, _id: 1 } : {}) } },
     { $group: {
       _id: { $subtract: [{ $subtract: [shifted, { $mod: [shifted, ms] }] }, KST] },
       open: { $first: price }, high: { $max: price }, low: { $min: price }, close: { $last: price },

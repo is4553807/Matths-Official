@@ -7,6 +7,7 @@
   const form = get("order-form");
   const wallet = root.dataset.wallet;
   const loginLink = get("exchange-login");
+  const showMidPrice = get("show-mid-price");
   const walletQuery = wallet ? "?wallet=exchange" : "";
   const price = get("order-price");
   const quantity = get("order-quantity");
@@ -187,9 +188,10 @@
 
   function render() {
     const market = selectedMarket();
-    const references = market?.type === "weekly" ? state.references || [] : [];
+    const isWeekly = market?.type === "weekly";
+    const references = isWeekly && showMidPrice.checked ? state.references || [] : [];
     const hasChart = market && (state.candles?.length || references.some((row) => row.price !== null));
-    get("mid-legend").hidden = market?.type !== "weekly";
+    get("mid-legend").hidden = !isWeekly;
     selectOptions();
     for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", button.dataset.filter === filter);
     text("market-title", market?.title || labels[filter]);
@@ -287,6 +289,7 @@
     updateOrder();
   });
   form.addEventListener("input", updateOrder);
+  showMidPrice.addEventListener("change", render);
   get("calculator-fields").addEventListener("input", calculate);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();

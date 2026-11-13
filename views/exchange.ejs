@@ -35,12 +35,15 @@
     <div class="terminal-grid">
       <section class="panel chart-panel" aria-labelledby="chart-heading">
         <header class="panel-heading">
-          <h2 id="chart-heading">선물 가격</h2>
-
+          <h2 id="chart-heading">선물 체결가 캔들</h2>
         </header>
-        <div class="chart-legend"><span class="legend-price">선물 체결가</span><span class="legend-ma">MA 5 · 10</span><span id="mid-legend" class="legend-ma" hidden>호가 중간값</span></div>
+        <div class="chart-legend">
+          <span class="legend-price">체결가</span>
+          <span class="legend-ma">MA 5 · 10</span>
+          <label id="mid-legend" hidden><input type="checkbox" id="show-mid-price" /> 호가 중간값</label>
+        </div>
         <%- include("partials/exchange-chart-controls", { intervals, activeInterval: chartInterval }) %>
-        <output class="candle-summary" data-candle-summary aria-label="캔들 시가·고가·저가·종가"></output>
+        <output class="candle-summary" data-candle-summary aria-label="체결 캔들의 시가·고가·저가·종가·거래량"></output>
         <div class="chart-area">
           <canvas id="exchange-chart" role="img" aria-label="선물 체결가 캔들, 거래량 및 호가 중간값"></canvas>
           <div class="chart-empty" id="chart-empty">
@@ -62,7 +65,8 @@
       </section>
       <section class="panel order-panel" aria-labelledby="order-heading">
         <header class="panel-heading"><h2 id="order-heading">지정가 주문</h2></header>
-        <form id="order-form">
+        <form id="order-form" aria-describedby="order-market-rules">
+          <p class="order-market-rules" id="order-market-rules">거래소의 자동화 계정이 거래 상대방이 될 수 있습니다. 공식 MPI와 만기 정산 지수는 실제 유효 응시 성적으로 계산합니다.</p>
           <fieldset class="order-fields" <%= signedIn ? "" : "disabled" %>>
             <div class="order-modes" aria-label="주문 구분">
               <button type="button" data-action="open" aria-pressed="true">신규</button>
@@ -109,7 +113,7 @@
         <div class="activity-table" id="activity-content"><p>표시할 포지션이 없습니다.</p></div>
       </section>
     </div>
-    <footer class="terminal-footer"><%- include("partials/exchange-brand", { width: 118, height: 29 }) %><span>거래소는 호가를 제공할 수 있습니다. TP는 현금으로 전환할 수 없습니다.</span></footer>
+    <footer class="terminal-footer"><%- include("partials/exchange-brand", { width: 118, height: 29 }) %><span>TP는 현금으로 전환할 수 없습니다.</span></footer>
   </main>
 </body>
 </html>
