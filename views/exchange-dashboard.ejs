@@ -67,6 +67,7 @@
           <div class="wallet-summary-links">
             <a href="/exchange/dashboard/positions<%= query %>">현재 포지션 <strong><%= data.positions.length %>건</strong></a>
             <a href="/exchange/dashboard/orders<%= query %>">미체결 주문 <strong><%= data.orders.length %>건</strong></a>
+            <% if (exchangeWalletMode) { %><a href="/exchange/dashboard/bots<%= query %>">운영 봇 <strong>포지션 보기 ↗</strong></a><% } %>
           </div>
         </section>
       <% } %>
@@ -129,6 +130,9 @@
         <% } %>
       </div>
     </section>
+    <% } %>
+    <% if (section === "bots") { %>
+      <%- include("partials/exchange-bot-dashboard", { data, format, date }) %>
     <% } %>
     <% if (section === "fees") { %>
       <section class="panel wallet-balance">

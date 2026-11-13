@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { randomUUID } = require("node:crypto");
+const { randomBytes, randomUUID } = require("node:crypto");
 const mongoose = require("mongoose");
 const models = require("../models/exchangeModel");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
@@ -8,12 +8,12 @@ const { serviceHostRedirectLocation } = require("../middleware/serviceHostRoutin
 const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput,
   saveObservedMpi, applyNovember14MpiMinimum } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
-const { dashboardState } = require("../services/exchangeDashboardService");
+const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState } = require("../services/exchangeMpiService");
-const { scenarioState } = require("../services/exchangeScenarioService");
+const { scenarioState, submittedBots, dueBotOrder, botParticipationForSchedule } = require("../services/exchangeScenarioService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
-const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, maintainFundedBotOrders, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo, ExchangeOrder } = models;
 
 const time = (value) => new Date(value);
@@ -124,6 +124,11 @@ async function testHttp() {
     const feePath = "/exchange/dashboard/fees?wallet=exchange";
     assert.equal((await fetch(origin + feePath, { headers: { Cookie: student } })).status, 403);
     assert.equal((await fetch(origin + "/api/exchange/markets/current?wallet=exchange", { headers: { Cookie: student } })).status, 403);
+    const botsPath = "/exchange/dashboard/bots?wallet=exchange";
+    assert.equal((await fetch(origin + botsPath, { headers: { Cookie: student } })).status, 403);
+    const botDashboard = await fetch(origin + botsPath, { headers: { Cookie: admin } });
+    assert.equal(botDashboard.status, 200);
+    assert.match(await botDashboard.text(), /Matths Exchange 공용 잔액[\s\S]+회차별 운영 봇/);
     const fees = await fetch(origin + feePath, { headers: { Cookie: admin } });
     assert.equal(fees.status, 200);
     assert.match(await fees.text(), /Matths Exchange[\s\S]+누적 수수료[\s\S]+수수료 적립 내역/);
@@ -242,8 +247,11 @@ async function main() {
     await ArchiveItem.create({ _id: exam.archiveItemId, title: "테스트 문제지", storedName: "exchange-test.pdf", originalName: "fixture.pdf",
       mimeType: "application/pdf", sizeBytes: 100, uploadedBy: admin, storageProvider: "R2", r2ObjectKey: "audit/fixture.pdf", isPublished: false });
     await saveMinimum({ value: 1, actorId: admin });
-    await syncWeeklyMarkets(midweek);
+    await syncWeeklyMarkets(new Date(+weekOpen + 1000));
     let weekly = await ExchangeMarket.findOne({ examId: exam._id });
+    assert.equal(weekly.botParticipation, botParticipationForSchedule(weekOpen, weekClose));
+    // The existing settlement and publication cases use the original round rules.
+    await ExchangeMarket.updateOne({ _id: weekly._id }, { $set: { botParticipation: false } });
     assert.equal((await terminalState({ marketId: String(weekly._id), now: midweek })).market.status, "waiting");
     await assert.rejects(order(weekly, admin, "long", 650, 1, midweek), { status: 409 });
 
@@ -561,6 +569,69 @@ async function main() {
     const earlier = scenario(141 * hour, { chart: "futures", before: finalScenario.candles.at(-1)._id });
     assert.ok(earlier.candles.length);
     assert.ok(earlier.candles.at(-1)._id < finalScenario.candles.at(-1)._id);
+
+    const funded = await ExchangeMarket.create({ key: "weekly:funded-bot-audit", type: "weekly", examId: exam._id,
+      title: "Funded bots", opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose,
+      botParticipation: true, botSeed: randomBytes(32).toString("hex"), minimumMpiAttempts: 1 });
+    const seeded = submittedBots(funded, weekClose);
+    assert.equal(seeded.length, 141);
+    assert.equal(scenarioState(funded, { now: midweek }), null);
+    const scheduled = seeded[67];
+    const orderAt = new Date(scheduled.orderAt);
+    const request = dueBotOrder(funded, orderAt);
+    assert.equal(dueBotOrder(funded, new Date(scheduled.orderAt - 1)), null);
+    assert.equal(request.botId, scheduled.id);
+    const beforeFunding = (await ExchangeWallet.findById(EXCHANGE_WALLET_ID)).available;
+    await maintainFundedBotOrders(funded, orderAt);
+    await maintainFundedBotOrders(funded, orderAt);
+    assert.equal(await ExchangeOrder.countDocuments({ marketId: funded._id, botId: { $ne: null } }), 1);
+    assert.equal(await ExchangeTrade.countDocuments({ marketId: funded._id }), 0);
+    const quote = await terminalState({ marketId: String(funded._id), now: orderAt });
+    assert.deepEqual((request.direction === "long" ? quote.bids : quote.asks)[0],
+      { price: request.price, quantity: 1, botQuantity: 1 });
+    const opposite = request.direction === "long" ? "short" : "long";
+    await assert.rejects(placeOrder({
+      marketId: funded._id, userId: EXCHANGE_WALLET_ID, actorId: operator._id, clock: () => orderAt,
+      input: { action: "open", direction: opposite, price: request.price, quantity: 1, commandId: randomUUID() },
+    }), { status: 409 });
+    await order(funded, buyer, opposite, request.price, 1, orderAt);
+    const filledBot = await terminalState({ marketId: String(funded._id), now: orderAt });
+    assert.equal(filledBot.market.volume, 1);
+    assert.deepEqual(Object.keys(filledBot.trades[0]).sort(), ["price", "quantity", "source", "tradedAt"]);
+    assert.equal(filledBot.trades[0].source, "bot");
+    const fundedDashboard = await operatorBotsState(String(funded._id), orderAt);
+    const target = fundedDashboard.bots.find((bot) => bot.number === scheduled.number);
+    assert.equal(target.order.status, "filled");
+    assert.equal(target.position.remaining, 1);
+    assert.ok(target.locked > 0);
+    assert.ok(fundedDashboard.available < beforeFunding / 100 + 2000);
+    assert.equal(await models.ExchangeEvent.countDocuments({ action: "bot-initial-funding" }), 1);
+    await saveObservedMpi(funded, orderAt, () => orderAt);
+    const mpiAt = new Date(+orderAt + 30 * 60_000);
+    assert.equal((await mpiState({ marketId: funded._id, now: new Date(+mpiAt - 1) })).latest, null);
+    const mixed = (await mpiState({ marketId: funded._id, now: mpiAt })).latest;
+    const included = submittedBots(funded, orderAt);
+    assert.equal(mixed.botPopulationCount, included.length);
+    assert.equal(mixed.populationCount, included.length + 5);
+    assert.equal(mixed.mpi, Math.round((350 + included.reduce((sum, bot) => sum + bot.score, 0)) * 1000 / mixed.populationCount) / 100);
+    await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "locked", settlementCompletedAt: weekClose } });
+    await processMarket(await ExchangeMarket.findById(funded._id), weekClose);
+    const settledBot = await ExchangeMarket.findById(funded._id);
+    assert.equal(settledBot.phase, "settled");
+    assert.equal(settledBot.escrow, 0);
+    assert.equal(settledBot.botParticipantCount, 141);
+    assert.equal(settledBot.participantCount, 147);
+    assert.equal(settledBot.settlement, Math.round((450 + seeded.reduce((sum, bot) => sum + bot.score, 0)) * 1000 / 147) / 100);
+    const settledDashboard = await operatorBotsState(String(funded._id), weekClose);
+    const expectedBotPnl = Math.round((settledBot.settlement - request.price) *
+      (request.direction === "long" ? 100 : -100));
+    const expectedStudentFee = Math.round(request.price * 100 * 5 / 10_000);
+    assert.equal((await ExchangeWallet.findById(EXCHANGE_WALLET_ID)).available,
+      beforeFunding + 200_000 + expectedBotPnl + expectedStudentFee);
+    assert.equal(await models.ExchangeEvent.countDocuments({ action: "bot-initial-funding" }), 1);
+    const settledPosition = settledDashboard.bots.find((bot) => bot.number === scheduled.number);
+    assert.equal(settledPosition.position.remaining, 0);
+    assert.equal(settledPosition.realized, expectedBotPnl / 100);
 
     const rolloutAt = new Date("2026-11-13T09:00:00Z");
     const rolloutRound = await ExchangeMarket.create({

@@ -8,7 +8,7 @@ const {
   publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
   applyNovember14MpiMinimum,
 } = require("./exchangeMarketService");
-const { TP_SCALE, processMarket, maintainMarketMaker } = require("./exchangeTradingService");
+const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 const { advanceExchangeScenario } = require("./exchangeScenarioService");
@@ -22,8 +22,9 @@ function marketView(market, now) {
   return {
     id: String(market._id), title: market.title, type: market.type, grade: market.grade, year: market.year,
     opensAt: market.opensAt, closeAt: market.closeAt, status, statusLabel: STAGES[status],
-    lastPrice: market.lastPrice ?? null, volume: market.volume,
+    lastPrice: market.lastPrice ?? null, volume: market.volume, botParticipation: market.botParticipation === true,
     settlement: status === "settled" ? market.settlement : null,
+    botParticipantCount: status === "settled" ? market.botParticipantCount : undefined,
     resultUrl: status === "settled" ? market.resultUrl : undefined,
     settlementSource: status === "settled" ? market.settlementSource : undefined,
     questionCounts: market.questionCounts || null,
@@ -101,7 +102,7 @@ async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
   const filter = forAdmin ? { marketId: market._id, kind: "observed" }
     : { ...publishedMpiFilter(market._id, now), populationCount: { $gte: await readMpiMinimum(market) } };
   return ExchangeTick.find(filter).sort({ publishAt: -1 }).limit(limit)
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount").lean();
 }
 
 async function terminalState({ marketId, userId, interval = "1m", marketType, now = new Date() } = {}) {
@@ -128,7 +129,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
     view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
       market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
-      .select("price quantity tradedAt -_id").lean(),
+      .select("price quantity tradedAt liquidityProvider -_id").lean(),
     chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
     marketSamples(market, now, 120),
     ownMarketState(market, userId, now),
@@ -139,7 +140,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   references.reverse();
   const side = (key, sign) => book.filter((row) => row._id.side === key)
     .sort((a, b) => sign * (a._id.price - b._id.price)).slice(0, 10)
-    .map((row) => ({ price: row._id.price, quantity: row.quantity, operatorQuantity: row.operatorQuantity }));
+    .map((row) => ({ price: row._id.price, quantity: row.quantity, operatorQuantity: row.operatorQuantity, botQuantity: row.botQuantity }));
   const bids = side("buy", -1);
   const asks = side("sell", 1);
   const { price } = marketReference(bids[0], asks[0]);
@@ -147,8 +148,12 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   if (market.type === "weekly" && (reference.price !== null || references.at(-1)?.price != null)) {
     references.push({ at: chartEnd, ...reference });
   }
-  const publicLevels = (levels) => levels.map(({ price, quantity }) => ({ price, quantity }));
-  return { ...result, market: view, bids: publicLevels(bids), asks: publicLevels(asks), reference, references, trades, candles,
+  const publicLevels = (levels) => levels.map(({ price, quantity, botQuantity }) =>
+    botQuantity ? { price, quantity, botQuantity } : { price, quantity });
+  const publicTrades = trades.map(({ price, quantity, tradedAt, liquidityProvider }) =>
+    liquidityProvider === "bot" ? { price, quantity, tradedAt, source: "bot" } : { price, quantity, tradedAt });
+  return { ...result, market: view, bids: publicLevels(bids), asks: publicLevels(asks), reference, references,
+    trades: publicTrades, candles,
     ticks: ticks.reverse(), own: { ...own, eligible: own.eligible && view.status === "open" } };
 }
 
@@ -206,7 +211,7 @@ async function adminState(year, grade, now = new Date()) {
 async function runExchangeTick(now = new Date(), maintain = true, sample = true, clock = () => now) {
   if (maintain) await syncWeeklyMarkets(now);
   if (sample) {
-    const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now } }).lean();
+    const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now } }).select("+botSeed").lean();
     for (const market of weekly) {
       advanceExchangeScenario(market, now);
       try { await saveObservedMpi(market, now, clock); }
@@ -218,12 +223,13 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
     { phase: "settling" },
     { phase: "scheduled", bookClosedAt: null, closeAt: { $lte: now } },
     { phase: "scheduled", type: "weekly", opensAt: { $lte: now } },
-  ] }).sort({ updatedAt: 1 }).limit(50).lean();
+  ] }).sort({ updatedAt: 1 }).limit(50).select("+botSeed").lean();
   for (const market of markets) {
     try {
       await processMarket(market, now);
       if (market.type === "weekly" && market.openedAt && market.phase === "scheduled" && now < market.closeAt) {
-        await maintainMarketMaker(market._id, clock);
+        if (market.botParticipation) await maintainFundedBotOrders(market, now, clock);
+        else await maintainMarketMaker(market._id, clock);
       }
     }
     catch (cause) { console.error("[exchange] market maintenance failed", String(market._id), cause.message); }

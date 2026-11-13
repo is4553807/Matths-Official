@@ -81,7 +81,9 @@
       button.type = "button";
       button.dataset.price = row.price;
       button.style.setProperty("--depth", `${total / sum * 100}%`);
-      button.append(el("span", number(row.price)), el("span", number(row.quantity)), el("span", number(total)));
+      const priceLabel = el("span", number(row.price));
+      if (row.botQuantity) priceLabel.append(el("small", ` 봇 ${number(row.botQuantity)}`, "book-bot"));
+      button.append(priceLabel, el("span", number(row.quantity)), el("span", number(total)));
       return button;
     });
     if (id === "asks") nodes.reverse();
@@ -118,7 +120,12 @@
       rows = (own?.positions || []).map((row) => [row.direction.toUpperCase(), number(row.price), row.remaining, number(row.realized)]);
     } else if (activity === "trades") {
       headers = ["체결 시각 (KST)", "체결가", "수량"];
-      rows = (market ? state.trades || [] : []).map((row) => [time.format(new Date(row.tradedAt)), number(row.price), row.quantity]);
+      if (market?.botParticipation) headers.push("운영 봇");
+      rows = (market ? state.trades || [] : []).map((row) => {
+        const cells = [time.format(new Date(row.tradedAt)), number(row.price), row.quantity];
+        if (market.botParticipation) cells.push(row.source === "bot" ? "참여" : "—");
+        return cells;
+      });
     } else {
       headers = ["접수 시각 (KST)", "방향", "지정가", "주문 수량", "미체결", "지불 수수료 (TP)", "상태"];
       rows = (own?.orders || []).filter((row) => activity !== "working" || row.status === "working").map((row) => {
@@ -190,6 +197,9 @@
     const market = selectedMarket();
     window.MatthsExchangeScenario?.select(market);
     const isWeekly = market?.type === "weekly";
+    text("order-market-rules", market?.botParticipation
+      ? "거래소의 운영 봇이 거래 상대방이 될 수 있습니다. 이 회차의 공식 MPI와 만기 정산에는 학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다."
+      : "거래소의 자동화 계정이 거래 상대방이 될 수 있습니다. 공식 MPI와 만기 정산 지수는 실제 유효 응시 성적으로 계산합니다.");
     const references = isWeekly && showMidPrice.checked ? state.references || [] : [];
     const hasChart = market && (state.candles?.length || references.some((row) => row.price !== null));
     get("mid-legend").hidden = !isWeekly;

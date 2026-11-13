@@ -3,6 +3,7 @@ const { ExchangeAccount, ExchangeMarket, ExchangeOrder, ExchangePosition, Exchan
 const { TP_SCALE, collateral } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, initialBalance } = require("./exchangeFees");
 const { marketView, orderView } = require("./exchangeService");
+const { submittedBots } = require("./exchangeScenarioService");
 
 async function dashboardState(userId, now = new Date(), { section } = {}) {
   return mongoose.connection.transaction(async (session) => {
@@ -70,4 +71,38 @@ async function dashboardState(userId, now = new Date(), { section } = {}) {
   }, { readConcern: { level: "snapshot" } });
 }
 
-module.exports = { dashboardState };
+async function operatorBotsState(marketId, now = new Date()) {
+  return mongoose.connection.transaction(async (session) => {
+    const markets = await ExchangeMarket.find({ $or: [{ botParticipation: true }, { marketMakerId: { $ne: null } }] })
+      .sort({ opensAt: -1 }).limit(20).select("+botSeed").session(session).lean();
+    const market = marketId ? markets.find((row) => String(row._id) === marketId)
+      : markets.find((row) => row.opensAt <= now && now < row.closeAt) ?? markets[0];
+    const wallet = await ExchangeWallet.findById(EXCHANGE_WALLET_ID).session(session).lean();
+    const base = { markets: markets.map((row) => marketView(row, now)), available: (wallet?.available ?? 0) / TP_SCALE };
+    if (!market) return { ...base, market: null, bots: [], legacyMaker: null };
+
+    const filter = { marketId: market._id, userId: EXCHANGE_WALLET_ID, botId: { $ne: null } };
+    const marketCash = await ExchangeAccount.findOne({ marketId: market._id, userId: EXCHANGE_WALLET_ID, releasedAt: null })
+      .select("cash").session(session).lean();
+    const orders = await ExchangeOrder.find(filter).session(session).lean();
+    const positions = await ExchangePosition.find(filter).session(session).lean();
+    const byOrder = new Map(orders.map((row) => [String(row.botId), row]));
+    const byPosition = new Map(positions.map((row) => [String(row.botId), row]));
+    const reference = market.settlement ?? market.lastPrice;
+    const bots = submittedBots(market, now).reverse().map(({ id, number, score, submittedAt }) => {
+      const order = byOrder.get(id);
+      const position = byPosition.get(id);
+      const reserved = order?.status === "working" ? collateral(order.direction, order.price, order.remaining) / TP_SCALE : 0;
+      const locked = position ? collateral(position.direction, position.price, position.remaining) / TP_SCALE : 0;
+      const pnl = position?.remaining && reference != null
+        ? (reference - position.price) * position.remaining * (position.direction === "long" ? 1 : -1) : null;
+      return { number, score, submittedAt, order, position, reserved, locked, pnl,
+        realized: position ? (market.decision === "void" ? 0 : position.realized / TP_SCALE) : null };
+    });
+    return { ...base, market: marketView(market, now), bots, legacyMaker: market.marketMakerId ?? null,
+      marketCash: (marketCash?.cash ?? 0) / TP_SCALE,
+      reserved: bots.reduce((sum, bot) => sum + bot.reserved, 0), locked: bots.reduce((sum, bot) => sum + bot.locked, 0) };
+  }, { readConcern: { level: "snapshot" } });
+}
+
+module.exports = { dashboardState, operatorBotsState };

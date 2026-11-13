@@ -4,6 +4,7 @@ const { bucketStart, candleWindow, intervalFor, pushPrice } = require("./exchang
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const ROUND_HOURS = 141;
+const BOT_POLICY_START = Date.parse("2026-11-15T06:00:00Z");
 const ORDER_LIFETIME = 6 * HOUR;
 const MAX_MAKER_POSITION = 8;
 const recentRounds = new Map();
@@ -22,17 +23,25 @@ function newParticipant(key, opensAt, hour) {
   const score = 34 + (seed[2] % 29) + (seed[3] % 29);
   const outlook = seed[4] % 241 - 120;
   const urgency = seed[5] % 49;
-  return { submittedAt, orderAt, score, outlook, urgency };
+  const id = seed.subarray(6, 18).toString("hex");
+  return { id, number: hour + 1, submittedAt, orderAt, score, outlook, urgency };
 }
 
-function matchOrder(round, participant) {
-  const { orderAt, score, outlook, urgency } = participant;
-  round.orders = round.orders.filter((row) => row.expiresAt > orderAt);
-  const mpi = round.samples.at(-1).mpi;
+function botOrder(participant, mpi) {
+  const { score, outlook, urgency } = participant;
   const opinion = Math.round(0.55 * mpi + 4.5 * score + outlook);
   const side = opinion >= mpi ? "buy" : "sell";
   const buy = side === "buy";
   const limit = Math.max(1, Math.min(999, opinion + (buy ? urgency : -urgency)));
+  return { direction: buy ? "long" : "short", side, price: limit };
+}
+
+function matchOrder(round, participant) {
+  const { orderAt } = participant;
+  round.orders = round.orders.filter((row) => row.expiresAt > orderAt);
+  const mpi = round.samples.at(-1).mpi;
+  const { side, price: limit } = botOrder(participant, mpi);
+  const buy = side === "buy";
   const order = { side, price: limit, expiresAt: orderAt + ORDER_LIFETIME };
 
   const center = Math.round(mpi - 4 * round.makerPosition);
@@ -78,7 +87,7 @@ function advance(round, market, now) {
 }
 
 function stateFor(market, now) {
-  if (!eligibleRound(market)) return null;
+  if (!eligibleRound(market) || market.botParticipation) return null;
   const key = `${market._id ?? market.id}:${+market.opensAt}`;
   const time = Math.min(+now, +market.closeAt - 1);
   let round = recentRounds.get(key);
@@ -124,4 +133,31 @@ function scenarioState(market, { interval, chart, before, now = new Date() } = {
     volume: round.trades.length, trades: round.trades.slice(-5).reverse(), candles };
 }
 
-module.exports = { scenarioState, advanceExchangeScenario: stateFor };
+function botParticipationForSchedule(opensAt, closeAt) {
+  return +opensAt >= BOT_POLICY_START && eligibleRound({ type: "weekly", opensAt, closeAt });
+}
+
+function submittedBots(market, now) {
+  if (!market.botParticipation || !market.botSeed || !eligibleRound(market)) return [];
+  const elapsedHours = Math.min(ROUND_HOURS, Math.ceil((+now - +market.opensAt) / HOUR));
+  const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
+  const bots = [];
+  for (let hour = 0; hour < elapsedHours; hour += 1) {
+    const bot = newParticipant(key, market.opensAt, hour);
+    if (bot.submittedAt <= +now) bots.push(bot);
+  }
+  return bots;
+}
+
+function dueBotOrder(market, now, publicMpi = 600) {
+  if (!market.botParticipation || !market.botSeed || !eligibleRound(market) || +now >= +market.closeAt) return null;
+  const hour = Math.floor((+now - +market.opensAt) / HOUR);
+  if (hour < 0) return null;
+  const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
+  const bot = newParticipant(key, market.opensAt, hour);
+  // Submit only in the bot's assigned hour. A restart never backdates a fill.
+  if (+now < bot.orderAt) return null;
+  return { ...botOrder(bot, publicMpi), botId: bot.id, expiresAt: new Date(Math.min(bot.orderAt + ORDER_LIFETIME, +market.closeAt)) };
+}
+
+module.exports = { scenarioState, advanceExchangeScenario: stateFor, botParticipationForSchedule, submittedBots, dueBotOrder };

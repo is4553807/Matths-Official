@@ -274,3 +274,4 @@ a { color: inherit; text-decoration: none; }
   .exchange-brand img { width: 104px; }
   .header-actions { min-width: 0; flex: 1 1 188px; }
 }
+.book-bot { color: var(--sample); white-space: nowrap; font-size: 10px; }

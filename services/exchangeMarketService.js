@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { randomBytes } = require("node:crypto");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const { ExchangeMarket, ExchangeSetting, ExchangeTick, ExchangeEvent, ExchangeOrder } = require("../models/exchangeModel");
 
@@ -14,6 +15,7 @@ const MPI_BATCH_SIZE = 5;
 const DEFAULT_MPI_MINIMUM = 5;
 const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const { botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
 
 function error(status, message) {
   return Object.assign(new Error(message), { status });
@@ -186,6 +188,7 @@ function bookLevels(marketId, now, session, snapshotId, operatorWalletId, schedu
     { $group: {
       _id: { side: "$side", price: "$price" }, quantity: { $sum: "$remaining" },
       operatorQuantity: { $sum: { $cond: [operator, "$remaining", 0] } },
+      botQuantity: { $sum: { $cond: [{ $ne: [{ $ifNull: ["$botId", null] }, null] }, "$remaining", 0] } },
     } },
   ]).session(session || null);
 }
@@ -222,22 +225,30 @@ async function syncWeeklyMarkets(now = new Date()) {
     if (!await weeklyExamReady(exam)) continue;
     const key = `weekly:${exam._id}`;
     const questionCounts = [2, 3, 4].map((point) => exam.points.filter((value) => value === point).length);
+    const botParticipation = botParticipationForSchedule(exam.releaseAt, exam.closeAt);
+    const botRules = botParticipation ? { botParticipation, botSeed: randomBytes(32).toString("hex") } : { botParticipation };
     await ExchangeMarket.updateOne({ key }, { $setOnInsert: {
       key, type: "weekly", examId: exam._id, title: exam.title,
       opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts,
+      ...botRules,
     } }, { upsert: true });
     await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, $or: [
       { opensAt: { $ne: exam.releaseAt } }, { closeAt: { $ne: exam.closeAt } },
-    ] }, { $set: { opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts }, $inc: { revision: 1 } });
+    ] }, { $set: { opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts, ...botRules }, $inc: { revision: 1 } });
 
+    if (botParticipation) {
+      await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, botParticipation: null },
+        { $set: botRules });
+    }
     if (exam.status !== "open" || now < exam.releaseAt) continue;
     await mongoose.connection.transaction(async (session) => {
-      const market = await ExchangeMarket.findOne({ key, phase: "scheduled", openedAt: null }).session(session);
+      const market = await ExchangeMarket.findOne({ key, phase: "scheduled", openedAt: null }).select("+botSeed").session(session);
       if (!market || market.paused || market.closeAt <= now) return;
       const minimum = market.minimumAttempts ?? await readSetting(session);
-      if (minimum) {
-        const [result] = await liveAttemptRows(validAttempts(exam, now), session).append({ $limit: minimum }, { $count: "count" });
-        if ((result?.count ?? 0) < minimum) return;
+      const needed = minimum - submittedBots(market, now).length;
+      if (needed > 0) {
+        const [result] = await liveAttemptRows(validAttempts(exam, now), session).append({ $limit: needed }, { $count: "count" });
+        if ((result?.count ?? 0) < needed) return;
       }
       market.openedAt = now;
       market.appliedMinimum = minimum;
@@ -346,20 +357,24 @@ async function saveObservedMpi(market, now, clock) {
     if (exam?.status !== "open" || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt
       || !await weeklyExamReady(exam, session)) return;
     const attempts = await liveAttemptRows(validAttempts(exam, now), session);
-    const internalMpi = attempts.length ? attempts.reduce((sum, row) => sum + row.score, 0) / attempts.length * 10 : null;
+    const bots = submittedBots(market, now);
+    const populationCount = attempts.length + bots.length;
+    const scoreTotal = attempts.reduce((sum, row) => sum + row.score, 0) + bots.reduce((sum, bot) => sum + bot.score, 0);
+    const internalMpi = populationCount ? scoreTotal / populationCount * 10 : null;
     await ExchangeMarket.updateOne({ _id: market._id }, {
       $set: { internalMpi, internalMpiCount: attempts.length },
     }, { session, timestamps: false });
-    if (attempts.length < await readMpiMinimum(market, session)) return;
+    if (populationCount < await readMpiMinimum(market, session)) return;
     const last = await ExchangeTick.findOne({ marketId: market._id, kind: OBSERVED_MPI })
       .sort({ sampledAt: -1 }).select("+contributions").session(session).lean();
-    const contributions = attempts.map(({ _id, score }) => `${_id}:${score}`);
-    if (last && changedContributors(last.contributions || [], contributions) < MPI_BATCH_SIZE) return;
+    const contributions = attempts.map(({ _id, score }) => `${_id}:${score}`)
+      .concat(bots.map(({ id, score }) => `${id}:${score}`));
+    if (last && changedContributors(last.contributions || [], contributions) < (market.botParticipation ? 1 : MPI_BATCH_SIZE)) return;
     const mpi = Math.round(internalMpi * 100) / 100;
     const sampledAt = clock();
     const publishAt = new Date(+sampledAt + MPI_DELAY_MS);
     await ExchangeTick.create([{
-      marketId: market._id, kind: OBSERVED_MPI, sampledAt, dataCutoffAt: sampledAt, mpi, populationCount: attempts.length, contributions,
+      marketId: market._id, kind: OBSERVED_MPI, sampledAt, dataCutoffAt: sampledAt, mpi, populationCount, botPopulationCount: bots.length, contributions,
       publishAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2),
     }], { session });
   });

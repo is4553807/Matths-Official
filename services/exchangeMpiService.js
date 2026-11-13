@@ -59,7 +59,7 @@ async function mpiState({ marketId, interval: requestedInterval, before, now = n
   const minimumMpiAttempts = await readMpiMinimum(selected);
   const visible = { ...publishedMpiFilter(selected._id, now), populationCount: { $gte: minimumMpiAttempts } };
   const latest = await ExchangeTick.findOne(visible).sort({ publishAt: -1 })
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount").lean();
   const state = { ...base, minimumMpiAttempts };
   if (!latest) return state;
   const anchor = before ? await ExchangeTick.findOne({ ...visible, publishAt: { $lte: now, $lt: before } })

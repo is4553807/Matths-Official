@@ -31,6 +31,9 @@ const market = new Schema({
   settlement: Number,
   decision: { type: String, enum: ["normal", "void"] },
   participantCount: Number,
+  botParticipantCount: Number,
+  botParticipation: Boolean,
+  botSeed: { type: String, select: false },
   reason: String,
   escrow: balance(),
   lastPrice: Number,
@@ -60,6 +63,7 @@ const setting = new Schema({
 }, options);
 const wallet = new Schema({
   _id: objectId, available: balance(), collectedFees: balance(), rankingVisible: { type: Boolean, default: false },
+  botFundingAt: Date,
 }, options);
 const account = new Schema({
   marketId: { type: objectId, required: true },
@@ -87,6 +91,7 @@ const order = new Schema({
   sequence: { type: Number, required: true },
   acceptedAt: { type: Date, required: true },
   liquidityProvider: String,
+  botId: objectId,
   mpiSnapshotId: objectId,
   scheduledLiquidity: Boolean,
   expiresAt: Date,
@@ -110,6 +115,7 @@ const position = new Schema({
   remaining: Number,
   realized: { type: Number, default: 0 },
   tradeId: objectId,
+  botId: objectId,
 }, options);
 position.index({ marketId: 1, userId: 1, direction: 1, _id: 1 });
 position.index({ userId: 1, updatedAt: -1 });
@@ -139,6 +145,7 @@ const tick = new Schema({
   expiresAt: Date,
   mpi: Number,
   populationCount: Number,
+  botPopulationCount: Number,
   sampleCount: Number,
   kind: String,
   contributions: { type: [String], select: false, default: undefined },

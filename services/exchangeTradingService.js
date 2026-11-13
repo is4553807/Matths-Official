@@ -6,11 +6,15 @@ const {
 } = require("../models/exchangeModel");
 const {
   error, integer, seoulDate, readWeeklyExam, weeklyExamReady, validAttempts, publicState,
-  liveAttemptRows, pendingAttempts, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, bookLevels, marketReference,
+  liveAttemptRows, liveStudent, pendingAttempts, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, bookLevels, marketReference,
 } = require("./exchangeMarketService");
 
 const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = require("./exchangeFees");
+const { dueBotOrder, submittedBots } = require("./exchangeScenarioService");
+
 const MARKET_LIMIT = 5;
+const BOT_EXPOSURE_LIMIT = 5;
+const BOT_INITIAL_FUNDING = 2_000 * TP_SCALE;
 const MM_WALLET_TP = 2000 * TP_SCALE;
 const MM_LOSS_LIMIT = 1000 * TP_SCALE;
 const MM_POSITION_LIMIT = 2;
@@ -30,7 +34,7 @@ function collateral(direction, price, quantity) {
 async function lockMarket(marketId, session) {
   const market = await ExchangeMarket.findByIdAndUpdate(marketId, { $inc: { revision: 1 } }, {
     session, returnDocument: "after",
-  });
+  }).select("+botSeed");
   if (!market) throw error(404, "선물시장을 찾을 수 없습니다.");
   return market;
 }
@@ -118,7 +122,7 @@ async function creditMarket(marketId, userId, amount, session) {
 }
 
 async function checkPositionLimit(order, session) {
-  const filter = { marketId: order.marketId, userId: order.userId };
+  const filter = { marketId: order.marketId, userId: order.userId, botId: null };
   const positions = await ExchangePosition.find({ ...filter, remaining: { $gt: 0 } }).session(session).lean();
   const orders = await ExchangeOrder.find({ ...filter, status: "working" }).session(session).lean();
   if (order.action === "close") {
@@ -145,10 +149,10 @@ async function applyFill(order, trade, fee, session) {
     const improvement = collateral(direction, order.price, quantity) - payout;
     if (improvement < 0) throw new Error("Exchange fill exceeds reserved collateral");
     await creditMarket(marketId, userId, improvement, session);
-    await new ExchangePosition({ marketId, userId, direction, price, quantity, remaining: quantity, tradeId: trade._id })
+    await new ExchangePosition({ marketId, userId, direction, price, quantity, remaining: quantity, tradeId: trade._id, botId: order.botId })
       .save({ session });
   } else {
-    const positions = await ExchangePosition.find({ marketId, userId, direction, remaining: { $gt: 0 } })
+    const positions = await ExchangePosition.find({ marketId, userId, direction, botId: order.botId ?? null, remaining: { $gt: 0 } })
       .sort({ _id: 1 }).session(session);
     let left = quantity;
     for (const position of positions) {
@@ -185,7 +189,11 @@ function normalizedOrder(input) {
 }
 
 async function placeOrder({ marketId, userId, actorId, input, clock = () => new Date() }) {
-  if (String(userId) === EXCHANGE_WALLET_ID && !actorId) throw error(403, "운영 월렛 주문에는 관리자 계정이 필요합니다.");
+  return submitOrder({ marketId, userId, actorId, input, clock });
+}
+
+async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
+  if (String(userId) === EXCHANGE_WALLET_ID && !actorId && !bot) throw error(403, "운영 월렛 주문에는 관리자 계정이 필요합니다.");
   const orderInput = normalizedOrder(input);
   return mongoose.connection.transaction(async (session) => {
     const market = await lockMarket(marketId, session);
@@ -197,19 +205,38 @@ async function placeOrder({ marketId, userId, actorId, input, clock = () => new 
       }
       return existing;
     }
+    if (bot && (!market.botParticipation || market.marketMakerEnabled === false || bot.expiresAt <= clock())) return;
     await ensureTradeAccess(market, userId, clock(), session);
     const order = new ExchangeOrder({ ...orderInput, marketId, userId, actorId, remaining: orderInput.quantity,
-      status: "working", sequence: market.revision, acceptedAt: clock() });
-    await checkPositionLimit(order, session);
+      status: "working", sequence: market.revision, acceptedAt: clock(), botId: bot?.botId, expiresAt: bot?.expiresAt });
+    const opposite = order.side === "buy" ? "sell" : "buy";
+    const crossing = { ...activeBookOrders(market._id, order.acceptedAt), userId: EXCHANGE_WALLET_ID,
+      side: opposite, price: order.side === "buy" ? { $lte: order.price } : { $gte: order.price } };
+    if (bot) {
+      if (await ExchangeOrder.exists({ ...crossing, botId: null }).session(session)) return;
+      await cancelFundedBotOrders(marketId, session, { side: opposite, price: crossing.price });
+      const filter = { marketId, userId, botId: { $ne: null } };
+      const open = await ExchangePosition.countDocuments({ ...filter, remaining: { $gt: 0 } }).session(session);
+      const working = await ExchangeOrder.countDocuments({ ...filter, status: "working" }).session(session);
+      if (open + working >= BOT_EXPOSURE_LIMIT) return;
+    } else {
+      if (String(userId) === EXCHANGE_WALLET_ID && market.botParticipation &&
+        await ExchangeOrder.exists({ ...crossing, botId: { $ne: null } }).session(session)) {
+        throw error(409, "반대 방향의 운영 봇 주문을 먼저 취소해 주세요.");
+      }
+      await checkPositionLimit(order, session);
+    }
     await reserve(market, order, session);
     order.acceptedAt = clock();
     if (publicState(market, order.acceptedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
     await order.save({ session });
 
     const bid = order.side === "buy";
+    const counterparty = bot ? { userId: { $nin: [EXCHANGE_WALLET_ID, ...(market.marketMakerId ? [market.marketMakerId] : [])] },
+      liquidityProvider: { $ne: "matths" } } : String(userId) === EXCHANGE_WALLET_ID ? { botId: null } : {};
     while (order.remaining) {
       const maker = await ExchangeOrder.findOne({
-        ...activeBookOrders(market._id, clock()), side: bid ? "sell" : "buy",
+        ...activeBookOrders(market._id, clock()), ...counterparty, side: bid ? "sell" : "buy",
         price: bid ? { $lte: order.price } : { $gte: order.price },
       }).sort({ price: bid ? 1 : -1, sequence: 1 }).session(session);
       if (!maker) break;
@@ -219,6 +246,19 @@ async function placeOrder({ marketId, userId, actorId, input, clock = () => new 
         continue;
       }
       const tradedAt = clock();
+      if (maker.botId && (market.marketMakerEnabled === false || maker.expiresAt <= tradedAt)) {
+        await cancel(maker, session);
+        continue;
+      }
+      if ((bot || maker.botId) && !await User.exists({ _id: bot ? maker.userId : userId, ...liveStudent }).session(session)) {
+        if (!bot) throw error(403, "유효 응시 학생만 운영 봇 주문과 체결할 수 있습니다.");
+        await cancel(maker, session);
+        continue;
+      }
+      if (bot && bot.expiresAt <= tradedAt) {
+        await cancel(order, session);
+        break;
+      }
       if (publicState(market, tradedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
       if (isOperator(maker)) {
         const snapshot = await latestPublishedMpi(market, tradedAt, session);
@@ -239,7 +279,7 @@ async function placeOrder({ marketId, userId, actorId, input, clock = () => new 
       const trade = await new ExchangeTrade({
         marketId, makerOrderId: maker._id, takerOrderId: order._id, makerFee, takerFee, feeCollected: totalFee > 0,
         price: maker.price, quantity, tradedAt, sequence: market.volume + 1,
-        liquidityProvider: isOperator(maker) || String(maker.userId) === EXCHANGE_WALLET_ID
+        liquidityProvider: maker.botId || bot ? "bot" : isOperator(maker) || String(maker.userId) === EXCHANGE_WALLET_ID
           || String(userId) === EXCHANGE_WALLET_ID ? "matths" : undefined,
       }).save({ session });
       await applyFill(maker, trade, makerFee, session);
@@ -257,7 +297,7 @@ async function placeOrder({ marketId, userId, actorId, input, clock = () => new 
       market.volume += trade.quantity;
     }
     await recordReference(market, clock(), session);
-    await releaseFeeReserve(order, feeReserveFor(order, "maker"), session);
+    if (order.status !== "cancelled") await releaseFeeReserve(order, feeReserveFor(order, "maker"), session);
     await order.save({ session });
     await market.save({ session });
     return order;
@@ -273,6 +313,56 @@ async function cancel(order, session, actorId) {
   order.status = "cancelled";
   if (actorId) order.cancelledBy = actorId;
   await order.save({ session });
+}
+
+async function cancelFundedBotOrders(marketId, session, filter = {}) {
+  const orders = await ExchangeOrder.find({ marketId, userId: EXCHANGE_WALLET_ID, botId: { $ne: null },
+    status: "working", ...filter }).session(session);
+  for (const order of orders) await cancel(order, session);
+}
+
+async function initializeBotFunding(marketId, now) {
+  await mongoose.connection.transaction(async (session) => {
+    await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
+      { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, session });
+    const result = await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID, botFundingAt: null },
+      { $set: { botFundingAt: now }, $inc: { available: BOT_INITIAL_FUNDING } }, { session });
+    if (result.modifiedCount) await ExchangeEvent.create([{
+      marketId, action: "bot-initial-funding", detail: { amountTp: BOT_INITIAL_FUNDING / TP_SCALE },
+    }], { session });
+  });
+}
+
+async function maintainFundedBotOrders(market, now, clock = () => now) {
+  if (!market.botParticipation) return;
+  const marketId = market._id;
+  const closed = publicState(market, now) !== "open" || market.marketMakerEnabled === false;
+  const filter = { marketId, userId: EXCHANGE_WALLET_ID, botId: { $ne: null }, status: "working",
+    ...(closed ? {} : { expiresAt: { $lte: now } }) };
+  if (await ExchangeOrder.exists(filter)) {
+    await mongoose.connection.transaction(async (session) => {
+      const current = await lockMarket(marketId, session);
+      const at = clock();
+      const cancelAll = publicState(current, at) !== "open" || current.marketMakerEnabled === false;
+      await cancelFundedBotOrders(marketId, session, cancelAll ? {} : { expiresAt: { $lte: at } });
+    });
+  }
+  if (closed) return;
+  const scheduled = dueBotOrder(market, now);
+  if (!scheduled) return;
+  const commandId = `weekly-bot-${scheduled.botId}`;
+  if (await ExchangeOrder.exists({ userId: EXCHANGE_WALLET_ID, commandId })) return;
+  const snapshot = await latestPublishedMpi(market, now);
+  const bot = snapshot ? dueBotOrder(market, now, snapshot.mpi) : scheduled;
+  if (!await ExchangeWallet.exists({ _id: EXCHANGE_WALLET_ID, botFundingAt: { $ne: null } })) {
+    await initializeBotFunding(marketId, now);
+  }
+  try {
+    await submitOrder({ marketId, userId: EXCHANGE_WALLET_ID, clock, bot,
+      input: { commandId, action: "open", direction: bot.direction, price: bot.price, quantity: 1 } });
+  } catch (cause) {
+    if (cause.status !== 409) throw cause;
+  }
 }
 
 async function cancelOperatorOrders(market, session, filter = {}) {
@@ -424,6 +514,7 @@ async function scheduleMarketLiquidity(marketId, input, actorId, clock = () => n
   return mongoose.connection.transaction(async (session) => {
     const market = await lockMarket(marketId, session);
     const now = clock();
+    if (market.botParticipation) throw error(409, "운영 봇 참여 회차는 시간별 운영 봇이 호가를 공급합니다.");
     if (market.type !== "weekly" || market.phase !== "scheduled" || startsAt < market.opensAt
       || endsAt > market.closeAt || endsAt <= now) {
       throw error(409, "주간 시장 거래 시간 안에서 호가 일정을 설정해 주세요.");
@@ -476,7 +567,10 @@ async function setMarketMakerEnabled(marketId, enabled, actorId, reason) {
     }
     market.marketMakerEnabled = enabled;
     await market.save({ session });
-    if (!enabled) await cancelOperatorOrders(market, session);
+    if (!enabled) {
+      await cancelOperatorOrders(market, session);
+      if (market.botParticipation) await cancelFundedBotOrders(marketId, session);
+    }
     await recordReference(market, now, session);
     await ExchangeEvent.create([{ marketId, actorId, action: enabled ? "mm-enable" : "mm-disable", detail: { reason } }], { session });
   });
@@ -493,7 +587,10 @@ async function setPaused(marketId, paused, actorId, reason) {
     }
     market.set({ paused, reason });
     await market.save({ session });
-    if (paused) await cancelOperatorOrders(market, session);
+    if (paused) {
+      await cancelOperatorOrders(market, session);
+      if (market.botParticipation) await cancelFundedBotOrders(marketId, session);
+    }
     await recordReference(market, now, session);
     await ExchangeEvent.create([{ marketId, actorId, action: paused ? "pause" : "resume", detail: { reason } }], { session });
   });
@@ -607,9 +704,13 @@ async function decideWeeklyMarket(marketId, now) {
     if (now < market.closeAt || !exam.settlementCompletedAt || exam.settlementCompletedAt > now) return market;
     if ((await pendingAttempts(exam, now, session)).length) return market;
     const [summary] = await liveAttemptRows(validAttempts(exam, now), session)
-      .append({ $group: { _id: null, average: { $avg: "$score" }, count: { $sum: 1 } } });
-    const decision = summary ? { decision: "normal", settlement: Math.round(summary.average * 1000) / 100,
-      participantCount: summary.count, settlementSource: "맵쓰 주간 모의고사 채점 기록" }
+      .append({ $group: { _id: null, total: { $sum: "$score" }, count: { $sum: 1 } } });
+    const bots = submittedBots(market, market.closeAt);
+    const participantCount = (summary?.count ?? 0) + bots.length;
+    const scoreTotal = (summary?.total ?? 0) + bots.reduce((sum, bot) => sum + bot.score, 0);
+    const decision = participantCount ? { decision: "normal", settlement: Math.round(scoreTotal * 1000 / participantCount) / 100,
+      participantCount, botParticipantCount: bots.length,
+      settlementSource: market.botParticipation ? "주간 모의고사 채점 기록 및 공개 운영 봇 점수" : "맵쓰 주간 모의고사 채점 기록" }
       : { decision: "void", reason: "정산할 유효 응시가 없습니다." };
     return recordDecision(market, decision, null, session);
   });
@@ -641,4 +742,4 @@ async function processMarket(market, now = new Date()) {
   });
 }
 
-module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity, stopMarketLiquidity, setMarketMakerEnabled, setPaused };
+module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, maintainFundedBotOrders, scheduleMarketLiquidity, stopMarketLiquidity, setMarketMakerEnabled, setPaused };

@@ -12,7 +12,7 @@ const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarke
 const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
-const { dashboardState } = require("../services/exchangeDashboardService");
+const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
 const { mpiState } = require("../services/exchangeMpiService");
 const { scenarioState } = require("../services/exchangeScenarioService");
 
@@ -125,6 +125,7 @@ const walletSections = [
   { id: "orders", label: "미체결 주문", path: "/orders" },
   { id: "history", label: "포지션 히스토리", path: "/history" },
   { id: "fees", label: "수수료 내역", path: "/fees" },
+  { id: "bots", label: "운영 봇", path: "/bots" },
 ];
 function verifyWalletSession(req, res, next) {
   if (!viewer(req)) return next();
@@ -136,11 +137,17 @@ const walletAccess = [privateResponse, verifyWalletSession, exchangeWallet];
 function showDashboard(section) {
   return async (req, res) => {
     const { userId, actorId } = req.exchangeAccount;
-    if (section === "fees" && !actorId) throw error(403, "운영 월렛에서 수수료를 확인할 수 있습니다.");
-    const sections = walletSections.filter((item) => item.id !== "fees" || actorId);
+    const operatorSections = ["fees", "bots"];
+    if (operatorSections.includes(section) && !actorId) throw error(403, "운영 월렛에서만 확인할 수 있습니다.");
+    const sections = walletSections.filter((item) => !operatorSections.includes(item.id) || actorId);
+    const now = new Date();
+    const botData = section === "bots" ? await operatorBotsState(req.query.market ? id(req.query.market) : undefined, now) : null;
+    if (botData?.legacyMaker) {
+      botData.legacyMaker = await dashboardState(botData.legacyMaker, now, { section: "bots" });
+    }
     res.render("exchange-dashboard", {
       ...exchangeNavigation(req), section, sections,
-      data: userId ? await dashboardState(userId, new Date(), { section }) : null,
+      data: botData ?? (userId ? await dashboardState(userId, now, { section }) : null),
       exchangeWalletMode: Boolean(actorId), isAdmin: req.session?.user?.role === "admin",
       accountName: actorId ? "Matths Exchange" : req.session?.user?.name || "내 Exchange 월렛",
       disablePageAnalytics: true,
@@ -153,6 +160,7 @@ router.get("/exchange/dashboard/positions", ...walletAccess, showDashboard("posi
 router.get("/exchange/dashboard/orders", ...walletAccess, showDashboard("orders"));
 router.get("/exchange/dashboard/history", ...walletAccess, showDashboard("history"));
 router.get("/exchange/dashboard/fees", ...walletAccess, showDashboard("fees"));
+router.get("/exchange/dashboard/bots", ...walletAccess, showDashboard("bots"));
 router.get("/exchange/portfolio", ...walletAccess, showDashboard("overview"));
 
 router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exchange/markets/:marketId",
@@ -164,7 +172,7 @@ router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exch
 });
 router.get("/api/exchange/markets/:marketId/scenario", privateResponse, async (req, res) => {
   const market = await ExchangeMarket.findById(id(req.params.marketId))
-    .select("type examId opensAt closeAt").lean();
+    .select("type examId opensAt closeAt botParticipation").lean();
   if (!market || market.type !== "weekly" || !await weeklyExamReady(await readWeeklyExam(market.examId))) {
     return res.json(null);
   }

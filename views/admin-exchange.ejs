@@ -99,7 +99,8 @@
               <% if (market.type === "weekly") { %>
                 <div><dt>개장 최소 인원</dt><dd><%= market.appliedMinimum ?? market.minimumAttempts %>명</dd></div>
                 <div><dt>공식 MPI 공개 최소 인원</dt><dd><%= market.minimumMpiAttempts %>명<%= market.mpiMinimumOverride == null ? " (기본값)" : "" %></dd></div>
-                <div><dt>유효 응시</dt><dd><%= market.internalMpiCount ?? 0 %>명</dd></div>
+                <div><dt>유효 학생 응시</dt><dd><%= market.internalMpiCount ?? 0 %>명</dd></div>
+                <% if (market.botParticipation) { %><div><dt>공식 MPI 운영 봇</dt><dd>학생과 같은 비중 · 공개</dd></div><% } %>
                 <div><dt>MPI 집계 · KST</dt><dd><%= seoulInput(market.latestTick?.sampledAt).replace("T", " ") || "—" %></dd></div>
                 <div><dt>공개 시각 · KST</dt><dd><%= seoulInput(market.latestTick?.publishAt).replace("T", " ") || "—" %></dd></div>
               <% } %>
@@ -110,7 +111,7 @@
                 <button type="submit" name="action" value="<%= market.marketMakerEnabled ? 'mm-disable' : 'mm-enable' %>"><%= market.marketMakerEnabled ? '운영자 호가 중지' : '운영자 호가 활성화' %></button>
               </form>
             <% } %>
-            <% if (market.type === "weekly" && ["scheduled", "waiting", "paused", "open"].includes(market.status)) { %>
+            <% if (market.type === "weekly" && !market.botParticipation && ["scheduled", "waiting", "paused", "open"].includes(market.status)) { %>
               <div class="exchange-admin-liquidity">
                 <h3>운영자 호가 일정</h3>
                 <form class="exchange-admin-form liquidity-form" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
@@ -176,12 +177,13 @@
 
     <section class="exchange-admin-section" aria-labelledby="event-title">
       <h2 id="event-title">최근 운영 이력</h2>
-      <% const actions = { schedule: "일정 저장", minimum: "개장 최소 인원 변경", "mpi-minimum": "공식 MPI 공개 기준 변경", "liquidity-scheduled": "운영자 호가 예약", "liquidity-stop": "운영자 호가 단계적 중단", pause: "거래 중지", resume: "거래 재개", normal: "정산 등록", void: "시장 무효" }; %>
+      <% const actions = { "bot-initial-funding": "운영 봇 초기 TP 지급", schedule: "일정 저장", minimum: "개장 최소 인원 변경", "mpi-minimum": "공식 MPI 공개 기준 변경", "liquidity-scheduled": "운영자 호가 예약", "liquidity-stop": "운영자 호가 단계적 중단", pause: "거래 중지", resume: "거래 재개", normal: "정산 등록", void: "시장 무효" }; %>
       <% if (!events.length) { %><p class="exchange-admin-empty">저장된 운영 이력이 없습니다.</p><% } %>
       <% for (const event of events) {
         const minimum = event.detail?.minimumMpiAttempts ?? event.detail?.minimumAttempts;
         const description = event.detail?.reason || (minimum != null ? `최소 ${minimum}명` :
-          event.action === "mpi-minimum" ? "공개 기본값 사용" : event.marketId || "기본 설정");
+          event.action === "mpi-minimum" ? "공개 기본값 사용" : event.action === "bot-initial-funding"
+            ? `${event.detail.amountTp.toLocaleString("ko-KR")} TP` : event.marketId || "기본 설정");
       %>
         <article class="exchange-admin-row">
           <div><strong><%= actions[event.action] || event.action %></strong><p><%= description %></p></div>

@@ -1,0 +1,64 @@
+<section class="panel wallet-balance" aria-labelledby="bot-balances">
+  <h2 id="bot-balances">Matths Exchange 공용 잔액</h2>
+  <p class="wallet-total"><%= format(data.available) %> <span>TP</span></p>
+  <dl class="wallet-breakdown">
+    <div><dt>선택 회차 가용 잔액</dt><dd><%= format(data.marketCash ?? 0) %> TP</dd></div>
+    <div><dt>선택 회차 봇 포지션 담보</dt><dd><%= format(data.locked ?? 0) %> TP</dd></div>
+    <div><dt>선택 회차 봇 주문 예약</dt><dd><%= format(data.reserved ?? 0) %> TP</dd></div>
+  </dl>
+  <% if (data.markets.length) { %>
+    <form method="get" action="/exchange/dashboard/bots" class="bot-market-filter">
+      <input type="hidden" name="wallet" value="exchange" />
+      <label>회차
+        <select name="market">
+          <% for (const market of data.markets) { %>
+            <option value="<%= market.id %>" <%= data.market?.id === market.id ? "selected" : "" %>>
+              <%= market.title %> · <%= date.format(new Date(market.closeAt)) %>
+            </option>
+          <% } %>
+        </select>
+      </label>
+      <button type="submit">보기</button>
+    </form>
+  <% } %>
+</section>
+<section class="panel dashboard-panel" aria-labelledby="bots-heading">
+  <header class="panel-heading"><h2 id="bots-heading">회차별 운영 봇</h2><span><%= data.bots.length %>명 응시</span></header>
+  <div class="activity-table">
+    <% if (!data.bots.length) { %><p>이 회차에 응시한 운영 봇이 없습니다.</p><% } else { %>
+      <table>
+        <thead><tr><th scope="col">봇</th><th scope="col">점수 · 응시 KST</th><th scope="col">주문</th><th scope="col">포지션</th>
+          <th scope="col">예약 TP</th><th scope="col">담보 TP</th><th scope="col">평가 / 확정 손익</th></tr></thead>
+        <tbody>
+          <% for (const bot of data.bots) { %>
+            <tr>
+              <td>봇 <%= String(bot.number).padStart(3, "0") %></td>
+              <td><%= format(bot.score) %>점 · <%= date.format(new Date(bot.submittedAt)) %></td>
+              <td><%= bot.order ? bot.order.direction.toUpperCase() + " " + format(bot.order.price) + " · " +
+                ({ working: "미체결", filled: "체결", cancelled: "취소" }[bot.order.status]) : "—" %></td>
+              <td><%= bot.position ? bot.position.direction.toUpperCase() + " " + bot.position.remaining + "계약 · 진입 " + format(bot.position.price) : "—" %></td>
+              <td><%= format(bot.reserved) %></td><td><%= format(bot.locked) %></td>
+              <td><%= format(bot.pnl) %> / <%= format(bot.realized) %> TP</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</section>
+<% if (data.legacyMaker) { %>
+  <section class="panel dashboard-panel" aria-labelledby="legacy-maker-heading">
+    <header class="panel-heading"><h2 id="legacy-maker-heading">기존 예약 호가 봇</h2><span>별도 월렛</span></header>
+    <div class="activity-table">
+      <p>가용 <%= format(data.legacyMaker.available + data.legacyMaker.marketCash) %> TP · 주문 예약 <%= format(data.legacyMaker.reserved) %> TP · 포지션 담보 <%= format(data.legacyMaker.positionCollateral) %> TP</p>
+      <% if (data.legacyMaker.positions.length) { %>
+        <table>
+          <thead><tr><th scope="col">방향</th><th scope="col">보유 수량</th><th scope="col">진입가</th><th scope="col">평가 손익</th></tr></thead>
+          <tbody><% for (const position of data.legacyMaker.positions) { %>
+            <tr><td><%= position.direction.toUpperCase() %></td><td><%= position.remaining %>계약</td><td><%= format(position.price) %></td><td><%= format(position.unrealized) %> TP</td></tr>
+          <% } %></tbody>
+        </table>
+      <% } %>
+    </div>
+  </section>
+<% } %>

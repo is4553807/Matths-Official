@@ -19,6 +19,7 @@
       <div class="market-identity">
         <h1 id="mpi-title">MPI 지수</h1>
         <p id="mpi-market-name"><%= initial.market?.title || "맵쓰 주간 모의고사" %></p>
+        <p id="mpi-bot-policy" <%= initial.market?.botParticipation ? "" : "hidden" %>>학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다.</p>
         <label class="market-select" id="mpi-select-wrap" hidden>회차 <select id="mpi-select" aria-label="회차 선택"></select></label>
       </div>
       <dl class="market-metrics">
@@ -41,7 +42,7 @@
         <div class="chart-empty" id="mpi-empty" <%= initial.candles.length ? "hidden" : "" %>>
           <strong>MPI 공개 대기</strong>
           <p id="mpi-waiting"><%= initial.market
-            ? `유효 응시 ${initial.minimumMpiAttempts.toLocaleString("ko-KR")}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
+            ? `${initial.market.botParticipation ? "학생과 운영 봇 합계" : "유효 응시"} ${initial.minimumMpiAttempts.toLocaleString("ko-KR")}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
             : "주간 모의고사 회차가 공개되면 집계가 시작됩니다." %></p>
         </div>
       </div>
