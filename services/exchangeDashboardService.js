@@ -74,7 +74,7 @@ async function dashboardState(userId, now = new Date(), { section } = {}) {
 
 async function operatorBotsState(marketId, now = new Date()) {
   return mongoose.connection.transaction(async (session) => {
-    const markets = await ExchangeMarket.find({ $or: [{ botParticipation: true }, { marketMakerId: { $ne: null } }] })
+    const markets = await ExchangeMarket.find({ $or: [{ botParticipation: true }, { examBotsStartedAt: { $ne: null } }, { marketMakerId: { $ne: null } }] })
       .sort({ opensAt: -1 }).limit(20).select("+botSeed").session(session).lean();
     const market = marketId ? markets.find((row) => String(row._id) === marketId)
       : markets.find((row) => row.opensAt <= now && now < row.closeAt) ?? markets[0];

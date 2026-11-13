@@ -6,7 +6,7 @@ const {
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
   publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
-  applyNovember14MpiMinimum,
+  applyNovember14MpiMinimum, activateNovember14ExamBots,
 } = require("./exchangeMarketService");
 const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
@@ -22,7 +22,7 @@ function marketView(market, now) {
   return {
     id: String(market._id), title: market.title, type: market.type, grade: market.grade, year: market.year,
     opensAt: market.opensAt, closeAt: market.closeAt, status, statusLabel: STAGES[status],
-    lastPrice: market.lastPrice ?? null, volume: market.volume, botParticipation: market.botParticipation === true,
+    lastPrice: market.lastPrice ?? null, volume: market.volume, botParticipation: market.botParticipation === true || isBootstrap(market),
     bootstrap: isBootstrap(market), botOnlyVolume: market.botOnlyVolume ?? 0,
     settlement: status === "settled" ? market.settlement : null,
     botParticipantCount: status === "settled" ? market.botParticipantCount : undefined,
@@ -242,7 +242,7 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
       try { await maintainMarketMaker(market._id, clock); }
       catch (cause) { console.error("[exchange] MM maintenance failed", String(market._id), cause.message); }
     }
-    if (market.botParticipation) {
+    if (market.botParticipation || isBootstrap(market)) {
       try { await maintainFundedBotOrders(market, now, clock); }
       catch (cause) { console.error("[exchange] Trading Bot maintenance failed", String(market._id), cause.message); }
     }
@@ -254,7 +254,10 @@ async function startExchangeScheduler() {
   await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
     { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, setDefaultsOnInsert: false });
   if (process.env.DISABLE_SCHEDULERS === "1") return;
-  if (process.env.NODE_ENV === "production") await applyNovember14MpiMinimum();
+  if (process.env.NODE_ENV === "production") {
+    await applyNovember14MpiMinimum();
+    await activateNovember14ExamBots();
+  }
   let running = false;
   let lastMaintenance = 0;
   let lastSampleMinute;

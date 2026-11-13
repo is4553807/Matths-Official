@@ -6,12 +6,12 @@ const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
 const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput,
-  saveObservedMpi, applyNovember14MpiMinimum, startMpiBotFade } = require("../services/exchangeMarketService");
+  saveObservedMpi, applyNovember14MpiMinimum, startMpiBotFade, activateNovember14ExamBots } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
 const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState } = require("../services/exchangeMpiService");
-const { POLICY, weightedMpi, traderId, traderStopAt } = require("../services/exchangeBootstrapService");
+const { POLICY, OPEN_ROUND_POLICY, weightedMpi, traderId, traderStopAt } = require("../services/exchangeBootstrapService");
 const { submittedBots, dueBotOrder, botParticipationForSchedule } = require("../services/exchangeScenarioService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
 const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, maintainFundedBotOrders, setTradingBotsEnabled, setMarketMakerEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
@@ -667,7 +667,8 @@ async function main() {
     const botsOnlyMarket = await ExchangeMarket.create({
       key: "weekly:bootstrap-bot-cross", type: "weekly", title: "Bootstrap bot crossing", examId: exam._id,
       opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose, minimumMpiAttempts: 1,
-      botParticipation: true, botSeed: "crossing-fixture", bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1,
+      botParticipation: false, botSeed: "crossing-fixture", bootstrapPolicy: OPEN_ROUND_POLICY,
+      examBotsStartedAt: weekOpen, tradingBotsEnabled: true, botWeight: 1,
     });
     const botCrossId = String(botsOnlyMarket._id);
     const crossAt = new Date(+weekOpen + 3 * 60 * 60_000);
@@ -793,6 +794,46 @@ async function main() {
     await saveMpiMinimum({ marketId: rolloutRound._id, value: 6, actorId: admin, now: rolloutAt });
     await applyNovember14MpiMinimum(rolloutAt);
     assert.equal(await readMpiMinimum(await ExchangeMarket.findById(rolloutRound._id)), 6);
+    const rolloutExam = await PrivateMockExam.findByIdAndUpdate(exam._id, { $set: {
+      releaseAt: rolloutRound.opensAt, closeAt: rolloutRound.closeAt, status: "open",
+    }, $unset: { settlementCompletedAt: "" } }, { returnDocument: "after" });
+    await ExchangeMarket.updateOne({ _id: rolloutRound._id }, { $set: {
+      examId: rolloutExam._id, openedAt: rolloutRound.opensAt, minimumMpiAttempts: 1, botParticipation: false,
+    } });
+    const unrelated = await ExchangeMarket.create({ key: "weekly:unchanged-by-exam-bot-rollout",
+      type: "weekly", title: "Unrelated", opensAt: rolloutRound.opensAt, openedAt: rolloutRound.opensAt, closeAt: rolloutRound.closeAt });
+    const previousSample = new Date(+rolloutAt - 120 * 60_000);
+    await ExchangeTick.create({ marketId: rolloutRound._id, kind: "observed", sampledAt: previousSample,
+      publishAt: new Date(+previousSample + 30 * 60_000), mpi: 120, populationCount: 1 });
+    await activateNovember14ExamBots(rolloutAt);
+    await activateNovember14ExamBots(new Date(+rolloutAt + 5 * 60_000));
+    const rolledOut = await ExchangeMarket.findById(rolloutRound._id).select("+botSeed").lean();
+    assert.equal(+rolledOut.examBotsStartedAt, +rolloutAt);
+    assert.equal(rolledOut.botParticipation, false, "Rolling deploy must not enable historical scores on the old pod");
+    assert.equal(rolledOut.tradingBotsEnabled, true);
+    assert.equal((await ExchangeMarket.findById(unrelated._id)).examBotsStartedAt, undefined);
+    assert.equal(await models.ExchangeEvent.countDocuments({ marketId: rolloutRound._id, action: "exam-bots-start" }), 1);
+    assert.deepEqual(submittedBots(rolledOut, new Date(+rolloutAt - 1)), []);
+    await saveObservedMpi(rolledOut, rolloutAt, () => rolloutAt);
+    const firstRolloutPublication = new Date(+rolloutAt + 30 * 60_000);
+    const rolloutId = String(rolloutRound._id);
+    assert.equal((await mpiState({ marketId: rolloutId, now: new Date(+firstRolloutPublication - 1) })).latest.mpi, 120);
+    const visibleFirst = await mpiState({ marketId: rolloutId, now: firstRolloutPublication });
+    assert.equal(visibleFirst.market.bootstrap, true);
+    assert.equal(visibleFirst.latest.botPopulationCount, 1);
+    const secondHour = new Date(+rolloutAt + 60 * 60_000);
+    await saveObservedMpi(rolledOut, secondHour, () => secondHour);
+    const botRecords = await models.ExchangeExamBotAttempt.find({ marketId: rolloutRound._id }).sort({ submittedAt: 1 }).lean();
+    assert.deepEqual(botRecords.map(({ source, label, submittedAt }) => [source, label, +submittedAt]), [
+      ["BOT", "ExamBot1", +rolloutAt], ["BOT", "ExamBot2", +secondHour],
+    ]);
+    const secondPublication = new Date(+secondHour + 30 * 60_000);
+    assert.equal((await mpiState({ marketId: rolloutId, now: secondPublication })).latest.botPopulationCount, 2);
+    await PrivateMockExam.updateOne({ _id: rolloutExam._id }, { $set: { status: "locked", settlementCompletedAt: rolloutRound.closeAt } });
+    await processMarket(await ExchangeMarket.findById(rolloutRound._id), rolloutRound.closeAt);
+    const rolloutSettlement = await ExchangeMarket.findById(rolloutRound._id).lean();
+    assert.equal(rolloutSettlement.phase, "void");
+    assert.equal(rolloutSettlement.settlement ?? null, null);
 
     console.log("Exchange verified: delayed MPI, 141-hour Bootstrap replay, separate trade sources, independent controls, legacy compatibility, collateral and human-only settlement.");
   } finally {

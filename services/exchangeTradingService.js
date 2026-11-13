@@ -215,7 +215,8 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
       const published = await latestPublishedMpi(market, clock(), session);
       if (!published || !published._id.equals(bot.snapshotId)) return;
     }
-    if (bot && (!market.botParticipation || (!bootstrapOrder && market.marketMakerEnabled === false) || bot.expiresAt <= clock())) return;
+    if (bot && ((!bootstrapOrder && (!market.botParticipation || market.marketMakerEnabled === false))
+      || bot.expiresAt <= clock())) return;
     await ensureTradeAccess(market, bootstrapOrder ? EXCHANGE_WALLET_ID : userId, clock(), session);
     const order = new ExchangeOrder({ ...orderInput, marketId, userId, actorId, remaining: orderInput.quantity,
       status: "working", sequence: market.revision, acceptedAt: clock(), botId: bot?.botId, expiresAt: bot?.expiresAt,
@@ -242,7 +243,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
         const working = await ExchangeOrder.countDocuments({ ...filter, status: "working", action: "open" }).session(session);
         if (open + working >= BOT_EXPOSURE_LIMIT) return;
       }
-      if (String(userId) === EXCHANGE_WALLET_ID && market.botParticipation &&
+      if (String(userId) === EXCHANGE_WALLET_ID && (market.botParticipation || isBootstrap(market)) &&
         await ExchangeOrder.exists({ ...crossing, botId: { $ne: null } }).session(session)) {
         throw error(409, "반대 방향의 운영 봇 주문을 먼저 취소해 주세요.");
       }
@@ -391,8 +392,8 @@ async function initializeBotFunding(marketId, now) {
 }
 
 async function maintainFundedBotOrders(market, now, clock = () => now) {
-  if (!market.botParticipation) return;
   if (isBootstrap(market)) return maintainBootstrapTraders(market, now, clock);
+  if (!market.botParticipation) return;
   const marketId = market._id;
   const closed = publicState(market, now) !== "open" || market.marketMakerEnabled === false;
   const filter = { marketId, userId: EXCHANGE_WALLET_ID, botId: { $ne: null }, status: "working",
@@ -731,7 +732,7 @@ async function setPaused(marketId, paused, actorId, reason) {
     await market.save({ session });
     if (paused) {
       await cancelOperatorOrders(market, session);
-      if (market.botParticipation) await cancelFundedBotOrders(marketId, session);
+      if (market.botParticipation || isBootstrap(market)) await cancelFundedBotOrders(marketId, session);
     }
     await recordReference(market, now, session);
     await ExchangeEvent.create([{ marketId, actorId, action: paused ? "pause" : "resume", detail: { reason } }], { session });

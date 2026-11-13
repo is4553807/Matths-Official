@@ -16,7 +16,7 @@ const DEFAULT_MPI_MINIMUM = 5;
 const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const { botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
-const { POLICY, isBootstrap, fadeAt, weightedMpi, recordExamBots } = require("./exchangeBootstrapService");
+const { POLICY, OPEN_ROUND_POLICY, isBootstrap, fadeAt, weightedMpi, recordExamBots } = require("./exchangeBootstrapService");
 
 function error(status, message) {
   return Object.assign(new Error(message), { status });
@@ -335,6 +335,32 @@ async function applyNovember14MpiMinimum(now = new Date()) {
   });
 }
 
+async function activateNovember14ExamBots(now = new Date()) {
+  const marketId = new mongoose.Types.ObjectId("6af57a46ad86b97eba7fda52");
+  const closeAt = new Date("2026-11-14T03:00:00Z");
+  if (+now + MPI_DELAY_MS >= +closeAt) return;
+  await mongoose.connection.transaction(async (session) => {
+    const market = await ExchangeMarket.findOne({ _id: marketId, type: "weekly", closeAt,
+      phase: "scheduled", paused: { $ne: true }, openedAt: { $ne: null }, botParticipation: { $ne: true },
+      "bootstrapPolicy.version": null })
+      .session(session).lean();
+    if (!market || publicState(market, now) !== "open") return;
+    const exam = await readWeeklyExam(market.examId, session);
+    if (exam?.status !== "open" || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +closeAt
+      || !await weeklyExamReady(exam, session)) return;
+
+    const result = await ExchangeMarket.updateOne({ _id: marketId, "bootstrapPolicy.version": null }, {
+      $set: { examBotsStartedAt: now, bootstrapPolicy: OPEN_ROUND_POLICY, botWeight: 1, botParticipation: false,
+        botSeed: randomBytes(32).toString("hex"), tradingBotsEnabled: true },
+      $unset: { mpiCheckedAt: "" },
+      $inc: { revision: 1 },
+    }, { session });
+    if (result.modifiedCount) await ExchangeEvent.create([{
+      marketId, action: "exam-bots-start", detail: { startedAt: now, source: "BOT", cadenceMinutes: 60 },
+    }], { session });
+  });
+}
+
 function sampleMinute(now) {
   return new Date(Math.floor(+now / MINUTE_MS) * MINUTE_MS);
 }
@@ -360,7 +386,7 @@ async function startMpiBotFade(marketId, actorId, reason, now = new Date()) {
     if (latestPublishAt > +market.closeAt) throw error(409, "마감 전에 전환 결과를 공개할 시간이 부족합니다.");
     const exam = await readWeeklyExam(market.examId, session);
     if (!exam || !await weeklyExamReady(exam, session)) throw error(409, "유효한 주간 시험이 필요합니다.");
-    const minimumHumans = Math.max(market.bootstrapPolicy.minimumHumans, await readMpiMinimum(market, session));
+    const { minimumHumans } = market.bootstrapPolicy;
     const [result] = await liveAttemptRows(validAttempts(exam, now), session)
       .append({ $limit: minimumHumans }, { $count: "count" });
     if ((result?.count ?? 0) < minimumHumans) throw error(409, "전환에 필요한 실제 유효 응시 인원이 부족합니다.");
@@ -417,7 +443,7 @@ async function saveObservedMpi(market, now, clock) {
       .concat(botWeight > 0 ? bots.map((bot) => `${bot.botId ?? bot.id}:${bot.score}`) : []);
     if (!available && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return;
     if (available && last && !last.unavailable && step === previousStep
-      && changedContributors(last.contributions || [], contributions) < (current.botParticipation ? 1 : MPI_BATCH_SIZE)) return;
+      && changedContributors(last.contributions || [], contributions) < (bootstrap || current.botParticipation ? 1 : MPI_BATCH_SIZE)) return;
     const sampledAt = clock();
     const publishAt = new Date(+sampledAt + MPI_DELAY_MS);
     await ExchangeTick.create([{
@@ -431,6 +457,6 @@ async function saveObservedMpi(market, now, clock) {
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
-  sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum,
+  sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots,
   publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

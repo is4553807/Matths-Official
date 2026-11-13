@@ -34,6 +34,7 @@ const market = new Schema({
   participantCount: Number,
   botParticipantCount: Number,
   botParticipation: Boolean,
+  examBotsStartedAt: Date,
   bootstrapPolicy: {
     version: Number,
     fadeMinutes: Number,

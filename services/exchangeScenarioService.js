@@ -38,7 +38,19 @@ function botParticipationForSchedule(opensAt, closeAt) {
 }
 
 function submittedBots(market, now) {
-  if (!market.botParticipation || !market.botSeed || !eligibleRound(market)) return [];
+  if (!market.botSeed || !eligibleRound(market)) return [];
+  // An Exam Bot rollout in an already open round begins at activation, never at market open.
+  if (market.examBotsStartedAt) {
+    const start = +market.examBotsStartedAt;
+    const through = Math.min(+now, +market.closeAt - 1);
+    if (through < start) return [];
+    const count = Math.floor((through - start) / HOUR) + 1;
+    const key = `${market.botSeed}:${market._id}:exam:${start}`;
+    return Array.from({ length: count }, (_, hour) => ({
+      ...newParticipant(key, start, hour), submittedAt: start + hour * HOUR,
+    }));
+  }
+  if (!market.botParticipation) return [];
   const elapsedHours = Math.min(ROUND_HOURS, Math.ceil((+now - +market.opensAt) / HOUR));
   const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
   const bots = [];
