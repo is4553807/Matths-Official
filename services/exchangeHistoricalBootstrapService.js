@@ -65,48 +65,65 @@ async function prepareMarket(marketId, now) {
 
 async function checkpoints(market, exam, through) {
   const { cursorAt } = market.historicalBootstrap;
-  const times = new Set();
-  const sampleTimes = new Set();
-  const add = (value) => {
-    if (value == null || +value < +market.opensAt || +value >= +market.closeAt) return;
-    if (cursorAt == null || +value > +cursorAt) times.add(+value);
+  const times = new Map();
+  const publications = new Set();
+  const add = (value, flags) => {
+    const at = +value;
+    if (value == null || at < +market.opensAt || at >= +market.closeAt || (cursorAt != null && at <= +cursorAt)) return;
+    times.set(at, { ...times.get(at), ...flags });
+  };
+  const publish = (at) => {
+    publications.add(at);
+    add(at, { book: true, traders: true });
+    add(at + MPI_DELAY_MS, { book: true, traders: true });
   };
   const sample = (at) => {
-    add(at);
-    sampleTimes.add(+at);
-    add(+at + MPI_DELAY_MS);
-    add(+at + HOUR);
+    add(at, { sample: true });
+    publish(at + MPI_DELAY_MS);
   };
-  add(market.opensAt);
+  add(market.opensAt, { open: true, book: true });
   for (const bot of submittedBots(market, through)) sample(bot.submittedAt);
   const students = await PrivateMockExamAttempt.find(validAttemptsAtMarketTime(exam, through))
     .select("submittedAt submissionFinalization.completedAt integrityClearedAt").lean();
   for (const attempt of students) {
     const at = Math.max(+attempt.submittedAt, +(attempt.submissionFinalization?.completedAt ?? 0),
       +(attempt.integrityClearedAt ?? 0));
-    add(at);
+    add(at, { open: true, book: true });
     sample(Math.ceil(at / MINUTE) * MINUTE);
   }
-  // Publications produced by an earlier handoff checkpoint may fall between scheduled submissions.
+  // The stored publication can fall between planned times after an interrupted run.
   const ticks = await ExchangeTick.find({
     marketId: market._id, kind: "observed", supersededAt: null,
     publishAt: { $gte: new Date(+(cursorAt ?? market.opensAt) - HOUR) },
   }).select("sampledAt publishAt").lean();
   for (const tick of ticks) {
-    add(tick.publishAt);
-    add(+tick.publishAt + MPI_DELAY_MS);
-    add(+tick.sampledAt + HOUR);
+    publish(+tick.publishAt);
+    add(+tick.sampledAt + HOUR, { book: true });
   }
-  add(traderStopAt(market));
-  add(through);
-  const points = [...times].sort((a, b) => a - b);
-  return points.filter((at) => at <= +through).map((at, index) => ({
-    at: new Date(at), quoteThrough: new Date(points[index + 1] ?? at), sample: sampleTimes.has(at) || at === +through,
-  }));
+  add(traderStopAt(market), { book: true, traders: true });
+  add(through, { sample: true, book: true, traders: true });
+
+  const ordered = [...times].sort(([a], [b]) => a - b);
+  // Carry forward quotes that the previous checkpoint renewed only to the first wake.
+  if (cursorAt && ordered.length) ordered[0][1].book = true;
+  const recentPublications = [...publications].sort((a, b) => a - b);
+  let publicationIndex = 0;
+  for (const [at, flags] of ordered) {
+    while (recentPublications[publicationIndex + 1] <= at) publicationIndex++;
+    const age = at - recentPublications[publicationIndex];
+    if (age >= 0 && age < 5 * MINUTE) Object.assign(flags, { book: true, traders: true });
+  }
+  let nextBookAt;
+  const result = [];
+  for (const [at, flags] of ordered.reverse()) {
+    if (at <= +through) result.push({ ...flags, at: new Date(at), quoteThrough: new Date(nextBookAt ?? at) });
+    if (flags.book) nextBookAt = at;
+  }
+  return result.reverse();
 }
 
 async function replayCheckpoint(marketId, exam, point) {
-  const { at, quoteThrough, sample } = point;
+  const { at, quoteThrough, sample, open, book, traders } = point;
   const clock = () => at;
   return mongoose.connection.transaction(async (session) => {
     const market = await ExchangeMarket.findOneAndUpdate({
@@ -114,13 +131,13 @@ async function replayCheckpoint(marketId, exam, point) {
       $or: [{ "historicalBootstrap.cursorAt": null }, { "historicalBootstrap.cursorAt": { $lt: at } }],
     }, { $inc: { revision: 1 } }, { session, returnDocument: "after" }).select("+botSeed");
     if (!market) return;
-    await openWeeklyMarket(market, exam, at, session);
+    if (open || !market.openedAt) await openWeeklyMarket(market, exam, at, session);
     if (sample) await saveObservedMpi(market, at, clock, { session, replay: true });
-    if (market.openedAt) {
+    if (book && market.openedAt) {
       const options = { session, replay: true };
       await maintainMarketMaker(marketId, clock, { ...options, quoteThrough });
-      await maintainFundedBotOrders(market, at, clock, options);
-      await maintainMarketMaker(marketId, clock, { ...options, quoteThrough });
+      const changed = traders && await maintainFundedBotOrders(market, at, clock, options);
+      if (changed) await maintainMarketMaker(marketId, clock, { ...options, quoteThrough });
     }
     await ExchangeMarket.updateOne({ _id: marketId }, { $set: { "historicalBootstrap.cursorAt": at } }, { session });
   });

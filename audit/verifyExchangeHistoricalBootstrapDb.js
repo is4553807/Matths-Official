@@ -96,7 +96,8 @@ async function main() {
   ]);
   assert.equal(futures.interval, "2h");
   assert.equal(futures.market.volume, trades.reduce((sum, row) => sum + row.quantity, 0));
-  assert.ok(futures.bids.length && futures.asks.length);
+  assert.ok(futures.bids.some((row) => row.price === resting.price));
+  if (futures.asks.length) assert.ok(futures.bids[0].price < futures.asks[0].price);
   assert.ok(futures.candles[0]._id < +opensAt + 4 * HOUR);
   assert.ok(mpi.candles[0]._id < +opensAt + 4 * HOUR);
   assert.equal(mpi.interval, "2h");
