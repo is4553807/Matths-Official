@@ -16,6 +16,7 @@ const DEFAULT_MPI_MINIMUM = 5;
 const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const { botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
+const { POLICY, isBootstrap, fadeAt, weightedMpi, recordExamBots } = require("./exchangeBootstrapService");
 
 function error(status, message) {
   return Object.assign(new Error(message), { status });
@@ -73,7 +74,7 @@ function weeklyExamQuery(examId) {
 
 async function readWeeklyExam(examId, session) {
   return PrivateMockExam.findOne(weeklyExamQuery(examId))
-    .select("title weekKey status releaseAt closeAt questionCount archiveItemId settlementCompletedAt +answerKey +points")
+    .select("title weekKey status releaseAt closeAt questionCount archiveItemId settlementCompletedAt questionNumbers +answerKey +points")
     .session(session || null).lean();
 }
 
@@ -97,6 +98,7 @@ function receivedAttempts(exam, now) {
     examId: exam._id,
     status: "submitted",
     demoBatchKey: { $in: [null, ""] },
+    source: { $in: [null, "HUMAN"] },
     submittedAt: { $gte: exam.releaseAt, $lt: exam.closeAt, $lte: now },
   };
 }
@@ -146,7 +148,7 @@ function publishedMpiFilter(marketId, now) {
 
 async function latestPublishedMpi(market, now, session) {
   const snapshot = await ExchangeTick.findOne(publishedMpiFilter(market._id, now)).sort({ publishAt: -1 }).session(session || null).lean();
-  return snapshot?.populationCount >= await readMpiMinimum(market, session) ? snapshot : null;
+  return snapshot && !snapshot.unavailable && snapshot.populationCount >= await readMpiMinimum(market, session) ? snapshot : null;
 }
 
 function activeBookOrders(marketId, now) {
@@ -176,8 +178,8 @@ function bookLevels(marketId, now, session, snapshotId, operatorWalletId, schedu
       snapshotId ? { mpiSnapshotId: snapshotId } : scheduledLiquidity ? { scheduledLiquidity: true } : { _id: null },
     ] }];
   }
-  const operator = operatorWalletId ? { $or: [{ $eq: ["$liquidityProvider", "matths"] },
-    { $eq: ["$userId", new mongoose.Types.ObjectId(operatorWalletId)] }] } : { $eq: ["$liquidityProvider", "matths"] };
+  const operator = operatorWalletId ? { $or: [{ $eq: ["$liquidityProvider", "matths"] }, { $eq: ["$source", "BOT"] },
+    { $eq: ["$userId", new mongoose.Types.ObjectId(operatorWalletId)] }] } : { $or: [{ $eq: ["$liquidityProvider", "matths"] }, { $eq: ["$source", "BOT"] }] };
   return ExchangeOrder.aggregate([
     { $match: filter },
     { $lookup: {
@@ -226,7 +228,8 @@ async function syncWeeklyMarkets(now = new Date()) {
     const key = `weekly:${exam._id}`;
     const questionCounts = [2, 3, 4].map((point) => exam.points.filter((value) => value === point).length);
     const botParticipation = botParticipationForSchedule(exam.releaseAt, exam.closeAt);
-    const botRules = botParticipation ? { botParticipation, botSeed: randomBytes(32).toString("hex") } : { botParticipation };
+    const botRules = botParticipation ? { botParticipation, botSeed: randomBytes(32).toString("hex"),
+      bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1 } : { botParticipation };
     await ExchangeMarket.updateOne({ key }, { $setOnInsert: {
       key, type: "weekly", examId: exam._id, title: exam.title,
       opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts,
@@ -237,7 +240,7 @@ async function syncWeeklyMarkets(now = new Date()) {
     ] }, { $set: { opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts, ...botRules }, $inc: { revision: 1 } });
 
     if (botParticipation) {
-      await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, botParticipation: null },
+      await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, opensAt: { $gt: now }, botParticipation: true, "bootstrapPolicy.version": null },
         { $set: botRules });
     }
     if (exam.status !== "open" || now < exam.releaseAt) continue;
@@ -245,7 +248,8 @@ async function syncWeeklyMarkets(now = new Date()) {
       const market = await ExchangeMarket.findOne({ key, phase: "scheduled", openedAt: null }).select("+botSeed").session(session);
       if (!market || market.paused || market.closeAt <= now) return;
       const minimum = market.minimumAttempts ?? await readSetting(session);
-      const needed = minimum - submittedBots(market, now).length;
+      // An explicit opening minimum remains a requirement for real students.
+      const needed = minimum - (isBootstrap(market) ? 0 : submittedBots(market, now).length);
       if (needed > 0) {
         const [result] = await liveAttemptRows(validAttempts(exam, now), session).append({ $limit: needed }, { $count: "count" });
         if ((result?.count ?? 0) < needed) return;
@@ -344,38 +348,82 @@ function changedContributors(previous, current) {
   return changed.size;
 }
 
+async function startMpiBotFade(marketId, actorId, reason, now = new Date()) {
+  reason = String(reason || "").trim().slice(0, 300);
+  if (!reason) throw error(400, "전환 사유를 입력해 주세요.");
+  return mongoose.connection.transaction(async (session) => {
+    const market = await ExchangeMarket.findByIdAndUpdate(marketId, { $inc: { revision: 1 } },
+      { session, returnDocument: "after" });
+    if (!market || !isBootstrap(market) || publicState(market, now) !== "open") throw error(409, "개장 중인 Bootstrap 회차만 전환할 수 있습니다.");
+    if (market.mpiFade?.startedAt) return;
+    const latestPublishAt = +now + market.bootstrapPolicy.fadeMinutes * MINUTE_MS + MPI_DELAY_MS + MINUTE_MS;
+    if (latestPublishAt > +market.closeAt) throw error(409, "마감 전에 전환 결과를 공개할 시간이 부족합니다.");
+    const exam = await readWeeklyExam(market.examId, session);
+    if (!exam || !await weeklyExamReady(exam, session)) throw error(409, "유효한 주간 시험이 필요합니다.");
+    const minimumHumans = Math.max(market.bootstrapPolicy.minimumHumans, await readMpiMinimum(market, session));
+    const [result] = await liveAttemptRows(validAttempts(exam, now), session)
+      .append({ $limit: minimumHumans }, { $count: "count" });
+    if ((result?.count ?? 0) < minimumHumans) throw error(409, "전환에 필요한 실제 유효 응시 인원이 부족합니다.");
+    const initialWeight = market.botWeight ?? 1;
+    market.mpiFade = { startedAt: now, actorId, initialWeight };
+    await market.save({ session });
+    await ExchangeEvent.create([{ marketId, actorId, action: "mpi-bot-fade-start",
+      detail: { reason, at: now, initialWeight, endsAt: new Date(+now + market.bootstrapPolicy.fadeMinutes * MINUTE_MS) } }], { session });
+  });
+}
+
 async function saveObservedMpi(market, now, clock) {
   if (market.type !== "weekly" || now < market.opensAt || now >= market.closeAt) return;
   if (market.mpiCheckedAt && +now - +market.mpiCheckedAt < 60_000) return;
   await mongoose.connection.transaction(async (session) => {
-    const claimed = await ExchangeMarket.updateOne({
+    const current = await ExchangeMarket.findOneAndUpdate({
       _id: market._id, phase: "scheduled",
       $or: [{ mpiCheckedAt: null }, { mpiCheckedAt: { $lte: new Date(+now - 60_000) } }],
-    }, { $set: { mpiCheckedAt: now } }, { session, timestamps: false });
-    if (!claimed.matchedCount) return;
-    const exam = await readWeeklyExam(market.examId, session);
-    if (exam?.status !== "open" || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt
+    }, { $set: { mpiCheckedAt: now } }, { session, timestamps: false, returnDocument: "after" }).select("+botSeed").lean();
+    if (!current) return;
+    const exam = await readWeeklyExam(current.examId, session);
+    if (exam?.status !== "open" || +exam.releaseAt !== +current.opensAt || +exam.closeAt !== +current.closeAt
       || !await weeklyExamReady(exam, session)) return;
     const attempts = await liveAttemptRows(validAttempts(exam, now), session);
-    const bots = submittedBots(market, now);
-    const populationCount = attempts.length + bots.length;
-    const scoreTotal = attempts.reduce((sum, row) => sum + row.score, 0) + bots.reduce((sum, bot) => sum + bot.score, 0);
-    const internalMpi = populationCount ? scoreTotal / populationCount * 10 : null;
-    await ExchangeMarket.updateOne({ _id: market._id }, {
-      $set: { internalMpi, internalMpiCount: attempts.length },
-    }, { session, timestamps: false });
-    if (populationCount < await readMpiMinimum(market, session)) return;
-    const last = await ExchangeTick.findOne({ marketId: market._id, kind: OBSERVED_MPI })
+    const bootstrap = isBootstrap(current);
+    const bots = bootstrap ? await recordExamBots(current, exam, now, session) : submittedBots(current, now);
+    const humanScoreSum = attempts.reduce((sum, row) => sum + row.score, 0);
+    const botScoreSum = bots.reduce((sum, bot) => sum + bot.score, 0);
+    const { weight: botWeight, step } = bootstrap ? fadeAt(current, now) : { weight: current.botParticipation ? 1 : 0, step: 0 };
+    const mpi = weightedMpi(humanScoreSum, attempts.length, botScoreSum, bots.length, botWeight);
+    const populationCount = attempts.length + (botWeight > 0 ? bots.length : 0);
+    const last = await ExchangeTick.findOne({ marketId: current._id, kind: OBSERVED_MPI })
       .sort({ sampledAt: -1 }).select("+contributions").session(session).lean();
+    const previousStep = current.mpiFadeStep ?? 0;
+    if (bootstrap && step > previousStep) {
+      const events = [];
+      for (let index = previousStep + 1; index <= step; index++) {
+        const at = new Date(+current.mpiFade.startedAt + index * current.bootstrapPolicy.stepMinutes * MINUTE_MS);
+        const after = fadeAt(current, at).weight;
+        const before = fadeAt(current, new Date(+at - 1)).weight;
+        events.push({ marketId: current._id, actorId: current.mpiFade.actorId, action: "mpi-bot-weight",
+          detail: { at, appliedAt: now, dataCutoffAt: now, before, after,
+          previousMpi: weightedMpi(humanScoreSum, attempts.length, botScoreSum, bots.length, before),
+          nextMpi: weightedMpi(humanScoreSum, attempts.length, botScoreSum, bots.length, after) } });
+      }
+      await ExchangeEvent.insertMany(events, { session });
+    }
+    await ExchangeMarket.updateOne({ _id: current._id }, { $set: {
+      internalMpi: mpi, internalMpiCount: attempts.length, internalBotCount: bots.length,
+      humanScoreSum, botScoreSum, botWeight, mpiFadeStep: step,
+    } }, { session, timestamps: false });
+    const available = mpi !== null && populationCount >= await readMpiMinimum(current, session);
     const contributions = attempts.map(({ _id, score }) => `${_id}:${score}`)
-      .concat(bots.map(({ id, score }) => `${id}:${score}`));
-    if (last && changedContributors(last.contributions || [], contributions) < (market.botParticipation ? 1 : MPI_BATCH_SIZE)) return;
-    const mpi = Math.round(internalMpi * 100) / 100;
+      .concat(botWeight > 0 ? bots.map((bot) => `${bot.botId ?? bot.id}:${bot.score}`) : []);
+    if (!available && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return;
+    if (available && last && !last.unavailable && step === previousStep
+      && changedContributors(last.contributions || [], contributions) < (current.botParticipation ? 1 : MPI_BATCH_SIZE)) return;
     const sampledAt = clock();
     const publishAt = new Date(+sampledAt + MPI_DELAY_MS);
     await ExchangeTick.create([{
-      marketId: market._id, kind: OBSERVED_MPI, sampledAt, dataCutoffAt: sampledAt, mpi, populationCount, botPopulationCount: bots.length, contributions,
-      publishAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2),
+      marketId: current._id, kind: OBSERVED_MPI, sampledAt, dataCutoffAt: now, mpi: available ? mpi : null,
+      unavailable: !available, populationCount, humanPopulationCount: attempts.length, botPopulationCount: bots.length,
+      humanScoreSum, botScoreSum, botWeight, contributions, publishAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2),
     }], { session });
   });
 }
@@ -383,6 +431,6 @@ async function saveObservedMpi(market, now, clock) {
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
-  sampleMinute, saveObservedMpi, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum,
+  sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum,
   publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

@@ -100,7 +100,13 @@
                 <div><dt>개장 최소 인원</dt><dd><%= market.appliedMinimum ?? market.minimumAttempts %>명</dd></div>
                 <div><dt>공식 MPI 공개 최소 인원</dt><dd><%= market.minimumMpiAttempts %>명<%= market.mpiMinimumOverride == null ? " (기본값)" : "" %></dd></div>
                 <div><dt>유효 학생 응시</dt><dd><%= market.internalMpiCount ?? 0 %>명</dd></div>
-                <% if (market.botParticipation) { %><div><dt>공식 MPI 운영 봇</dt><dd>학생과 같은 비중 · 공개</dd></div><% } %>
+                <% if (market.bootstrap) { %>
+                  <div><dt>Exam Bot 응시</dt><dd><%= market.internalBotCount ?? 0 %>명</dd></div>
+                  <div><dt>Exam Bot 가중치</dt><dd><%= ((market.botWeight ?? 1) * 100).toLocaleString("ko-KR") %>%</dd></div>
+                  <div><dt>Trading Bots</dt><dd><%= market.tradingBotsWindowEnded ? "운영 시간 종료" : market.tradingBotsEnabled ? "활성" : "중단" %></dd></div>
+                  <div><dt>Trading Bots 종료 · KST</dt><dd><%= seoulInput(market.tradingBotsStopAt).replace("T", " ") %></dd></div>
+                  <% if (market.mpiFade?.startedAt) { %><div><dt>가중치 종료 예정 · KST</dt><dd><%= seoulInput(new Date(+market.mpiFade.startedAt + market.bootstrapPolicy.fadeMinutes * 60000)).replace("T", " ") %></dd></div><% } %>
+                <% } else if (market.botParticipation) { %><div><dt>공식 MPI 운영 봇</dt><dd>학생과 같은 비중 · 공개</dd></div><% } %>
                 <div><dt>MPI 집계 · KST</dt><dd><%= seoulInput(market.latestTick?.sampledAt).replace("T", " ") || "—" %></dd></div>
                 <div><dt>공개 시각 · KST</dt><dd><%= seoulInput(market.latestTick?.publishAt).replace("T", " ") || "—" %></dd></div>
               <% } %>
@@ -108,10 +114,23 @@
             <% if (market.type === "weekly" && !terminal && market.status !== "verifying") { %>
               <form class="exchange-admin-form inline" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
                 <label>변경 사유 <input type="text" name="reason" maxlength="300" required /></label>
-                <button type="submit" name="action" value="<%= market.marketMakerEnabled ? 'mm-disable' : 'mm-enable' %>"><%= market.marketMakerEnabled ? '운영자 호가 중지' : '운영자 호가 활성화' %></button>
+                <button type="submit" name="action" value="<%= market.marketMakerEnabled ? 'mm-disable' : 'mm-enable' %>"><%= market.marketMakerEnabled ? 'MM 호가 중지' : 'MM 호가 활성화' %></button>
               </form>
             <% } %>
-            <% if (market.type === "weekly" && !market.botParticipation && ["scheduled", "waiting", "paused", "open"].includes(market.status)) { %>
+            <% if (market.bootstrap && ["scheduled", "waiting", "paused", "open"].includes(market.status)) { %>
+              <% if (!market.tradingBotsWindowEnded) { %><form class="exchange-admin-form inline" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
+                <label>변경 사유 <input name="reason" maxlength="300" required /></label>
+                <button name="action" value="<%= market.tradingBotsEnabled ? 'trading-bots-disable' : 'trading-bots-enable' %>"><%= market.tradingBotsEnabled ? "Trading Bots 중단" : "Trading Bots 활성화" %></button>
+              </form><% } %>
+              <% if (market.status === "open" && !market.mpiFade?.startedAt) { %>
+                <form class="exchange-admin-form inline" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
+                  <label>전환 사유 <input name="reason" maxlength="300" required /></label>
+                  <button name="action" value="mpi-bot-fade">MPI 봇 기여도 단계적 종료</button>
+                  <p>실제 유효 응시 <%= Math.max(market.bootstrapPolicy.minimumHumans, market.minimumMpiAttempts) %>명부터 시작할 수 있습니다. <%= market.bootstrapPolicy.stepMinutes %>분마다 줄여 <%= market.bootstrapPolicy.fadeMinutes %>분 뒤 0%가 됩니다.</p>
+                </form>
+              <% } %>
+            <% } %>
+            <% if (market.type === "weekly" && (!market.botParticipation || market.bootstrap) && ["scheduled", "waiting", "paused", "open"].includes(market.status)) { %>
               <div class="exchange-admin-liquidity">
                 <h3>운영자 호가 일정</h3>
                 <form class="exchange-admin-form liquidity-form" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
@@ -123,7 +142,7 @@
                 </form>
                 <% if (market.liquidityPlanPending) { %>
                   <form class="exchange-admin-form liquidity-stop" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
-                    <button type="submit" name="action" value="liquidity-stop">운영자 호가 단계적 중단</button>
+                    <button type="submit" name="action" value="liquidity-stop">예약 MM 호가 단계적 중단</button>
                     <p>신규 호가를 닫고, 보유분을 줄이는 호가를 최대 5분간 유지합니다.</p>
                   </form>
                 <% } else if (market.liquidityPlan?.stoppingAt) { %>
@@ -177,11 +196,13 @@
 
     <section class="exchange-admin-section" aria-labelledby="event-title">
       <h2 id="event-title">최근 운영 이력</h2>
-      <% const actions = { "bot-initial-funding": "운영 봇 초기 TP 지급", schedule: "일정 저장", minimum: "개장 최소 인원 변경", "mpi-minimum": "공식 MPI 공개 기준 변경", "liquidity-scheduled": "운영자 호가 예약", "liquidity-stop": "운영자 호가 단계적 중단", pause: "거래 중지", resume: "거래 재개", normal: "정산 등록", void: "시장 무효" }; %>
+      <% const actions = { "mpi-bot-fade-start": "MPI 봇 기여도 단계적 종료 시작", "mpi-bot-weight": "Exam Bot 가중치 변경", "trading-bots-disable": "Trading Bots 중단", "trading-bots-enable": "Trading Bots 활성화", "bot-initial-funding": "운영 봇 초기 TP 지급", schedule: "일정 저장", minimum: "개장 최소 인원 변경", "mpi-minimum": "공식 MPI 공개 기준 변경", "liquidity-scheduled": "운영자 호가 예약", "liquidity-stop": "운영자 호가 단계적 중단", pause: "거래 중지", resume: "거래 재개", normal: "정산 등록", void: "시장 무효" }; %>
       <% if (!events.length) { %><p class="exchange-admin-empty">저장된 운영 이력이 없습니다.</p><% } %>
       <% for (const event of events) {
         const minimum = event.detail?.minimumMpiAttempts ?? event.detail?.minimumAttempts;
-        const description = event.detail?.reason || (minimum != null ? `최소 ${minimum}명` :
+        const description = event.action === "mpi-bot-weight"
+          ? `${event.detail.before * 100}% → ${event.detail.after * 100}% · MPI ${event.detail.previousMpi ?? "—"} → ${event.detail.nextMpi ?? "—"}`
+          : event.detail?.reason || (minimum != null ? `최소 ${minimum}명` :
           event.action === "mpi-minimum" ? "공개 기본값 사용" : event.action === "bot-initial-funding"
             ? `${event.detail.amountTp.toLocaleString("ko-KR")} TP` : event.marketId || "기본 설정");
       %>

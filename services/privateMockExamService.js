@@ -8191,6 +8191,7 @@ async function submitPrivateMockAttempt({
             grading.answers,
           answeredCount:
             grading.answeredCount,
+          source: "HUMAN",
           score:
             grading.score,
           correctCount:

@@ -5231,6 +5231,7 @@ const privateMockExamAttemptSchema =
     new Schema(
         {
             exchangeMmrGrade: { type: Number, min: 1, max: 9 },
+            source: { type: String, enum: ["HUMAN"] },
             // Synthetic academy-demo responses never participate in live ranking.
             demoBatchKey: { type: String, trim: true, maxlength: 120, default: undefined, select: false },
             examId: {

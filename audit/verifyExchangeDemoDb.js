@@ -6,14 +6,15 @@ const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
 const { saveSchedule, saveMinimum, saveMpiMinimum, readMpiMinimum, syncWeeklyMarkets, seoulInput,
-  saveObservedMpi, applyNovember14MpiMinimum } = require("../services/exchangeMarketService");
+  saveObservedMpi, applyNovember14MpiMinimum, startMpiBotFade } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
 const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState } = require("../services/exchangeMpiService");
+const { POLICY, weightedMpi, traderId, traderStopAt } = require("../services/exchangeBootstrapService");
 const { scenarioState, submittedBots, dueBotOrder, botParticipationForSchedule } = require("../services/exchangeScenarioService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
-const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, maintainFundedBotOrders, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, maintainFundedBotOrders, setTradingBotsEnabled, setMarketMakerEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo, ExchangeOrder } = models;
 
 const time = (value) => new Date(value);
@@ -251,7 +252,7 @@ async function main() {
     let weekly = await ExchangeMarket.findOne({ examId: exam._id });
     assert.equal(weekly.botParticipation, botParticipationForSchedule(weekOpen, weekClose));
     // The existing settlement and publication cases use the original round rules.
-    await ExchangeMarket.updateOne({ _id: weekly._id }, { $set: { botParticipation: false } });
+    await ExchangeMarket.updateOne({ _id: weekly._id }, { $set: { botParticipation: false }, $unset: { bootstrapPolicy: "", tradingBotsEnabled: "", botWeight: "" } });
     assert.equal((await terminalState({ marketId: String(weekly._id), now: midweek })).market.status, "waiting");
     await assert.rejects(order(weekly, admin, "long", 650, 1, midweek), { status: 409 });
 
@@ -633,6 +634,155 @@ async function main() {
     assert.equal(settledPosition.position.remaining, 0);
     assert.equal(settledPosition.realized, expectedBotPnl / 100);
 
+    await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "open" }, $unset: { settlementCompletedAt: "" } });
+    const bootstrap = await ExchangeMarket.create({
+      key: "weekly:bootstrap-audit", type: "weekly", title: "Bootstrap audit", examId: exam._id,
+      opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose, minimumMpiAttempts: 1,
+      botParticipation: true, botSeed: "bootstrap-audit-seed", bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1,
+    });
+    const bootstrapId = String(bootstrap._id);
+    const firstBotAt = new Date(+weekOpen + 60 * 60_000 - 1);
+    await saveObservedMpi(bootstrap, firstBotAt, () => firstBotAt);
+    await saveObservedMpi(bootstrap, firstBotAt, () => firstBotAt);
+    const [firstExamBot] = await models.ExchangeExamBotAttempt.find({ marketId: bootstrap._id }).lean();
+    assert.equal(firstExamBot.source, "BOT");
+    assert.equal(firstExamBot.number, 1);
+    assert.equal(firstExamBot.label, "ExamBot1");
+    assert.equal(firstExamBot.score, points.reduce((sum, point, i) => sum + (firstExamBot.correctByQuestion[i] ? point : 0), 0));
+    assert.equal(await models.ExchangeExamBotAttempt.countDocuments({ marketId: bootstrap._id }), 1);
+    assert.equal(await ExchangeTick.countDocuments({ marketId: bootstrap._id }), 1);
+    const firstPublicAt = new Date(+firstBotAt + 30 * 60_000);
+    assert.equal((await mpiState({ marketId: bootstrapId, now: new Date(+firstPublicAt - 1) })).latest, null);
+    assert.equal((await mpiState({ marketId: bootstrapId, now: firstPublicAt })).latest.mpi, firstExamBot.score * 10);
+    await assert.rejects(startMpiBotFade(bootstrap._id, operator._id, "too early", firstPublicAt), { status: 409 });
+    assert.equal(weightedMpi(0, 0, 80, 1, 0), null);
+    await saveObservedMpi(bootstrap, midweek, () => midweek);
+    const fadeAt = new Date(+midweek + 30 * 60_000);
+    const beforeFade = (await mpiState({ marketId: bootstrapId, now: fadeAt })).latest;
+    assert.equal(beforeFade.humanPopulationCount, 5);
+    assert.equal(beforeFade.botWeight, 1);
+    await assert.rejects(startMpiBotFade(bootstrap._id, operator._id, "too late", new Date(+weekClose - 60 * 60_000)), { status: 409 });
+    await maintainMarketMaker(bootstrap._id, () => fadeAt);
+    const originalQuotes = await ExchangeOrder.find({ marketId: bootstrap._id, source: "MM", status: "working" }).lean();
+    assert.ok(originalQuotes.length > 0);
+    await startMpiBotFade(bootstrap._id, operator._id, "user activity", fadeAt);
+    assert.equal(await ExchangeOrder.countDocuments({ _id: { $in: originalQuotes.map((row) => row._id) }, status: "working" }), originalQuotes.length);
+    await startMpiBotFade(bootstrap._id, operator._id, "retry", fadeAt);
+    const midway = new Date(+fadeAt + 30 * 60_000);
+    const finished = new Date(+fadeAt + 60 * 60_000);
+    await saveObservedMpi(bootstrap, midway, () => midway);
+    const middleTick = await ExchangeTick.findOne({ marketId: bootstrap._id, sampledAt: midway });
+    assert.equal(middleTick.botWeight, 0.5);
+    assert.equal(middleTick.mpi, weightedMpi(350, 5, middleTick.botScoreSum, middleTick.botPopulationCount, 0.5));
+    await saveObservedMpi(bootstrap, finished, () => finished);
+    await saveObservedMpi(bootstrap, finished, () => finished);
+    const finalPublicAt = new Date(+finished + 30 * 60_000);
+    const publicHuman = (await mpiState({ marketId: bootstrapId, now: finalPublicAt })).latest;
+    assert.equal(publicHuman.botWeight, 0);
+    assert.equal(publicHuman.humanPopulationCount, 5);
+    assert.equal(publicHuman.mpi, 700);
+    assert.equal(await models.ExchangeEvent.countDocuments({ marketId: bootstrap._id, action: "mpi-bot-weight" }), 12);
+    assert.equal(await models.ExchangeEvent.countDocuments({ marketId: bootstrap._id, action: "mpi-bot-fade-start" }), 1);
+    assert.notEqual((await ExchangeMarket.findById(bootstrap._id)).tradingBotsEnabled, false);
+    await maintainMarketMaker(bootstrap._id, () => finalPublicAt);
+    const bootstrapMm = await ExchangeOrder.findOne({ marketId: bootstrap._id, source: "MM", status: "working" });
+    assert.equal(bootstrapMm.botLabel, "MM1");
+    await setTradingBotsEnabled(bootstrap._id, false, operator._id, "handoff", finalPublicAt);
+    assert.equal((await ExchangeOrder.findById(bootstrapMm._id)).status, "working");
+    assert.notEqual((await ExchangeMarket.findById(bootstrap._id)).marketMakerEnabled, false);
+    const botsOnlyMarket = await ExchangeMarket.create({
+      key: "weekly:bootstrap-bot-cross", type: "weekly", title: "Bootstrap bot crossing", examId: exam._id,
+      opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose, minimumMpiAttempts: 1,
+      botParticipation: true, botSeed: "crossing-fixture", bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1,
+    });
+    const botCrossId = String(botsOnlyMarket._id);
+    const crossAt = new Date(+weekOpen + 3 * 60 * 60_000);
+    const cutoffAt = new Date(+crossAt - 30 * 60_000);
+    await models.ExchangeExamBotAttempt.create([20, 100].map((score, index) => ({
+      marketId: botsOnlyMarket._id, examId: exam._id, botId: objectId(), number: index + 1,
+      score, source: "BOT", label: `ExamBot${index + 1}`, submittedAt: cutoffAt,
+    })));
+    await ExchangeTick.create({ marketId: botsOnlyMarket._id, kind: "observed", sampledAt: cutoffAt,
+      dataCutoffAt: cutoffAt, publishAt: crossAt, populationCount: 2, humanPopulationCount: 0, botPopulationCount: 2, botWeight: 1, mpi: 600 });
+    const exchangeBeforeCross = (await ExchangeWallet.findById(EXCHANGE_WALLET_ID)).available;
+    await maintainFundedBotOrders(botsOnlyMarket, new Date(+crossAt - 1));
+    assert.equal(await ExchangeOrder.countDocuments({ marketId: botsOnlyMarket._id }), 0);
+    await maintainFundedBotOrders(botsOnlyMarket, crossAt);
+    await maintainFundedBotOrders(botsOnlyMarket, crossAt);
+    const botCross = await terminalState({ marketId: botCrossId, now: crossAt });
+    assert.equal(botCross.market.volume, 0);
+    assert.equal(botCross.market.botOnlyVolume, 1);
+    assert.equal(botCross.market.lastPrice, null);
+    assert.equal(botCross.candles.length, 0);
+    assert.equal(botCross.botCandles[0].volume, 1);
+    assert.deepEqual(botCross.trades.map((trade) => [trade.makerSource, trade.takerSource, trade.botOnly]), [["BOT", "BOT", true]]);
+    const botOrders = await ExchangeOrder.find({ marketId: botsOnlyMarket._id }).sort({ sequence: 1 }).lean();
+    assert.deepEqual(botOrders.map((row) => row.botLabel), ["TraderBot1", "TraderBot2"]);
+    assert.notEqual(String(botOrders[0].userId), String(botOrders[1].userId));
+    assert.ok((await ExchangeWallet.findById(EXCHANGE_WALLET_ID)).available < exchangeBeforeCross);
+
+    const fullWeek = await ExchangeMarket.create({
+      key: "weekly:bootstrap-full-clock", type: "weekly", title: "Bootstrap full week", examId: exam._id,
+      opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose, minimumMpiAttempts: 1,
+      botParticipation: true, botSeed: "weekly-replay-fixture", bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1,
+    });
+    for (let hour = 1; hour <= 141; hour++) {
+      const checkpoint = new Date(+weekOpen + hour * 60 * 60_000 - 1);
+      await saveObservedMpi(fullWeek, checkpoint, () => checkpoint);
+    }
+    assert.equal(await models.ExchangeExamBotAttempt.countDocuments({ marketId: fullWeek._id }), 141);
+    assert.equal(await ExchangeTick.countDocuments({ marketId: fullWeek._id }), 141);
+    await saveObservedMpi(fullWeek, weekClose, () => weekClose);
+    assert.equal(await ExchangeTick.countDocuments({ marketId: fullWeek._id }), 141);
+
+    const studentCrossAt = new Date(+midweek + 2 * 60_000);
+    const studentCutoff = new Date(+studentCrossAt - 30 * 60_000);
+    await models.ExchangeExamBotAttempt.create({
+      marketId: botsOnlyMarket._id, examId: exam._id, botId: objectId(), number: 3,
+      score: 100, source: "BOT", label: "ExamBot3", submittedAt: studentCutoff,
+    });
+    await ExchangeTick.create({ marketId: botsOnlyMarket._id, kind: "observed", sampledAt: studentCutoff,
+      dataCutoffAt: studentCutoff, publishAt: studentCrossAt, populationCount: 3, botPopulationCount: 3, botWeight: 1, mpi: 600 });
+    await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID }, { $inc: { available: 200_000 } });
+    await order(botsOnlyMarket, buyer, "short", 600, 1, studentCrossAt);
+    await maintainFundedBotOrders(botsOnlyMarket, studentCrossAt);
+    const studentCross = await terminalState({ marketId: botCrossId, now: studentCrossAt });
+    assert.equal(studentCross.market.botOnlyVolume, 1);
+    assert.equal(studentCross.market.volume, 1);
+    assert.equal(studentCross.market.lastPrice, 600);
+    assert.equal(studentCross.candles[0].volume, 1);
+    assert.deepEqual([studentCross.trades[0].makerSource, studentCross.trades[0].takerSource], ["HUMAN", "BOT"]);
+
+    await maintainMarketMaker(botsOnlyMarket._id, () => studentCrossAt);
+    const restingMM = await ExchangeOrder.findOne({ marketId: botsOnlyMarket._id, source: "MM", status: "working" });
+    assert.ok(restingMM);
+    await setMarketMakerEnabled(botsOnlyMarket._id, false, operator._id, "MM test", studentCrossAt);
+    assert.equal((await ExchangeOrder.findById(restingMM._id)).status, "cancelled");
+    assert.equal((await ExchangeMarket.findById(botsOnlyMarket._id)).tradingBotsEnabled, true);
+
+    const bootstrapDashboard = await operatorBotsState(bootstrapId, finalPublicAt);
+    assert.ok(bootstrapDashboard.bots.some((row) => row.examLabel === "ExamBot1" && row.traderLabel === "TraderBot1"));
+    assert.equal(traderId(firstExamBot.botId).length, 24);
+    await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "locked", settlementCompletedAt: weekClose } });
+    await processMarket(await ExchangeMarket.findById(bootstrap._id), weekClose);
+    const humanSettlement = await ExchangeMarket.findById(bootstrap._id);
+    assert.equal(humanSettlement.phase, "settled");
+    assert.equal(humanSettlement.settlement, 750);
+    assert.equal(humanSettlement.participantCount, 6);
+    assert.equal(humanSettlement.botParticipantCount, 0);
+    await assert.rejects(setTradingBotsEnabled(botsOnlyMarket._id, true, operator._id, "past scheduled stop",
+      traderStopAt(botsOnlyMarket)), { status: 409 });
+    await processMarket(await ExchangeMarket.findById(botsOnlyMarket._id), weekClose);
+    assert.equal((await ExchangeMarket.findById(botsOnlyMarket._id)).escrow, 0);
+    const studentMakerFee = Math.round(600 * 100 * 2 / 10_000);
+    assert.equal((await ExchangeWallet.findById(EXCHANGE_WALLET_ID)).available, exchangeBeforeCross + 200_000 + 15_000 + studentMakerFee);
+    await PrivateMockExamAttempt.updateMany({ examId: exam._id }, { $set: { integrityStatus: "INVALIDATED" } });
+    await processMarket(await ExchangeMarket.findById(fullWeek._id), weekClose);
+    const noHumanSettlement = await ExchangeMarket.findById(fullWeek._id);
+    assert.equal(noHumanSettlement.phase, "void");
+    assert.equal(noHumanSettlement.settlement ?? null, null);
+    assert.equal(await models.ExchangeExamBotAttempt.countDocuments({ marketId: fullWeek._id }), 141);
+
     const rolloutAt = new Date("2026-11-13T09:00:00Z");
     const rolloutRound = await ExchangeMarket.create({
       _id: "6af57a46ad86b97eba7fda52", key: "weekly:one-person-rollout", type: "weekly", title: "One-person rollout",
@@ -644,7 +794,7 @@ async function main() {
     await applyNovember14MpiMinimum(rolloutAt);
     assert.equal(await readMpiMinimum(await ExchangeMarket.findById(rolloutRound._id)), 6);
 
-    console.log("Exchange verified: delayed official MPI, legacy and demo exclusion, MM quotes and scheduled live liquidity, verification wait, fees, wallets and settlement.");
+    console.log("Exchange verified: delayed MPI, 141-hour Bootstrap replay, separate trade sources, independent controls, legacy compatibility, collateral and human-only settlement.");
   } finally {
     await mongoose.disconnect();
   }

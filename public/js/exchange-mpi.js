@@ -47,19 +47,24 @@
     select.value = state.market?.id || "";
     get("mpi-select-wrap").hidden = !state.markets.length;
     text("mpi-market-name", state.market?.title || "맵쓰 주간 모의고사");
-    text("mpi-value", latest ? number.format(latest.mpi) : "—");
-    text("mpi-score", latest ? `${number.format(latest.mpi / 10)}점` : "—");
+    text("mpi-value", latest?.mpi != null ? number.format(latest.mpi) : "—");
+    text("mpi-score", latest?.mpi != null ? `${number.format(latest.mpi / 10)}점` : "—");
     const botCount = latest?.botPopulationCount ?? 0;
     get("mpi-bot-policy").hidden = !state.market?.botParticipation;
-    text("mpi-count", latest ? `${number.format(latest.populationCount)}명${state.market?.botParticipation
-      ? ` (학생 ${number.format(latest.populationCount - botCount)} · 봇 ${number.format(botCount)})` : ""}` : "—");
+    text("mpi-value-label", state.market?.bootstrap ? "잠정 MPI · 30분 지연" : "공개 MPI · 30분 지연");
+    text("mpi-bot-policy", state.market?.bootstrap
+      ? `공개 표본의 Exam Bot 가중치 ${latest?.botWeight == null ? "—" : number.format(latest.botWeight * 100) + "%"} · 최종 정산은 실제 유효 학생 성적 기준`
+      : "학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다.");
+    const humanCount = latest?.humanPopulationCount ?? ((latest?.populationCount ?? 0) - botCount);
+    text("mpi-count", !latest ? "—" : state.market?.botParticipation
+      ? `학생 ${number.format(humanCount)}명 · 봇 ${number.format(botCount)}명` : `${number.format(latest.populationCount)}명`);
     text("mpi-time", latest ? time.format(new Date(latest.sampledAt)) : "—");
     text("mpi-cutoff", latest?.dataCutoffAt ? time.format(new Date(latest.dataCutoffAt)) : "—");
-    text("mpi-waiting", state.market
+    text("mpi-waiting", latest?.unavailable ? "현재 공개 요건을 충족한 성적이 없습니다." : state.market
       ? `${state.market.botParticipation ? "학생과 운영 봇 합계" : "유효 응시"} ${number.format(state.minimumMpiAttempts)}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
       : "주간 모의고사 회차가 공개되면 집계가 시작됩니다.");
     get("mpi-empty").hidden = Boolean(state.candles.length);
-    chart.update(state.candles, latest ? seriesKey(state) : "");
+    chart.update(state.candles, latest?.mpi != null ? seriesKey(state) : "");
   }
 
   async function refresh() {

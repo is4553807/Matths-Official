@@ -11,6 +11,7 @@ const {
 const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
+const { isBootstrap, traderStopAt } = require("./exchangeBootstrapService");
 const { advanceExchangeScenario } = require("./exchangeScenarioService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
@@ -23,6 +24,7 @@ function marketView(market, now) {
     id: String(market._id), title: market.title, type: market.type, grade: market.grade, year: market.year,
     opensAt: market.opensAt, closeAt: market.closeAt, status, statusLabel: STAGES[status],
     lastPrice: market.lastPrice ?? null, volume: market.volume, botParticipation: market.botParticipation === true,
+    bootstrap: isBootstrap(market), botOnlyVolume: market.botOnlyVolume ?? 0,
     settlement: status === "settled" ? market.settlement : null,
     botParticipantCount: status === "settled" ? market.botParticipantCount : undefined,
     resultUrl: status === "settled" ? market.resultUrl : undefined,
@@ -46,22 +48,22 @@ async function marketList(now) {
   return [...ready, ...history];
 }
 
-async function chart(marketId, interval, now) {
+async function chart(marketId, interval, now, botOnly = false) {
   const { ms } = intervalFor(interval, "1m");
   return aggregateCandles(ExchangeTrade, {
-    match: { marketId, tradedAt: { $gte: new Date(candleWindow(now, ms)), $lte: now } },
+    match: { marketId, botOnly: botOnly ? true : { $ne: true }, tradedAt: { $gte: new Date(candleWindow(now, ms)), $lte: now } },
     dateField: "tradedAt", priceField: "price", ms, volume: true,
   });
 }
 
-async function futuresChartHistory(marketId, interval, before, now = new Date()) {
+async function futuresChartHistory(marketId, interval, before, now = new Date(), botOnly = false) {
   const { ms } = intervalFor(interval, "1m");
   // History cursors are exclusive candle boundaries, including for off-boundary requests.
   const tradedAt = before ? { $lt: new Date(bucketStart(before, ms)), $lte: now } : { $lte: now };
   const latest = await ExchangeTrade.findOne({
-    marketId, tradedAt,
+    marketId, tradedAt, botOnly: botOnly ? true : { $ne: true },
   }).select("marketId tradedAt").sort({ tradedAt: -1 }).lean();
-  return latest ? chart(latest.marketId, interval, latest.tradedAt) : [];
+  return latest ? chart(latest.marketId, interval, latest.tradedAt, botOnly) : [];
 }
 
 function orderView(row) {
@@ -102,7 +104,7 @@ async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
   const filter = forAdmin ? { marketId: market._id, kind: "observed" }
     : { ...publishedMpiFilter(market._id, now), populationCount: { $gte: await readMpiMinimum(market) } };
   return ExchangeTick.find(filter).sort({ publishAt: -1 }).limit(limit)
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount botWeight unavailable").lean();
 }
 
 async function terminalState({ marketId, userId, interval = "1m", marketType, now = new Date() } = {}) {
@@ -125,17 +127,18 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   const snapshot = market.type === "weekly" ? await latestPublishedMpi(market, now) : undefined;
   const chartEnd = new Date(Math.min(+now, +market.closeAt));
   const { ms } = intervalFor(interval, "1m");
-  const [book, trades, candles, ticks, own, references] = await Promise.all([
+  const [book, trades, candles, ticks, own, references, botCandles] = await Promise.all([
     view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
       market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
-      .select("price quantity tradedAt liquidityProvider -_id").lean(),
+      .select("price quantity tradedAt liquidityProvider makerSource takerSource botOnly -_id").lean(),
     chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
     marketSamples(market, now, 120),
     ownMarketState(market, userId, now),
     market.type === "weekly" ? ExchangeReference.find({
       marketId: market._id, at: { $gte: new Date(candleWindow(chartEnd, ms)), $lte: chartEnd },
     }).sort({ at: -1, sequence: -1 }).limit(400).select("at price -_id").lean() : [],
+    market.botOnlyVolume ? futuresChartHistory(market._id, interval, undefined, chartEnd, true) : [],
   ]);
   references.reverse();
   const side = (key, sign) => book.filter((row) => row._id.side === key)
@@ -150,10 +153,12 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   }
   const publicLevels = (levels) => levels.map(({ price, quantity, botQuantity }) =>
     botQuantity ? { price, quantity, botQuantity } : { price, quantity });
-  const publicTrades = trades.map(({ price, quantity, tradedAt, liquidityProvider }) =>
-    liquidityProvider === "bot" ? { price, quantity, tradedAt, source: "bot" } : { price, quantity, tradedAt });
+  const publicTrades = trades.map(({ price, quantity, tradedAt, liquidityProvider, makerSource, takerSource, botOnly }) => {
+    if (isBootstrap(market)) return { price, quantity, tradedAt, makerSource, takerSource, botOnly: Boolean(botOnly) };
+    return liquidityProvider === "bot" ? { price, quantity, tradedAt, source: "bot" } : { price, quantity, tradedAt };
+  });
   return { ...result, market: view, bids: publicLevels(bids), asks: publicLevels(asks), reference, references,
-    trades: publicTrades, candles,
+    trades: publicTrades, candles, botCandles,
     ticks: ticks.reverse(), own: { ...own, eligible: own.eligible && view.status === "open" } };
 }
 
@@ -189,6 +194,10 @@ async function adminState(year, grade, now = new Date()) {
         ? readWeeklyExam(market.examId).then((exam) => exam ? pendingAttempts(exam, now) : []) : [],
     ]);
     controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum, marketMakerEnabled: market.marketMakerEnabled !== false,
+      bootstrapPolicy: market.bootstrapPolicy, mpiFade: market.mpiFade, botWeight: market.botWeight,
+      tradingBotsEnabled: market.tradingBotsEnabled !== false, internalBotCount: market.internalBotCount,
+      tradingBotsStopAt: isBootstrap(market) ? traderStopAt(market) : null,
+      tradingBotsWindowEnded: isBootstrap(market) && now >= traderStopAt(market),
       pendingVerification: pending.length > 0, internalMpiCount: market.internalMpiCount, liquidityPlan: market.liquidityPlan,
       liquidityPlanPending: market.liquidityPlan?.endsAt > now && !market.liquidityPlan?.stoppingAt,
       minimumAttempts: market.minimumAttempts ?? settings,
@@ -225,14 +234,20 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
     { phase: "scheduled", type: "weekly", opensAt: { $lte: now } },
   ] }).sort({ updatedAt: 1 }).limit(50).select("+botSeed").lean();
   for (const market of markets) {
-    try {
-      await processMarket(market, now);
-      if (market.type === "weekly" && market.openedAt && market.phase === "scheduled" && now < market.closeAt) {
-        if (market.botParticipation) await maintainFundedBotOrders(market, now, clock);
-        else await maintainMarketMaker(market._id, clock);
-      }
+    try { await processMarket(market, now); }
+    catch (cause) {
+      console.error("[exchange] market maintenance failed", String(market._id), cause.message);
+      continue;
     }
-    catch (cause) { console.error("[exchange] market maintenance failed", String(market._id), cause.message); }
+    if (market.type !== "weekly" || !market.openedAt || market.phase !== "scheduled" || now >= market.closeAt) continue;
+    if (!market.botParticipation || isBootstrap(market)) {
+      try { await maintainMarketMaker(market._id, clock); }
+      catch (cause) { console.error("[exchange] MM maintenance failed", String(market._id), cause.message); }
+    }
+    if (market.botParticipation) {
+      try { await maintainFundedBotOrders(market, now, clock); }
+      catch (cause) { console.error("[exchange] Trading Bot maintenance failed", String(market._id), cause.message); }
+    }
   }
 }
 

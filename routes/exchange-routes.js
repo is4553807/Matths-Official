@@ -5,10 +5,10 @@ const { exchangeLogout } = require("../controllers/matthsController");
 const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
 const { ExchangeMarket, ExchangeWallet } = require("../models/exchangeModel");
 const {
-  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, readWeeklyExam, weeklyExamReady,
+  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade, readWeeklyExam, weeklyExamReady,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
-const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
@@ -181,7 +181,7 @@ router.get("/api/exchange/markets/:marketId/scenario", privateResponse, async (r
 });
 router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (req, res) => {
   const interval = intervalFor(req.query.interval, "1m").code;
-  const candles = await futuresChartHistory(id(req.params.marketId), interval, historyBefore(req.query.before));
+  const candles = await futuresChartHistory(id(req.params.marketId), interval, historyBefore(req.query.before), new Date(), req.query.series === "bots");
   res.json({ interval, candles });
 });
 router.get("/api/exchange/rankings", privateResponse, async (_req, res) => res.json(await leaderboard()));
@@ -238,6 +238,10 @@ router.post("/admin/exchange/markets/:marketId/action", ...admin, async (req, re
   const { action, reason } = req.body;
   if (action === "pause" || action === "resume") await setPaused(marketId, action === "pause", actorId, reason);
   else if (action === "mm-enable" || action === "mm-disable") await setMarketMakerEnabled(marketId, action === "mm-enable", actorId, reason);
+  else if (action === "mpi-bot-fade") await startMpiBotFade(marketId, actorId, reason);
+  else if (action === "trading-bots-disable" || action === "trading-bots-enable") {
+    await setTradingBotsEnabled(marketId, action === "trading-bots-enable", actorId, reason);
+  }
   else if (action === "liquidity-schedule") await scheduleMarketLiquidity(marketId, req.body, actorId);
   else if (action === "liquidity-stop") await stopMarketLiquidity(marketId, actorId);
   else if (action === "void") await voidMarket(marketId, actorId, reason);

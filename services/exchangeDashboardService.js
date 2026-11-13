@@ -4,6 +4,7 @@ const { TP_SCALE, collateral } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, initialBalance } = require("./exchangeFees");
 const { marketView, orderView } = require("./exchangeService");
 const { submittedBots } = require("./exchangeScenarioService");
+const { isBootstrap, readExamBots, traderId, botLabel } = require("./exchangeBootstrapService");
 
 async function dashboardState(userId, now = new Date(), { section } = {}) {
   return mongoose.connection.transaction(async (session) => {
@@ -81,23 +82,35 @@ async function operatorBotsState(marketId, now = new Date()) {
     const base = { markets: markets.map((row) => marketView(row, now)), available: (wallet?.available ?? 0) / TP_SCALE };
     if (!market) return { ...base, market: null, bots: [], legacyMaker: null };
 
-    const filter = { marketId: market._id, userId: EXCHANGE_WALLET_ID, botId: { $ne: null } };
+    const bootstrap = isBootstrap(market);
+    const filter = { marketId: market._id, botId: { $ne: null }, ...(!bootstrap ? { userId: EXCHANGE_WALLET_ID } : {}) };
     const marketCash = await ExchangeAccount.findOne({ marketId: market._id, userId: EXCHANGE_WALLET_ID, releasedAt: null })
       .select("cash").session(session).lean();
     const orders = await ExchangeOrder.find(filter).session(session).lean();
     const positions = await ExchangePosition.find(filter).session(session).lean();
-    const byOrder = new Map(orders.map((row) => [String(row.botId), row]));
-    const byPosition = new Map(positions.map((row) => [String(row.botId), row]));
     const reference = market.settlement ?? market.lastPrice;
-    const bots = submittedBots(market, now).reverse().map(({ id, number, score, submittedAt }) => {
-      const order = byOrder.get(id);
-      const position = byPosition.get(id);
-      const reserved = order?.status === "working" ? collateral(order.direction, order.price, order.remaining) / TP_SCALE : 0;
-      const locked = position ? collateral(position.direction, position.price, position.remaining) / TP_SCALE : 0;
-      const pnl = position?.remaining && reference != null
-        ? (reference - position.price) * position.remaining * (position.direction === "long" ? 1 : -1) : null;
-      return { number, score, submittedAt, order, position, reserved, locked, pnl,
-        realized: position ? (market.decision === "void" ? 0 : position.realized / TP_SCALE) : null };
+    const roster = bootstrap ? await readExamBots(market, now, session) : submittedBots(market, now);
+    const wallets = bootstrap ? await ExchangeWallet.find({ _id: { $in: roster.map((row) => traderId(row.botId)) },
+      parentWalletId: EXCHANGE_WALLET_ID }).session(session).lean() : [];
+    const balances = new Map(wallets.map((row) => [String(row._id), row.available / TP_SCALE]));
+    const accounts = bootstrap ? await ExchangeAccount.find({ marketId: market._id, userId: { $in: wallets.map((row) => row._id) },
+      releasedAt: null }).session(session).lean() : [];
+    const cash = new Map(accounts.map((row) => [String(row.userId), row.cash / TP_SCALE]));
+    const bots = roster.reverse().map(({ id, botId, number, label, score, submittedAt }) => {
+      const key = String(botId ?? id);
+      const botOrders = orders.filter((row) => String(row.botId) === key);
+      const botPositions = positions.filter((row) => String(row.botId) === key);
+      const reserved = botOrders.filter((row) => row.status === "working" && row.expiresAt > now)
+        .reduce((sum, row) => sum + collateral(row.direction, row.price, row.remaining), 0) / TP_SCALE;
+      const locked = botPositions.reduce((sum, row) => sum + collateral(row.direction, row.price, row.remaining), 0) / TP_SCALE;
+      const pnl = reference != null && botPositions.some((row) => row.remaining)
+        ? botPositions.reduce((sum, row) => sum + (reference - row.price) * row.remaining * (row.direction === "long" ? 1 : -1), 0) : null;
+      const child = bootstrap ? traderId(key) : "";
+      const available = bootstrap ? (balances.get(child) ?? 0) + (cash.get(child) ?? 0) : null;
+      return { number, score, submittedAt, order: botOrders.at(-1), position: botPositions.at(-1),
+        examLabel: label ?? botLabel("ExamBot", number), traderLabel: botLabel("TraderBot", number),
+        orders: botOrders, positions: botPositions, available, reserved, locked, pnl,
+        realized: botPositions.length ? (market.decision === "void" ? 0 : botPositions.reduce((sum, row) => sum + row.realized, 0) / TP_SCALE) : null };
     });
     return { ...base, market: marketView(market, now), bots, legacyMaker: market.marketMakerId ?? null,
       marketCash: (marketCash?.cash ?? 0) / TP_SCALE,

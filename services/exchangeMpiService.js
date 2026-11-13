@@ -57,11 +57,12 @@ async function mpiState({ marketId, interval: requestedInterval, before, now = n
   if (!selected) return { ...base, minimumMpiAttempts: await readMpiMinimum() };
 
   const minimumMpiAttempts = await readMpiMinimum(selected);
-  const visible = { ...publishedMpiFilter(selected._id, now), populationCount: { $gte: minimumMpiAttempts } };
-  const latest = await ExchangeTick.findOne(visible).sort({ publishAt: -1 })
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount").lean();
+  const visible = { ...publishedMpiFilter(selected._id, now), unavailable: { $ne: true }, populationCount: { $gte: minimumMpiAttempts } };
+  const latest = await ExchangeTick.findOne(base.market.bootstrap ? publishedMpiFilter(selected._id, now) : visible).sort({ publishAt: -1 })
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount botWeight unavailable").lean();
   const state = { ...base, minimumMpiAttempts };
   if (!latest) return state;
+  if (latest.unavailable && !before) return { ...state, latest };
   const anchor = before ? await ExchangeTick.findOne({ ...visible, publishAt: { $lte: now, $lt: before } })
     .sort({ publishAt: -1 }).select("publishAt").lean() : latest;
   const { candles, prior } = anchor ? await officialChart(visible, now, anchor, interval) : { candles: [] };

@@ -2,6 +2,7 @@ const { Schema, model } = require("mongoose");
 
 const objectId = Schema.Types.ObjectId;
 const options = { timestamps: true, versionKey: false };
+const sources = ["HUMAN", "BOT", "MM"];
 const balance = () => ({ type: Number, default: 0, min: 0 });
 
 const market = new Schema({
@@ -33,6 +34,22 @@ const market = new Schema({
   participantCount: Number,
   botParticipantCount: Number,
   botParticipation: Boolean,
+  bootstrapPolicy: {
+    version: Number,
+    fadeMinutes: Number,
+    stepMinutes: Number,
+    minimumHumans: Number,
+    tradingStopMinutesBeforeClose: Number,
+  },
+  mpiFade: { startedAt: Date, actorId: objectId, initialWeight: Number },
+  botWeight: Number,
+  mpiFadeStep: Number,
+  tradingBotsEnabled: Boolean,
+  botOnlyVolume: Number,
+  tradeSequence: Number,
+  humanScoreSum: Number,
+  botScoreSum: Number,
+  internalBotCount: Number,
   botSeed: { type: String, select: false },
   reason: String,
   escrow: balance(),
@@ -64,6 +81,7 @@ const setting = new Schema({
 const wallet = new Schema({
   _id: objectId, available: balance(), collectedFees: balance(), rankingVisible: { type: Boolean, default: false },
   botFundingAt: Date,
+  parentWalletId: objectId,
 }, options);
 const account = new Schema({
   marketId: { type: objectId, required: true },
@@ -91,6 +109,8 @@ const order = new Schema({
   sequence: { type: Number, required: true },
   acceptedAt: { type: Date, required: true },
   liquidityProvider: String,
+  source: { type: String, enum: sources },
+  botLabel: String,
   botId: objectId,
   mpiSnapshotId: objectId,
   scheduledLiquidity: Boolean,
@@ -127,6 +147,9 @@ const trade = new Schema({
   makerFee: Number,
   takerFee: Number,
   feeCollected: Boolean,
+  makerSource: { type: String, enum: sources },
+  takerSource: { type: String, enum: sources },
+  botOnly: Boolean,
   liquidityProvider: String,
   price: Number,
   quantity: Number,
@@ -146,6 +169,11 @@ const tick = new Schema({
   mpi: Number,
   populationCount: Number,
   botPopulationCount: Number,
+  humanPopulationCount: Number,
+  humanScoreSum: Number,
+  botScoreSum: Number,
+  botWeight: Number,
+  unavailable: Boolean,
   sampleCount: Number,
   kind: String,
   contributions: { type: [String], select: false, default: undefined },
@@ -155,6 +183,20 @@ tick.index({ marketId: 1, publishAt: -1 });
 tick.index({ marketId: 1, publishAt: 1 }, { partialFilterExpression: { dataCutoffAt: { $exists: true } } });
 tick.index({ marketId: 1, dataCutoffAt: -1 }, { unique: true, partialFilterExpression: { minuteSample: true } });
 tick.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+const examBotAttempt = new Schema({
+  marketId: { type: objectId, required: true },
+  examId: { type: objectId, required: true },
+  botId: { type: objectId, required: true },
+  number: { type: Number, required: true },
+  label: { type: String, required: true },
+  source: { type: String, enum: ["BOT"], required: true },
+  submittedAt: { type: Date, required: true },
+  score: { type: Number, required: true, min: 0, max: 100 },
+  correctByQuestion: [Boolean],
+}, options);
+examBotAttempt.index({ marketId: 1, botId: 1 }, { unique: true });
+examBotAttempt.index({ marketId: 1, submittedAt: 1 });
 
 const mpiDemo = new Schema({
   _id: objectId,
@@ -192,6 +234,7 @@ module.exports = {
   ExchangePosition: model("ExchangePosition", position),
   ExchangeTrade: model("ExchangeTrade", trade),
   ExchangeTick: model("ExchangeTick", tick),
+  ExchangeExamBotAttempt: model("ExchangeExamBotAttempt", examBotAttempt),
   ExchangeMpiDemo: model("ExchangeMpiDemo", mpiDemo),
   ExchangeReference: model("ExchangeReference", reference),
   ExchangeEvent: model("ExchangeEvent", event),
