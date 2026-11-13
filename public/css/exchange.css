@@ -184,6 +184,8 @@ a { color: inherit; text-decoration: none; }
 #calculator-result { display: block; margin-top: 9px; color: var(--accent); }
 .activity-panel { grid-column: 1 / -1; min-height: 146px; }
 .activity-tabs { display: flex; gap: 21px; padding: 0 15px; border-bottom: 1px solid var(--border); overflow: auto; }
+.activity-tabs a { align-self: center; color: var(--accent); font-size: 12px; white-space: nowrap; }
+.activity-tabs a:hover { text-decoration: underline; }
 .activity-table { overflow: auto; }
 .activity-table p { color: var(--muted); text-align: center; margin: 26px 12px; font-size: 12px; }
 .activity-table table { width: 100%; min-width: 510px; text-align: left; border-collapse: collapse; font-size: 12px; }

@@ -12,16 +12,17 @@ function eligibleRound(market) {
   return opens.getUTCDay() === 0 && opens.getUTCHours() === 6 && +opens % HOUR === 0;
 }
 
-function newParticipant(key, opensAt, hour) {
-  const seed = createHash("sha256").update(`matths-scenario-v1:${key}:${hour}`).digest();
-  const hourStart = +opensAt + hour * HOUR;
-  const submittedAt = hourStart + (2 + seed[0] % 40) * MINUTE;
+function newParticipant(key, opensAt, slot, cadence = HOUR) {
+  const seed = createHash("sha256").update(`matths-scenario-v1:${key}:${slot}`).digest();
+  const slotStart = +opensAt + slot * cadence;
+  const submissionJitter = Math.min(40, cadence / MINUTE - 9);
+  const submittedAt = slotStart + (2 + seed[0] % submissionJitter) * MINUTE;
   const orderAt = submittedAt + (3 + seed[1] % 15) * MINUTE;
   const score = 34 + (seed[2] % 29) + (seed[3] % 29);
   const outlook = seed[4] % 241 - 120;
   const urgency = seed[5] % 49;
   const id = seed.subarray(6, 18).toString("hex");
-  return { id, number: hour + 1, submittedAt, orderAt, score, outlook, urgency };
+  return { id, number: slot + 1, submittedAt, orderAt, score, outlook, urgency };
 }
 
 function botOrder(participant, mpi) {
@@ -51,12 +52,13 @@ function submittedBots(market, now) {
     }));
   }
   if (!market.botParticipation) return [];
-  const elapsedHours = Math.min(ROUND_HOURS, Math.ceil((+now - +market.opensAt) / HOUR));
+  const cadence = (market.bootstrapPolicy?.submissionMinutes ?? 60) * MINUTE;
+  const slots = Math.ceil((Math.min(+now, +market.closeAt) - +market.opensAt) / cadence);
   const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
   const bots = [];
-  for (let hour = 0; hour < elapsedHours; hour += 1) {
-    const bot = newParticipant(key, market.opensAt, hour);
-    if (bot.submittedAt <= +now) bots.push(bot);
+  for (let slot = 0; slot < slots; slot += 1) {
+    const bot = newParticipant(key, market.opensAt, slot, cadence);
+    if (bot.submittedAt <= +now && bot.submittedAt < +market.closeAt) bots.push(bot);
   }
   return bots;
 }
@@ -72,4 +74,4 @@ function dueBotOrder(market, now, publicMpi = 600) {
   return { ...botOrder(bot, publicMpi), botId: bot.id, expiresAt: new Date(Math.min(bot.orderAt + ORDER_LIFETIME, +market.closeAt)) };
 }
 
-module.exports = { botParticipationForSchedule, submittedBots, dueBotOrder };
+module.exports = { eligibleRound, botParticipationForSchedule, submittedBots, dueBotOrder };

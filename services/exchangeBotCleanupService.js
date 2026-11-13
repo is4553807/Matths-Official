@@ -40,7 +40,7 @@ const trackedOrder = { $or: [{ source: "BOT" }, { botId: { $ne: null } }, { botL
 async function buildPlan(session = null) {
   const rows = (model, filter, fields) => model.find(filter).select(fields).sort({ _id: 1 }).session(session).lean();
   const markets = await rows(ExchangeMarket, { type: "weekly" },
-    `phase escrow volume lastPrice lastTradeAt bootstrapPolicy botParticipation botWeight tradingBotsEnabled marketMakerEnabled ${BOT_MARKET_FIELDS.filter((field) => field !== "botSeed").join(" ")} +botSeed`);
+    `phase escrow volume lastPrice lastTradeAt bootstrapPolicy historicalBootstrap.status botParticipation botWeight tradingBotsEnabled marketMakerEnabled ${BOT_MARKET_FIELDS.filter((field) => field !== "botSeed").join(" ")} +botSeed`);
   const mmIds = new Set(markets.flatMap((market) => market.marketMakerId ? [String(market.marketMakerId)] : []));
   const wallets = await rows(ExchangeWallet, { $or: [
     { _id: idFilter([...mmIds]) }, { parentWalletId: EXCHANGE_WALLET_ID },
@@ -65,6 +65,8 @@ async function buildPlan(session = null) {
 
   const blockers = [...testAccounts.blockers];
   const block = (condition, reason) => { if (condition) blockers.push(reason); };
+  block(markets.some((market) => market.historicalBootstrap?.status),
+    "historical Exchange activity uses the regular trading ledger");
   block(mmIds.has(EXCHANGE_WALLET_ID) || dedicatedIds.has(EXCHANGE_WALLET_ID) ||
     await User.exists({ _id: walletFilter }).session(session), "automation wallet overlaps a user or the operator");
   block(orders.some((order) => !belongsToBot(order)), "automation order outside dedicated wallets");
@@ -188,7 +190,7 @@ async function cleanupExchangeBots(expectedFingerprint) {
     const plan = await buildPlan(session);
     if (plan.fingerprint !== expectedFingerprint) throw new Error("Exchange bot cleanup candidates changed after review.");
     if (plan.blockers.length) throw new Error(`Exchange bot cleanup blocked: ${plan.blockers.join(", ")}.`);
-    await ExchangeSetting.updateOne({ _id: "default" }, { $set: { automatedTradingDisabled: true } }, { upsert: true, session });
+    await ExchangeSetting.updateOne({ _id: "default" }, { $set: { automatedTradingDisabled: true, historicalBootstrapEnabled: false } }, { upsert: true, session });
 
     if (plan.refund || plan.grant) {
       await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID }, {

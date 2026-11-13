@@ -12,6 +12,7 @@
   <script src="/js/exchange.js" defer></script>
 </head>
 <body>
+  <% const historical = initial.market?.historicalBootstrap === true; %>
   <%- include("partials/exchange-header", { exchangePage: "futures", exchangeWalletMode }) %>
   <main class="terminal" id="exchange" data-state="<%= JSON.stringify(initial) %>" data-activity-start="<%= activity %>" data-wallet="<%= exchangeWalletMode ? 'exchange' : '' %>">
     <nav class="market-tabs" aria-label="시장 종류">
@@ -28,29 +29,30 @@
       <dl class="market-metrics">
         <div><dt>최근 체결가</dt><dd id="market-price">—</dd></div>
         <div><dt>정산 MPI</dt><dd id="settlement-price">—</dd><a id="result-link" class="small-link" hidden>성적 출처 ↗</a></div>
-        <div><dt id="market-volume-label">거래량</dt><dd id="market-volume">—</dd></div>
-        <div id="bot-volume-block" <%= initial.market?.bootstrap ? "" : "hidden" %>><dt>자동화 계정 간 거래량</dt><dd id="bot-volume">—</dd></div>
+        <div><dt id="market-volume-label"><%= initial.market?.bootstrap && !historical ? "학생 참여 거래량" : "거래량" %></dt><dd id="market-volume">—</dd></div>
+        <div id="bot-volume-block" <%= initial.market?.bootstrap && !historical ? "" : "hidden" %>><dt>자동화 계정 간 거래량</dt><dd id="bot-volume">—</dd></div>
         <div><dt>거래 종료 · KST</dt><dd id="market-close">—</dd></div>
       </dl>
     </section>
     <div class="terminal-grid">
       <section class="panel chart-panel" aria-labelledby="chart-heading">
         <header class="panel-heading">
-          <h2 id="chart-heading"><%= initial.market?.replayVolume > 0 ? "선물 가격 캔들" : "선물 체결가 캔들" %></h2>
+          <h2 id="chart-heading"><%= !historical && initial.market?.replayVolume > 0 ? "선물 가격 캔들" : "선물 체결가 캔들" %></h2>
+          <a id="market-mpi-link" class="small-link" href="/exchange/mpi<%= initial.market?.type === "weekly" ? "?market=" + initial.market.id : "" %>" <%= initial.market?.type === "weekly" ? "" : "hidden" %>>이 회차 MPI ↗</a>
         </header>
         <div class="chart-legend">
           <span class="legend-price">체결가</span>
-          <span class="legend-replay" id="futures-replay-key" <%= initial.market?.replayVolume > 0 ? "" : "hidden" %>>복원 봇 거래</span>
-          <span class="legend-automated" id="futures-automated-key" <%= initial.market?.bootstrap ? "" : "hidden" %>>자동화 계정 간 체결</span>
-          <span class="legend-mixed" id="futures-mixed-key" <%= initial.market?.bootstrap ? "" : "hidden" %>>학생·자동화 혼합 봉</span>
+          <span class="legend-replay" id="futures-replay-key" <%= !historical && initial.market?.replayVolume > 0 ? "" : "hidden" %>>복원 봇 거래</span>
+          <span class="legend-automated" id="futures-automated-key" <%= initial.market?.bootstrap && !historical ? "" : "hidden" %>>자동화 계정 간 체결</span>
+          <span class="legend-mixed" id="futures-mixed-key" <%= initial.market?.bootstrap && !historical ? "" : "hidden" %>>학생·자동화 혼합 봉</span>
           <span class="legend-ma">차트 기준 MA 5 · 10</span>
           <label id="mid-legend" hidden><input type="checkbox" id="show-mid-price" /> 호가 중간값</label>
         </div>
-        <p class="chart-replay-note" id="chart-replay-note" <%= initial.market?.replayVolume > 0 ? "" : "hidden" %>>복원 봉은 Exam Bot 점수로 나중에 재생한 거래입니다. 거래량과 정산은 실제 체결을 기준으로 합니다.</p>
+        <p class="chart-replay-note" id="chart-replay-note" <%= !historical && initial.market?.replayVolume > 0 ? "" : "hidden" %>>복원 봉은 Exam Bot 점수로 나중에 재생한 거래입니다. 거래량과 정산은 실제 체결을 기준으로 합니다.</p>
         <%- include("partials/exchange-chart-controls", { intervals, activeInterval: chartInterval }) %>
         <output class="candle-summary" data-candle-summary aria-label="체결 캔들의 시가·고가·저가·종가·거래량"></output>
         <div class="chart-area">
-          <canvas id="exchange-chart" role="img" aria-labelledby="chart-heading" aria-describedby="chart-replay-note"></canvas>
+          <canvas id="exchange-chart" role="img" aria-labelledby="chart-heading" <%- !historical && initial.market?.replayVolume > 0 ? 'aria-describedby="chart-replay-note"' : '' %>></canvas>
           <div class="chart-empty" id="chart-empty">
             <div class="chart-symbol" aria-hidden="true"><i></i><i></i><i></i></div>
             <strong id="chart-empty-title"><%= initial.market ? '체결을 기다리는 중' : '이번 주 시장이 아직 열리지 않았습니다' %></strong>
@@ -71,7 +73,9 @@
       <section class="panel order-panel" aria-labelledby="order-heading">
         <header class="panel-heading"><h2 id="order-heading">지정가 주문</h2></header>
         <form id="order-form" aria-describedby="order-market-rules">
-          <p class="order-market-rules" id="order-market-rules"><%= initial.market?.bootstrap
+          <p class="order-market-rules" id="order-market-rules"><%= historical
+            ? "지정가로 주문하며, 만기에는 정산 MPI를 적용합니다."
+            : initial.market?.bootstrap
             ? "잠정 MPI에 Exam Bot 점수가 반영될 수 있습니다. 만기 정산은 실제 유효 학생 성적을 사용합니다. 자동화 계정이 거래 상대방이 될 수 있습니다."
             : initial.market?.botParticipation
             ? "거래소의 운영 봇이 거래 상대방이 될 수 있습니다. 이 회차의 공식 MPI와 만기 정산에는 학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다."
@@ -115,6 +119,9 @@
           <button type="button" data-activity="history" aria-pressed="false">주문 내역</button>
           <button type="button" data-activity="trades" aria-pressed="false">체결 내역</button>
           <button type="button" data-activity="ranking" aria-pressed="false">랭킹</button>
+          <% if (exchangeWalletMode || (typeof isAdmin !== "undefined" && isAdmin)) { %>
+            <a id="market-bots-link" href="/exchange/dashboard/bots?wallet=exchange<%= initial.market ? "&market=" + initial.market.id : "" %>" <%= initial.market?.botParticipation ? "" : "hidden" %>>운영 포지션 ↗</a>
+          <% } %>
         </nav>
         <div id="ranking-controls" hidden>
           <% if (signedIn) { %><label><input id="ranking-visible" type="checkbox" <%= rankingVisible ? "checked" : "" %> /> 내 닉네임과 확정 손익 공개</label><% } %>

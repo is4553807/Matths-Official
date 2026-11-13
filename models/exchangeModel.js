@@ -31,6 +31,8 @@ const market = new Schema({
   resultPublishedAt: Date,
   settlement: Number,
   decision: { type: String, enum: ["normal", "void"] },
+  decisionAt: Date,
+  settledAt: Date,
   participantCount: Number,
   botParticipantCount: Number,
   botParticipation: Boolean,
@@ -38,12 +40,20 @@ const market = new Schema({
   replayRecordedAt: Date,
   replayVolume: Number,
   replayMpiCount: Number,
+  historicalBootstrap: {
+    status: { type: String, enum: ["replaying", "complete"] },
+    cursorAt: Date,
+    startedAt: Date,
+    completedAt: Date,
+    previousOpenedAt: Date,
+  },
   bootstrapPolicy: {
     version: Number,
     fadeMinutes: Number,
     stepMinutes: Number,
     minimumHumans: Number,
     tradingStopMinutesBeforeClose: Number,
+    submissionMinutes: Number,
   },
   mpiFade: { startedAt: Date, actorId: objectId, initialWeight: Number },
   botWeight: Number,
@@ -82,6 +92,7 @@ const setting = new Schema({
   minimumAttempts: { type: Number, default: 0 },
   minimumMpiAttempts: { type: Number, default: 1 },
   automatedTradingDisabled: Boolean,
+  historicalBootstrapEnabled: Boolean,
 }, options);
 const wallet = new Schema({
   _id: objectId, available: balance(), collectedFees: balance(), rankingVisible: { type: Boolean, default: false },
@@ -122,12 +133,13 @@ const order = new Schema({
   expiresAt: Date,
   actorId: objectId,
   cancelledBy: objectId,
+  cancelledAt: Date,
   feeReserved: Number,
   feesPaid: Number,
 }, options);
 order.index({ userId: 1, commandId: 1 }, { unique: true });
-order.index({ marketId: 1, status: 1, side: 1, price: 1, sequence: 1 });
-order.index({ marketId: 1, status: 1, side: 1, price: -1, sequence: 1 });
+order.index({ marketId: 1, status: 1, side: 1, price: 1, acceptedAt: 1, sequence: 1 });
+order.index({ marketId: 1, status: 1, side: 1, price: -1, acceptedAt: 1, sequence: 1 });
 order.index({ marketId: 1, userId: 1, acceptedAt: -1 });
 order.index({ userId: 1, status: 1, acceptedAt: -1 });
 
@@ -141,6 +153,8 @@ const position = new Schema({
   realized: { type: Number, default: 0 },
   tradeId: objectId,
   botId: objectId,
+  openedAt: Date,
+  closedAt: Date,
 }, options);
 position.index({ marketId: 1, userId: 1, direction: 1, _id: 1 });
 position.index({ userId: 1, updatedAt: -1 });
@@ -200,6 +214,9 @@ const examBotAttempt = new Schema({
   label: { type: String, required: true },
   source: { type: String, enum: ["BOT"], required: true },
   submittedAt: { type: Date, required: true },
+  answers: { type: [String], select: false, default: undefined },
+  answeredCount: { type: Number, min: 0 },
+  correctCount: { type: Number, min: 0 },
   score: { type: Number, required: true, min: 0, max: 100 },
   correctByQuestion: [Boolean],
   reconstructedAt: Date,
@@ -255,10 +272,12 @@ const reference = new Schema({
   sequence: Number,
   price: Number,
   source: String,
+  bids: { type: [{ _id: false, price: Number, quantity: Number }], default: undefined },
+  asks: { type: [{ _id: false, price: Number, quantity: Number }], default: undefined },
 }, options);
 reference.index({ marketId: 1, at: -1, sequence: -1 });
 
-const event = new Schema({ marketId: objectId, actorId: objectId, action: String, detail: Schema.Types.Mixed }, options);
+const event = new Schema({ marketId: objectId, actorId: objectId, at: Date, action: String, detail: Schema.Types.Mixed }, options);
 event.index({ createdAt: -1 });
 
 module.exports = {

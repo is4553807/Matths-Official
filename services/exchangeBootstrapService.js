@@ -9,7 +9,10 @@ const POLICY = Object.freeze({
 
 // Version 2 activates an already open round from a forward-only cutoff.
 const OPEN_ROUND_POLICY = Object.freeze({ ...POLICY, version: 2 });
-const isBootstrap = (market) => [POLICY.version, OPEN_ROUND_POLICY.version].includes(market.bootstrapPolicy?.version);
+const HISTORICAL_POLICY = Object.freeze({ ...POLICY, version: 3, submissionMinutes: 20 });
+const isHistoricalBootstrap = (market) => market?.bootstrapPolicy?.version === HISTORICAL_POLICY.version
+  && ["replaying", "complete"].includes(market.historicalBootstrap?.status);
+const isBootstrap = (market) => [POLICY.version, OPEN_ROUND_POLICY.version, HISTORICAL_POLICY.version].includes(market.bootstrapPolicy?.version);
 const traderStopAt = (market) => new Date(+market.closeAt - (market.bootstrapPolicy.tradingStopMinutesBeforeClose ?? POLICY.tradingStopMinutesBeforeClose) * MINUTE);
 const tradersEnabledAt = (market, now) => market.tradingBotsEnabled !== false && now < traderStopAt(market);
 
@@ -36,10 +39,11 @@ async function readExamBots(market, now, session) {
 async function recordExamBots(market, exam, now, session) {
   const existing = await readExamBots(market, now, session);
   const known = new Set(existing.map((row) => String(row.botId)));
-  // The runner materializes only events due while the scoring window was active.
-  const through = market.mpiFade?.startedAt
+  // The market-wide fade changes the weighting, while the weekly scenario continues.
+  const through = market.mpiFade?.startedAt && !isHistoricalBootstrap(market)
     ? new Date(Math.min(+now, +market.mpiFade.startedAt + market.bootstrapPolicy.fadeMinutes * MINUTE - 1)) : now;
-  const due = submittedBots(market, through).filter(({ id }) => !known.has(id));
+  const due = submittedBots(market, through).filter(({ id, submittedAt }) =>
+    !known.has(id) && submittedAt >= +exam.releaseAt && submittedAt < +exam.closeAt);
   if (!due.length) return existing;
   const rows = gradeExamBots(market, exam, due);
   await ExchangeExamBotAttempt.insertMany(rows, { session });
@@ -48,17 +52,20 @@ async function recordExamBots(market, exam, now, session) {
 
 function gradeExamBots(market, exam, bots) {
   const { gradePrivateMockAnswers } = require("./privateMockExamService");
+  const questionNumbers = exam.questionNumbers?.length === exam.questionCount ? exam.questionNumbers : null;
   return bots.map((bot) => {
     const answers = Array(exam.questionCount).fill("");
     for (const [i, correctAnswer] of exam.answerKey.entries()) {
       const draw = createHash("sha256").update(`${market.botSeed}:${bot.id}:${i}`).digest().readUInt16BE() / 65_536;
       if (draw < bot.score / 100) {
-        answers[(exam.questionNumbers?.[i] ?? i + 1) - 1] = correctAnswer.split("|").map((option) => option.trim()).find(Boolean) ?? "";
+        answers[(questionNumbers?.[i] ?? i + 1) - 1] = correctAnswer.split("|").map((option) => option.trim()).find(Boolean) ?? "";
       }
     }
-    const { score, correctByQuestion } = gradePrivateMockAnswers({ ...exam, answers });
+    const grading = gradePrivateMockAnswers({ ...exam, answers });
     return { marketId: market._id, examId: exam._id, botId: bot.id, number: bot.number,
-      source: "BOT", label: botLabel("ExamBot", bot.number), submittedAt: new Date(bot.submittedAt), score, correctByQuestion };
+      source: "BOT", label: botLabel("ExamBot", bot.number), submittedAt: new Date(bot.submittedAt),
+      answers: grading.answers, answeredCount: grading.answeredCount, correctCount: grading.correctCount,
+      score: grading.score, correctByQuestion: grading.correctByQuestion };
   });
 }
 
@@ -75,4 +82,5 @@ function traderSignal(bot, snapshot, previous, book) {
   return null;
 }
 
-module.exports = { POLICY, OPEN_ROUND_POLICY, isBootstrap, traderStopAt, tradersEnabledAt, fadeAt, weightedMpi, readExamBots, recordExamBots, gradeExamBots, traderId, botLabel, traderSignal };
+module.exports = { POLICY, OPEN_ROUND_POLICY, HISTORICAL_POLICY, isHistoricalBootstrap, isBootstrap, traderStopAt, tradersEnabledAt,
+  fadeAt, weightedMpi, readExamBots, recordExamBots, gradeExamBots, traderId, botLabel, traderSignal };

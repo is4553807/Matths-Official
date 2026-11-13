@@ -11,6 +11,7 @@
 
   let state = JSON.parse(root.dataset.state);
   let selected = state.market?.id;
+  let intervalChosen = new URLSearchParams(location.search).has("interval");
   let request = 0;
   let polling = false;
 
@@ -21,12 +22,16 @@
   }
 
   function seriesKey(data) {
-    return data.market ? [data.market.id, data.minimumMpiAttempts].join("|") : "";
+    return data.market ? [data.market.id, data.minimumMpiAttempts, data.market.historicalBootstrap === true].join("|") : "";
   }
 
   const chart = window.MatthsExchangeChart.create(get("mpi-chart"), {
     sourceLabels: { REPLAY: "복원 MPI" },
-    onInterval: () => { void refresh(); },
+    onInterval(_code, changed) {
+      const wasAutomatic = !intervalChosen;
+      intervalChosen = true;
+      if (changed || wasAutomatic) void refresh();
+    },
     async onHistory({ before, interval, seriesKey: current }) {
       const [market] = current.split("|");
       if (!market) return null;
@@ -38,7 +43,9 @@
   function render() {
     const latest = state.latest;
     const candles = state.candles || [];
-    get("mpi-replay-key").hidden = !(state.market?.replayMpiCount || candles.some((row) => row.source === "REPLAY"));
+    const historical = state.market?.historicalBootstrap === true;
+    const explainBots = state.market?.botParticipation && !historical;
+    get("mpi-replay-key").hidden = historical || !(state.market?.replayMpiCount || candles.some((row) => row.source === "REPLAY"));
     const marketKey = JSON.stringify(state.markets.map(({ id, title }) => [id, title]));
     if (marketKey !== select.dataset.options) {
       const placeholder = new Option("회차 선택", "");
@@ -52,35 +59,41 @@
     text("mpi-value", latest?.mpi != null ? number.format(latest.mpi) : "—");
     text("mpi-score", latest?.mpi != null ? `${number.format(latest.mpi / 10)}점` : "—");
     const botCount = latest?.botPopulationCount ?? 0;
-    get("mpi-bot-policy").hidden = !state.market?.botParticipation;
-    text("mpi-value-label", state.market?.bootstrap ? "잠정 MPI · 30분 지연" : "공개 MPI · 30분 지연");
+    get("mpi-bot-policy").hidden = !explainBots;
+    text("mpi-value-label", state.market?.bootstrap && !historical ? "잠정 MPI · 30분 지연" : "공개 MPI · 30분 지연");
     text("mpi-bot-policy", state.market?.bootstrap
       ? `공개 표본의 Exam Bot 가중치 ${latest?.botWeight == null ? "—" : number.format(latest.botWeight * 100) + "%"} · 최종 정산은 실제 유효 학생 성적 기준`
       : "학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다.");
-    if (latest?.reconstructedBotPopulationCount) {
+    if (explainBots && latest?.reconstructedBotPopulationCount) {
       get("mpi-bot-policy").textContent += ` · 과거 봇 점수 ${number.format(latest.reconstructedBotPopulationCount)}건 포함`;
     }
     const humanCount = latest?.humanPopulationCount ?? ((latest?.populationCount ?? 0) - botCount);
-    text("mpi-count", !latest ? "—" : state.market?.botParticipation
+    text("mpi-count", !latest ? "—" : explainBots
       ? `학생 ${number.format(humanCount)}명 · 봇 ${number.format(botCount)}명` : `${number.format(latest.populationCount)}명`);
     text("mpi-time", latest ? time.format(new Date(latest.sampledAt)) : "—");
     text("mpi-cutoff", latest?.dataCutoffAt ? time.format(new Date(latest.dataCutoffAt)) : "—");
     text("mpi-data-through", state.dataThroughAt ? time.format(new Date(state.dataThroughAt)) : "—");
     text("mpi-waiting", latest?.unavailable ? "현재 공개 요건을 충족한 성적이 없습니다." : state.market
-      ? `${state.market.botParticipation ? "학생과 운영 봇 합계" : "유효 응시"} ${number.format(state.minimumMpiAttempts)}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
+      ? `${explainBots ? "학생과 운영 봇 합계" : "유효 응시"} ${number.format(state.minimumMpiAttempts)}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
       : "주간 모의고사 회차가 공개되면 집계가 시작됩니다.");
     get("mpi-empty").hidden = Boolean(candles.length);
-    chart.update(candles, seriesKey(state));
+    chart.update(candles, seriesKey(state), [], {
+      showSources: !historical,
+      opensAt: historical ? state.market.opensAt : null,
+      throughAt: historical ? Date.parse(state.dataThroughAt) : null,
+    });
   }
 
   async function refresh() {
     const version = ++request;
-    const query = new URLSearchParams({ interval: chart.interval });
+    const query = new URLSearchParams();
+    if (intervalChosen) query.set("interval", chart.interval);
     if (selected) query.set("market", selected);
     try {
       const result = await readState(query);
       if (version !== request) return;
       state = result;
+      if (!intervalChosen) chart.setInterval(state.interval);
       text("mpi-connection", "");
       render();
     } catch {

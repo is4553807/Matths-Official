@@ -1,6 +1,7 @@
 const { ExchangeTick, ExchangeBotReplayMpi } = require("../models/exchangeModel");
 const { readMpiMinimum, publishedMpiFilter, mpiDataCutoff } = require("./exchangeMarketService");
 const { marketList, marketView } = require("./exchangeService");
+const { isHistoricalBootstrap } = require("./exchangeBootstrapService");
 const { intervalFor, bucketStart, candleWindow } = require("./exchangeChartService");
 
 const chartCache = new Map();
@@ -66,7 +67,8 @@ async function mpiState({ marketId, interval: requestedInterval, before, now = n
   const selected = marketId ? choices.find((market) => String(market._id) === String(marketId))
     : choices.find((market) => market.opensAt <= now && now < market.closeAt && market.phase === "scheduled")
       || choices.find((market) => market.opensAt > now);
-  const interval = intervalFor(requestedInterval, selected?.replayMpiCount ? "1h" : "1m");
+  const historical = isHistoricalBootstrap(selected);
+  const interval = intervalFor(requestedInterval, historical ? "2h" : selected?.replayMpiCount ? "1h" : "1m");
   const markets = choices.map((market) => marketView(market, now));
   const dataThroughAt = mpiDataCutoff(now);
   const base = { market: selected ? marketView(selected, now) : null, markets, interval: interval.code,
@@ -78,7 +80,7 @@ async function mpiState({ marketId, interval: requestedInterval, before, now = n
   const visible = { ...published, unavailable: { $ne: true }, populationCount: { $gte: minimumMpiAttempts } };
   const latest = await ExchangeTick.findOne(base.market.bootstrap ? published : visible).sort({ publishAt: -1 })
     .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable").lean();
-  const replayFilter = selected.replayMpiCount && selected.replayRecordedAt <= now
+  const replayFilter = !historical && selected.replayMpiCount && selected.replayRecordedAt <= now
     ? { marketId: selected._id, reconstructedAt: { $lte: now }, sampledAt: { $lte: dataThroughAt }, publishAt: { $lte: now } }
     : null;
   const candles = await chartFor({ visible, replayFilter, latest, before, interval, market: selected, now });

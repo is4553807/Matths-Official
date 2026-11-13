@@ -4,7 +4,8 @@
       <button type="button" data-interval="<%= item.code %>" data-ms="<%= item.ms %>" aria-pressed="<%= item.code === activeInterval %>"><%= item.label %></button>
     <% } %>
     <details class="chart-more">
-      <summary data-interval-menu>더 보기</summary>
+      <% const activeExtra = intervals.slice(5).find(({ code }) => code === activeInterval); %>
+      <summary data-interval-menu>더 보기<%= activeExtra ? " · " + activeExtra.label : "" %></summary>
       <div class="chart-menu" aria-label="추가 봉 간격">
         <% for (const item of intervals.slice(5)) { %>
           <button type="button" data-interval="<%= item.code %>" data-ms="<%= item.ms %>" aria-pressed="<%= item.code === activeInterval %>"><%= item.label %></button>

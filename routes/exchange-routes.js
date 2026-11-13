@@ -14,9 +14,10 @@ const { terminalState, futuresChartInterval, futuresChartHistory, orderView, adm
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
 const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
 const { mpiState } = require("../services/exchangeMpiService");
+const { operatorOnlyExchange } = require("../services/exchangeHistoricalBootstrapService");
 
 const router = express.Router();
-const FUTURES_QUICK_INTERVALS = ["1m", "1s", "5m", "15m", "1h"];
+const FUTURES_QUICK_INTERVALS = ["1m", "1s", "5m", "1h", "2h"];
 const FUTURES_INTERVALS = [
   ...FUTURES_QUICK_INTERVALS.map((code) => intervalFor(code)),
   ...OPTIONS.filter(({ code }) => !FUTURES_QUICK_INTERVALS.includes(code)),
@@ -57,6 +58,14 @@ function apiLogin(req, res, next) {
   if (!req.session?.user?.id) return res.status(401).json({ message: "로그인 후 주문할 수 있습니다." });
   return auth.isLoggedIn(req, res, next);
 }
+
+router.use(["/exchange", "/api/exchange"], privateResponse, (req, res, next) => {
+  if (!operatorOnlyExchange()) return next();
+  if (!req.session?.user?.id && req.originalUrl.startsWith("/api/exchange")) {
+    return res.status(401).json({ message: "운영자 계정으로 로그인해 주세요." });
+  }
+  return auth.isLoggedIn(req, res, (cause) => cause ? next(cause) : auth.isAdmin(req, res, next));
+});
 
 function exchangeNavigation(req) {
   const signedIn = Boolean(viewer(req));
@@ -102,7 +111,7 @@ async function showFutures(req, res) {
   const selection = req.params.marketId || req.query.market;
   const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: req.query.interval });
   const wallet = userId && !actorId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
-  res.render("exchange", { ...exchangeNavigation(req), initial, exchangeWalletMode: Boolean(actorId), rankingVisible: wallet?.rankingVisible === true,
+  res.render("exchange", { ...exchangeNavigation(req), initial, isAdmin: req.session?.user?.role === "admin", exchangeWalletMode: Boolean(actorId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
     intervals: FUTURES_INTERVALS, chartInterval: initial.interval, disablePageAnalytics: true });
 }
@@ -167,10 +176,10 @@ router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (re
   const marketId = id(req.params.marketId);
   const before = historyBefore(req.query.before);
   const now = new Date();
-  const market = !OPTIONS.some(({ code }) => code === req.query.interval)
-    ? await ExchangeMarket.findById(marketId).select("replayRecordedAt replayVolume").lean() : null;
+  const market = await ExchangeMarket.findById(marketId)
+    .select("bootstrapPolicy.version historicalBootstrap.status replayRecordedAt replayVolume").lean();
   const interval = futuresChartInterval(req.query.interval, market, now).code;
-  const candles = await futuresChartHistory(marketId, interval, before, now);
+  const candles = await futuresChartHistory(marketId, interval, before, now, market);
   res.json({ interval, candles });
 });
 router.get("/api/exchange/rankings", privateResponse, async (_req, res) => res.json(await leaderboard()));

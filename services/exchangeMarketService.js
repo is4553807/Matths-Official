@@ -16,8 +16,9 @@ const MPI_BATCH_SIZE = 5;
 const DEFAULT_MPI_MINIMUM = 5;
 const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const CLOSED_WEEKLY_EXAM_STATUSES = new Set(["locked", "aggregating", "ranked", "archived", "finalizing", "finalized"]);
 const { botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
-const { POLICY, OPEN_ROUND_POLICY, isBootstrap, fadeAt, weightedMpi, recordExamBots, gradeExamBots, readExamBots } = require("./exchangeBootstrapService");
+const { POLICY, OPEN_ROUND_POLICY, isHistoricalBootstrap, isBootstrap, fadeAt, weightedMpi, recordExamBots, gradeExamBots, readExamBots } = require("./exchangeBootstrapService");
 
 const { replayBotFills } = require("./exchangeBotReplayService");
 
@@ -96,6 +97,11 @@ async function weeklyExamReady(exam, session) {
   }).session(session || null));
 }
 
+function weeklyExamOpenAt(exam, now, replay = false) {
+  return exam && exam.releaseAt <= now && now < exam.closeAt
+    && (exam.status === "open" || (replay && CLOSED_WEEKLY_EXAM_STATUSES.has(exam.status)));
+}
+
 function receivedAttempts(exam, now) {
   return {
     examId: exam._id,
@@ -112,6 +118,16 @@ function validAttempts(exam, now) {
     score: { $gte: 0, $lte: 100 },
     integrityStatus: { $in: [null, "NOT_REVIEWED", "CLEAR"] },
     "submissionFinalization.status": { $nin: ["pending", "processing"] },
+  };
+}
+
+function validAttemptsAtMarketTime(exam, now) {
+  return {
+    ...validAttempts(exam, now),
+    $and: [
+      { $or: [{ "submissionFinalization.completedAt": null }, { "submissionFinalization.completedAt": { $lte: now } }] },
+      { $or: [{ integrityClearedAt: null }, { integrityClearedAt: { $lte: now } }] },
+    ],
   };
 }
 
@@ -163,7 +179,7 @@ async function latestPublishedMpi(market, now, session) {
 }
 
 function activeBookOrders(marketId, now) {
-  return { marketId, status: "working", remaining: { $gt: 0 },
+  return { marketId, status: "working", remaining: { $gt: 0 }, acceptedAt: { $lte: now },
     $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] };
 }
 
@@ -181,14 +197,17 @@ function activeLiquidityPlan(market, now) {
   return plan?.startsAt <= now && now < plan.endsAt ? plan : null;
 }
 
-function bookLevels(marketId, now, session, snapshotId, operatorWalletId, scheduledLiquidity = false) {
+function bookLevels(marketId, now, session, snapshotId, operatorWalletId, scheduledLiquidity = false, automatedOnly = false) {
   const filter = activeBookOrders(marketId, now);
+  const constraints = [];
   if (snapshotId !== undefined) {
-    filter.$and = [{ $or: [
+    constraints.push({ $or: [
       { liquidityProvider: { $ne: "matths" } },
       snapshotId ? { mpiSnapshotId: snapshotId } : scheduledLiquidity ? { scheduledLiquidity: true } : { _id: null },
-    ] }];
+    ] });
   }
+  if (automatedOnly) constraints.push({ $or: [{ source: "BOT" }, { liquidityProvider: "matths" }] });
+  if (constraints.length) filter.$and = constraints;
   const operator = operatorWalletId ? { $or: [{ $eq: ["$liquidityProvider", "matths"] }, { $eq: ["$source", "BOT"] },
     { $eq: ["$userId", new mongoose.Types.ObjectId(operatorWalletId)] }] } : { $or: [{ $eq: ["$liquidityProvider", "matths"] }, { $eq: ["$source", "BOT"] }] };
   return ExchangeOrder.aggregate([
@@ -224,12 +243,31 @@ function publicState(market, now = new Date()) {
   if (now >= market.closeAt) return market.type === "weekly" ? "verifying" : "awaiting-result";
   if (market.paused) return "paused";
   if (now < market.opensAt) return "scheduled";
-  if (market.type === "weekly" && !market.openedAt) return "waiting";
+  if (market.type === "weekly" && (!market.openedAt || market.openedAt > now)) return "waiting";
   return "open";
 }
 
-async function exchangeAutomationDisabled(session) {
+async function exchangeAutomationDisabled(session, market) {
+  if (isHistoricalBootstrap(market)) return false;
   return Boolean(await ExchangeSetting.exists({ _id: "default", automatedTradingDisabled: true }).session(session || null));
+}
+
+async function openWeeklyMarket(market, exam, now, session) {
+  const replay = market?.historicalBootstrap?.status === "replaying";
+  if (!market || market.openedAt || market.phase !== "scheduled" || market.paused
+    || !weeklyExamOpenAt(exam, now, replay) || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt) return;
+  const minimum = market.minimumAttempts ?? await readSetting(session);
+  // An explicit opening minimum remains a requirement for real students.
+  const needed = minimum - (isBootstrap(market) ? 0 : submittedBots(market, now).length);
+  if (needed > 0) {
+    const filter = replay ? validAttemptsAtMarketTime(exam, now) : validAttempts(exam, now);
+    const [result] = await liveAttemptRows(filter, session).append({ $limit: needed }, { $count: "count" });
+    if ((result?.count ?? 0) < needed) return;
+  }
+  market.openedAt = now;
+  market.appliedMinimum = minimum;
+  market.revision += 1;
+  await market.save({ session });
 }
 
 async function syncWeeklyMarkets(now = new Date()) {
@@ -251,7 +289,7 @@ async function syncWeeklyMarkets(now = new Date()) {
       opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts,
       ...botRules,
     } }, { upsert: true });
-    await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, $or: [
+    await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, "historicalBootstrap.status": null, $or: [
       { opensAt: { $ne: exam.releaseAt } }, { closeAt: { $ne: exam.closeAt } },
     ] }, { $set: { opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts, ...botRules }, $inc: { revision: 1 } });
 
@@ -261,19 +299,10 @@ async function syncWeeklyMarkets(now = new Date()) {
     }
     if (exam.status !== "open" || now < exam.releaseAt) continue;
     await mongoose.connection.transaction(async (session) => {
-      const market = await ExchangeMarket.findOne({ key, phase: "scheduled", openedAt: null }).select("+botSeed").session(session);
-      if (!market || market.paused || market.closeAt <= now) return;
-      const minimum = market.minimumAttempts ?? await readSetting(session);
-      // An explicit opening minimum remains a requirement for real students.
-      const needed = minimum - (isBootstrap(market) ? 0 : submittedBots(market, now).length);
-      if (needed > 0) {
-        const [result] = await liveAttemptRows(validAttempts(exam, now), session).append({ $limit: needed }, { $count: "count" });
-        if ((result?.count ?? 0) < needed) return;
-      }
-      market.openedAt = now;
-      market.appliedMinimum = minimum;
-      market.revision += 1;
-      await market.save({ session });
+      const market = await ExchangeMarket.findOne({ key, phase: "scheduled", openedAt: null,
+        "historicalBootstrap.status": { $ne: "replaying" },
+      }).select("+botSeed").session(session);
+      await openWeeklyMarket(market, exam, now, session);
     });
   }
 }
@@ -308,7 +337,8 @@ async function saveMinimum({ marketId, value, actorId }) {
   const minimumAttempts = integer(value, 0, 1_000_000, "최소 유효 응시자");
   return mongoose.connection.transaction(async (session) => {
     if (marketId) {
-      const changed = await ExchangeMarket.updateOne({ _id: marketId, type: "weekly", phase: "scheduled", openedAt: null },
+      const changed = await ExchangeMarket.updateOne({ _id: marketId, type: "weekly", phase: "scheduled", openedAt: null,
+        "historicalBootstrap.status": { $ne: "replaying" } },
         { $set: { minimumAttempts }, $inc: { revision: 1 } }, { session });
       if (!changed.matchedCount) throw error(409, "개장 전 주간 시장만 최소 인원을 변경할 수 있습니다.");
     } else {
@@ -325,7 +355,8 @@ async function saveMpiMinimum({ marketId, value, actorId, now = new Date() }) {
     if (marketId) {
       const update = minimumMpiAttempts === null ? { $unset: { minimumMpiAttempts: "" } } : { $set: { minimumMpiAttempts } };
       const changed = await ExchangeMarket.updateOne(
-        { _id: marketId, type: "weekly", phase: "scheduled", closeAt: { $gt: now } }, update, { session }
+        { _id: marketId, type: "weekly", phase: "scheduled", closeAt: { $gt: now },
+          "historicalBootstrap.status": { $ne: "replaying" } }, update, { session }
       );
       if (!changed.matchedCount) throw error(409, "마감 전 주간 시장만 공식 MPI 공개 최소 인원을 변경할 수 있습니다.");
     } else {
@@ -466,7 +497,8 @@ async function startMpiBotFade(marketId, actorId, reason, now = new Date()) {
   return mongoose.connection.transaction(async (session) => {
     const market = await ExchangeMarket.findByIdAndUpdate(marketId, { $inc: { revision: 1 } },
       { session, returnDocument: "after" });
-    if (!market || !isBootstrap(market) || publicState(market, now) !== "open") throw error(409, "개장 중인 Bootstrap 회차만 전환할 수 있습니다.");
+    if (!market || !isBootstrap(market) || market.historicalBootstrap?.status === "replaying"
+      || publicState(market, now) !== "open") throw error(409, "거래 중인 주간 회차만 전환할 수 있습니다.");
     if (market.mpiFade?.startedAt) return;
     const latestPublishAt = +now + market.bootstrapPolicy.fadeMinutes * MINUTE_MS + MPI_DELAY_MS + MINUTE_MS;
     if (latestPublishAt > +market.closeAt) throw error(409, "마감 전에 전환 결과를 공개할 시간이 부족합니다.");
@@ -484,20 +516,23 @@ async function startMpiBotFade(marketId, actorId, reason, now = new Date()) {
   });
 }
 
-async function saveObservedMpi(market, now, clock) {
+async function saveObservedMpi(market, now, clock = () => now, { session, replay = false } = {}) {
+  if (replay && !session?.inTransaction()) throw new Error("Historical MPI sampling requires a market transaction.");
   if (market.type !== "weekly" || now < market.opensAt || now >= market.closeAt) return;
-  if (market.mpiCheckedAt && +now - +market.mpiCheckedAt < 60_000) return;
-  await mongoose.connection.transaction(async (session) => {
+  const minute = sampleMinute(now);
+  if (market.mpiCheckedAt && market.mpiCheckedAt >= minute) return;
+  const save = async (session) => {
     const current = await ExchangeMarket.findOneAndUpdate({
       _id: market._id, phase: "scheduled",
-      $or: [{ mpiCheckedAt: null }, { mpiCheckedAt: { $lte: new Date(+now - 60_000) } }],
+      "historicalBootstrap.status": replay ? "replaying" : { $ne: "replaying" },
+      $or: [{ mpiCheckedAt: null }, { mpiCheckedAt: { $lt: minute } }],
     }, { $set: { mpiCheckedAt: now } }, { session, timestamps: false, returnDocument: "after" }).select("+botSeed").lean();
     if (!current) return;
     const exam = await readWeeklyExam(current.examId, session);
-    if (exam?.status !== "open" || +exam.releaseAt !== +current.opensAt || +exam.closeAt !== +current.closeAt
+    if (!weeklyExamOpenAt(exam, now, replay) || +exam.releaseAt !== +current.opensAt || +exam.closeAt !== +current.closeAt
       || !await weeklyExamReady(exam, session)) return;
-    const attempts = await liveAttemptRows(validAttempts(exam, now), session);
-    const automationAllowed = (isBootstrap(current) || current.botParticipation) && !await exchangeAutomationDisabled(session);
+    const attempts = await liveAttemptRows(replay ? validAttemptsAtMarketTime(exam, now) : validAttempts(exam, now), session);
+    const automationAllowed = (isBootstrap(current) || current.botParticipation) && !await exchangeAutomationDisabled(session, current);
     const bootstrap = automationAllowed && isBootstrap(current);
     const bots = bootstrap ? await recordExamBots(current, exam, now, session) : automationAllowed ? submittedBots(current, now) : [];
     const humanScoreSum = attempts.reduce((sum, row) => sum + row.score, 0);
@@ -531,20 +566,30 @@ async function saveObservedMpi(market, now, clock) {
     if (!available && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return;
     if (available && last && !last.unavailable && step === previousStep
       && changedContributors(last.contributions || [], contributions) < (automationAllowed ? 1 : MPI_BATCH_SIZE)) return;
-    const sampledAt = clock();
+    let sampledAt = clock();
     const publishAt = new Date(+sampledAt + MPI_DELAY_MS);
-    await ExchangeTick.create([{
+    if (replay) {
+      // Older tick kinds share the sampledAt uniqueness constraint with observed ticks.
+      // Preserve their rows and keep the actual cutoff and publication at event time.
+      while (await ExchangeTick.exists({ marketId: current._id, sampledAt }).session(session)) {
+        sampledAt = new Date(+sampledAt + 1);
+      }
+    }
+    const [tick] = await ExchangeTick.create([{
       marketId: current._id, kind: OBSERVED_MPI, sampledAt, dataCutoffAt: now, mpi: available ? mpi : null,
       unavailable: !available, populationCount, humanPopulationCount: attempts.length, botPopulationCount: bots.length,
       reconstructedBotPopulationCount: bots.filter((bot) => bot.reconstructedAt).length,
       humanScoreSum, botScoreSum, botWeight, contributions, publishAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2),
     }], { session });
-  });
+    return tick;
+  };
+  return session ? save(session) : mongoose.connection.transaction(save);
 }
 
 module.exports = {
-  ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
-  readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
+  ROUNDS, MPI_DELAY_MS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, weeklyExamOpenAt,
+  validAttempts, validAttemptsAtMarketTime,
+  readSetting, readMpiMinimum, publicState, openWeeklyMarket, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
   sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
   exchangeAutomationDisabled, mpiDataCutoff, publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

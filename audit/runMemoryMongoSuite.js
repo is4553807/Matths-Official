@@ -26,6 +26,7 @@ const defaultTargets = [
   { target: "audit/verifyExchangeDemoDb.js", dropAfter: true },
   { target: "audit/verifyExchangeBootstrapStudentHttpDb.js", dropAfter: true },
   { target: "audit/verifyExchangeBotCleanupDb.js", dropAfter: true },
+  { target: "audit/verifyExchangeHistoricalBootstrapDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];
 
@@ -46,6 +47,7 @@ function runTarget(target, databaseUri) {
           DB: databaseUri,
           AUDIT_DATABASE_NAME: "matths_audit_zero_assumption_20260815",
           DISABLE_SCHEDULERS: "1",
+          EXCHANGE_OPERATOR_ONLY: "0",
           ALLOW_TEST_DATA_MUTATION: "1",
           SECRET: "memory-audit-session-secret-that-is-never-used-in-production",
           TEST_ACCOUNT_OUTPUT_PATH: manifestPath,

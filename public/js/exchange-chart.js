@@ -16,6 +16,7 @@
   const left = 13;
   const rightGutter = 58;
   const maxHistory = 5000;
+  const kstOffset = 9 * 3600000;
   const rightPad = (span) => Math.min(6, span * .11);
 
   function create(canvas, { volume = false, averages = false, sourceLabels = {}, onInterval, onHistory }) {
@@ -42,16 +43,25 @@
     let loading = false;
     let historyEnd = false;
     let retainedHistory = false;
+    let showSources = true;
+    let opening = null;
+    let through = null;
     const pointers = new Map();
+
+    const showOverview = () => opening != null && ms >= 7200000;
+    const defaultSpan = () => showOverview() ? 120 : 60;
+    const bucket = (at) => Math.floor((at + kstOffset) / ms) * ms - kstOffset;
 
     function limits() {
       const lastReference = references.at(-1)?.at;
-      const referenceBucket = lastReference ? Math.floor(lastReference / ms) * ms : 0;
-      const last = Math.max(candles.at(-1)?._id || 0, referenceBucket);
-      const first = Math.min(candles[0]?._id ?? last, references[0]?.at ?? last);
+      const referenceBucket = lastReference ? bucket(lastReference) : 0;
+      const lastData = Math.max(candles.at(-1)?._id || 0, referenceBucket);
+      const overview = showOverview() && lastData >= bucket(opening);
+      const last = overview && through != null ? Math.max(lastData, bucket(through)) : lastData;
+      const first = Math.min(candles[0]?._id ?? last, references[0]?.at ?? last, overview ? bucket(opening) : last);
       const full = Math.max(8, Math.round((last - first) / ms) + 1);
       const visible = Math.min(span, full);
-      const pad = rightPad(visible);
+      const pad = showOverview() && visible === full ? 0 : rightPad(visible);
       return { last, full, visible, pad, maxOffset: full - visible + pad };
     }
 
@@ -106,8 +116,8 @@
         return;
       }
       const timestamp = calendar.format(new Date(row._id));
-      const sourceLabel = sourceLabels[row.source];
-      const quantityLabel = row.source === "REPLAY" ? "복원 수량" : "거래량";
+      const sourceLabel = showSources ? sourceLabels[row.source] : null;
+      const quantityLabel = sourceLabel && row.source === "REPLAY" ? "복원 수량" : "거래량";
       const quantity = volume && row.volume != null ? `  ${quantityLabel} ${number.format(row.volume)}` : "";
       summary.textContent = `${timestamp}${sourceLabel ? ` · ${sourceLabel}` : ""} · 시 ${number.format(row.open)}  고 ${number.format(row.high)}  저 ${number.format(row.low)}  종 ${number.format(row.close)}${quantity}`;
     }
@@ -168,7 +178,7 @@
       ctx.clip();
       for (const row of rows) {
         const at = x(row._id + ms / 2);
-        const sourceStyle = Object.hasOwn(sourceLabels, row.source) ? sourceStyles[row.source] : null;
+        const sourceStyle = showSources && Object.hasOwn(sourceLabels, row.source) ? sourceStyles[row.source] : null;
         const replay = row.source === "REPLAY" && sourceStyle;
         const bodyTop = Math.min(y(row.open), y(row.close));
         const bodyHeight = Math.max(1.5, Math.abs(y(row.open) - y(row.close)));
@@ -260,13 +270,13 @@
         ctx.fillStyle = color("--chart-label-text");
         ctx.fillText(number.format(price), right + 6, hover.y + 4);
       }
-      if (volume && hoverInPlot && !hovered) summary.textContent = sourceLabels.REPLAY
+      if (volume && hoverInPlot && !hovered) summary.textContent = showSources && sourceLabels.REPLAY
         ? "이 구간에는 가격 기록이 없습니다." : "이 구간에는 체결이 없습니다.";
       else showSummary(hovered || rows.at(-1) || candles.at(-1));
       const hasData = candles.length || references.some((row) => row.price !== null);
       zoomIn.disabled = !hasData || visible <= 3;
       zoomOut.disabled = !hasData || (visible >= full && (!onHistory || historyEnd));
-      zoomReset.disabled = !hasData || (span === 60 && offset === 0 && !priceRange);
+      zoomReset.disabled = !hasData || (span === defaultSpan() && offset === 0 && !priceRange);
       scaleAuto.setAttribute("aria-pressed", String(!priceRange));
       scaleAuto.disabled = !hasData || !priceRange;
     }
@@ -283,7 +293,7 @@
     }
 
     function reset() {
-      span = 60;
+      span = defaultSpan();
       offset = 0;
       hover = null;
       priceRange = null;
@@ -303,16 +313,22 @@
       } else drag = null;
     }
 
+    function setInterval(code) {
+      const button = buttons.find((item) => item.dataset.interval === code);
+      if (!button || button === selected) return false;
+      selected = button;
+      ms = Number(button.dataset.ms);
+      clearSeries();
+      references = [];
+      for (const item of buttons) item.setAttribute("aria-pressed", String(item === button));
+      toolbar.querySelector("[data-interval-menu]").textContent = button.closest("details") ? `더 보기 · ${button.textContent}` : "더 보기";
+      reset();
+      return true;
+    }
+
     for (const button of buttons) button.addEventListener("click", () => {
-      if (button !== selected) {
-        selected = button;
-        ms = Number(button.dataset.ms);
-        clearSeries();
-        for (const item of buttons) item.setAttribute("aria-pressed", String(item === button));
-        toolbar.querySelector("[data-interval-menu]").textContent = button.closest("details") ? `더 보기 · ${button.textContent}` : "더 보기";
-        reset();
-        onInterval?.(button.dataset.interval);
-      }
+      const changed = setInterval(button.dataset.interval);
+      onInterval?.(button.dataset.interval, changed);
       const details = button.closest("details");
       if (details) details.open = false;
     });
@@ -398,11 +414,18 @@
     return {
       get interval() { return selected.dataset.interval; },
       reset,
-      update(rows, key = "", referenceRows = []) {
+      setInterval,
+      update(rows, key = "", referenceRows = [], options = {}) {
+        showSources = options.showSources !== false;
+        const wasOverview = showOverview();
+        opening = options.opensAt ? Date.parse(options.opensAt) : null;
+        through = options.throughAt ?? null;
         references = referenceRows.map((row) => ({ at: Date.parse(row.at), price: row.price }));
         if (key !== seriesKey) {
           seriesKey = key;
           clearSeries();
+          reset();
+        } else if (wasOverview !== showOverview()) {
           reset();
         }
         if (offset > 0 && candles.length && rows.length) {

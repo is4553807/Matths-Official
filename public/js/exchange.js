@@ -15,6 +15,7 @@
   const seoul = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
   });
+  const tradeTime = new Intl.DateTimeFormat("ko-KR", { ...seoul.resolvedOptions(), second: "2-digit" });
   const time = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
   const labels = { weekly: "맵쓰 주간 모의고사", mock: "실제 모의고사", csat: "수능" };
   const activityEmpty = {
@@ -25,13 +26,20 @@
   let state = JSON.parse(root.dataset.state);
   let filter = state.market?.type || "weekly";
   let marketId = state.market?.id;
+  let intervalChosen = new URLSearchParams(location.search).has("interval");
   const chart = window.MatthsExchangeChart.create(canvas, {
-    volume: true, averages: true, onInterval: () => { void refresh(); },
+    volume: true, averages: true,
+    onInterval(_code, changed) {
+      const wasAutomatic = !intervalChosen;
+      intervalChosen = true;
+      if (changed || wasAutomatic) void refresh();
+    },
     sourceLabels: { REPLAY: "복원 봇 거래", AUTOMATED: "자동화 계정 간 체결", MIXED: "학생·자동화 혼합 봉" },
     async onHistory({ before, interval, seriesKey }) {
-      if (!seriesKey) return null;
+      const [market] = seriesKey.split("|");
+      if (!market) return null;
       const query = new URLSearchParams({ before: String(before), interval });
-      const data = await fetchJson(`/api/exchange/markets/${seriesKey}/candles?${query}`);
+      const data = await fetchJson(`/api/exchange/markets/${market}/candles?${query}`);
       return data.candles;
     },
   });
@@ -73,7 +81,7 @@
     get("market-select-wrap").hidden = !choices.length;
   }
 
-  function renderBook(id, entries, empty) {
+  function renderBook(id, entries, empty, historical) {
     let total = 0;
     const sum = entries.reduce((acc, row) => acc + row.quantity, 0);
     const nodes = entries.map((row) => {
@@ -83,7 +91,8 @@
       button.dataset.price = row.price;
       button.style.setProperty("--depth", `${total / sum * 100}%`);
       const priceLabel = el("span", number(row.price));
-      if (row.botQuantity) priceLabel.append(el("small", ` 봇 ${number(row.botQuantity)}`, "book-bot"));
+      if (row.operatorQuantity) priceLabel.append(el("small", ` MM ${number(row.operatorQuantity)}`, "book-bot"));
+      if (!historical && row.botQuantity) priceLabel.append(el("small", ` 봇 ${number(row.botQuantity)}`, "book-bot"));
       button.append(priceLabel, el("span", number(row.quantity)), el("span", number(total)));
       return button;
     });
@@ -121,10 +130,13 @@
       rows = (own?.positions || []).map((row) => [row.direction.toUpperCase(), number(row.price), row.remaining, number(row.realized)]);
     } else if (activity === "trades") {
       headers = ["체결 시각 (KST)", "체결가", "수량"];
-      if (market?.botParticipation) headers.push("운영 봇");
+      if (market?.historicalBootstrap) headers.push("참여");
+      else if (market?.botParticipation) headers.push("운영 봇");
       rows = (market ? state.trades || [] : []).map((row) => {
-        const cells = [time.format(new Date(row.tradedAt)), number(row.price), row.quantity];
-        if (market.botParticipation) {
+        const cells = [tradeTime.format(new Date(row.tradedAt)), number(row.price), row.quantity];
+        if (market.historicalBootstrap) {
+          cells.push(row.source === "mm" || row.makerSource === "MM" || row.takerSource === "MM" ? "MM" : "—");
+        } else if (market.botParticipation) {
           const label = { HUMAN: "학생", BOT: "Trading Bot", MM: "MM" };
           cells.push(row.makerSource && row.takerSource ? `${label[row.makerSource]} / ${label[row.takerSource]}` : row.source === "bot" ? "참여" : "—");
         }
@@ -200,19 +212,31 @@
   function render() {
     const market = selectedMarket();
     const isWeekly = market?.type === "weekly";
-    text("order-market-rules", market?.bootstrap
+    const historical = market?.historicalBootstrap === true;
+    text("order-market-rules", historical
+      ? "지정가로 주문하며, 만기에는 정산 MPI를 적용합니다."
+      : market?.bootstrap
       ? "잠정 MPI에 Exam Bot 점수가 반영될 수 있습니다. 만기 정산은 실제 유효 학생 성적을 사용합니다. 자동화 계정이 거래 상대방이 될 수 있습니다."
       : market?.botParticipation
       ? "거래소의 운영 봇이 거래 상대방이 될 수 있습니다. 이 회차의 공식 MPI와 만기 정산에는 학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다."
       : "거래소의 자동화 계정이 거래 상대방이 될 수 있습니다. 공식 MPI와 만기 정산 지수는 실제 유효 응시 성적으로 계산합니다.");
     const candles = market ? state.candles || [] : [];
-    const hasReplay = market?.replayVolume > 0 || candles.some((row) => row.source === "REPLAY");
+    const hasReplay = !historical && (market?.replayVolume > 0 || candles.some((row) => row.source === "REPLAY"));
     const references = isWeekly && showMidPrice.checked ? state.references || [] : [];
     const hasChart = market && (candles.length || references.some((row) => row.price !== null));
     get("mid-legend").hidden = !isWeekly;
     get("futures-replay-key").hidden = get("chart-replay-note").hidden = !hasReplay;
-    get("futures-automated-key").hidden = !market?.bootstrap;
-    get("futures-mixed-key").hidden = !market?.bootstrap;
+    if (hasReplay) canvas.setAttribute("aria-describedby", "chart-replay-note");
+    else canvas.removeAttribute("aria-describedby");
+    get("futures-automated-key").hidden = get("futures-mixed-key").hidden = historical || !market?.bootstrap;
+    const mpiLink = get("market-mpi-link");
+    mpiLink.hidden = !isWeekly;
+    if (isWeekly) mpiLink.href = `/exchange/mpi?${new URLSearchParams({ market: market.id })}`;
+    const botsLink = get("market-bots-link");
+    if (botsLink) {
+      botsLink.hidden = !market?.botParticipation;
+      if (market) botsLink.href = `/exchange/dashboard/bots?${new URLSearchParams({ wallet: "exchange", market: market.id })}`;
+    }
     text("chart-heading", hasReplay ? "선물 가격 캔들" : "선물 체결가 캔들");
     selectOptions();
     for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", button.dataset.filter === filter);
@@ -222,9 +246,9 @@
     text("market-price", number(market?.lastPrice));
     text("book-price", number(market?.type === "weekly" ? state.reference?.price : market?.lastPrice));
     text("book-price-label", market?.type === "weekly" ? "호가 중간값" : "최근 체결");
-    text("market-volume-label", market?.bootstrap ? "학생 참여 거래량" : "거래량");
+    text("market-volume-label", market?.bootstrap && !historical ? "학생 참여 거래량" : "거래량");
     text("market-volume", market ? number(market.volume) : "—");
-    get("bot-volume-block").hidden = !market?.bootstrap;
+    get("bot-volume-block").hidden = historical || !market?.bootstrap;
     text("bot-volume", number(market?.botOnlyVolume));
     text("settlement-price", number(market?.settlement));
     const resultLink = get("result-link");
@@ -235,7 +259,7 @@
     }
     text("market-close", when(market?.closeAt));
     const latestTrade = market ? state.trades?.[0] : null;
-    text("quote-time", latestTrade ? `${latestTrade.botOnly ? "최근 자동화 계정 간 체결" : "최근 체결"} ${time.format(new Date(latestTrade.tradedAt))} KST` : "체결 없음");
+    text("quote-time", latestTrade ? `${latestTrade.botOnly && !historical ? "최근 자동화 계정 간 체결" : "최근 체결"} ${when(latestTrade.tradedAt)} KST` : "체결 없음");
     get("chart-empty").hidden = Boolean(hasChart);
     text("chart-empty-title", market ? (market.status === "open" ? "체결을 기다리는 중" : market.statusLabel)
       : filter === "weekly" ? "이번 주 시장이 아직 열리지 않았습니다" : "등록된 시장이 없습니다");
@@ -248,13 +272,17 @@
     const orderExam = get("order-exam-link");
     orderExam.hidden = !market?.examHref || (!hasChart && !get("chart-empty").hidden);
     if (market?.examHref) orderExam.href = market.examHref;
-    renderBook("asks", market ? state.asks || [] : [], "매도 호가 없음");
-    renderBook("bids", market ? state.bids || [] : [], "매수 호가 없음");
+    renderBook("asks", market ? state.asks || [] : [], "매도 호가 없음", historical);
+    renderBook("bids", market ? state.bids || [] : [], "매수 호가 없음", historical);
     renderActivity();
     countdown();
     updateOrder();
     calculate();
-    chart.update(candles, market?.id || "", references);
+    chart.update(candles, market ? [market.id, historical].join("|") : "", references, {
+      showSources: !historical,
+      opensAt: historical ? market.opensAt : null,
+      throughAt: historical ? Math.min(Date.parse(state.serverNow), Date.parse(market.closeAt)) : null,
+    });
   }
 
   async function fetchJson(url, body) {
@@ -270,12 +298,14 @@
   async function refresh() {
     const sequence = ++request;
     try {
-      const params = new URLSearchParams({ interval: chart.interval });
+      const params = new URLSearchParams();
+      if (intervalChosen) params.set("interval", chart.interval);
       if (marketId) params.set("market", marketId);
       if (wallet) params.set("wallet", wallet);
       const updated = await fetchJson(`/api/exchange/markets?${params}`);
       if (sequence !== request) return;
       state = updated;
+      if (!intervalChosen) chart.setInterval(state.interval);
       offset = Date.parse(state.serverNow) - Date.now();
       if (!marketId) {
         const next = state.markets.find((row) => row.type === filter && row.status === "open")

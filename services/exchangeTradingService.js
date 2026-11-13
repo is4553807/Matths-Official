@@ -1,21 +1,25 @@
 const mongoose = require("mongoose");
 const { randomUUID } = require("node:crypto");
+const { isDeepStrictEqual } = require("node:util");
 const { PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const {
   ExchangeMarket, ExchangeOrder, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeTrade, ExchangeEvent, ExchangeReference, ExchangeTick,
+  ExchangeExamBotAttempt,
 } = require("../models/exchangeModel");
 const {
-  error, integer, seoulDate, readWeeklyExam, weeklyExamReady, validAttempts, publicState,
+  error, integer, seoulDate, readWeeklyExam, weeklyExamReady, weeklyExamOpenAt, validAttempts, publicState,
   liveAttemptRows, liveStudent, pendingAttempts, exchangeAutomationDisabled, latestPublishedMpi, publishedMpiFilter, activeBookOrders, activeLiquidityPlan, bookLevels, marketReference,
 } = require("./exchangeMarketService");
 
 const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = require("./exchangeFees");
 const { dueBotOrder, submittedBots } = require("./exchangeScenarioService");
-const { isBootstrap, traderStopAt, tradersEnabledAt, readExamBots, traderId, traderSignal, botLabel } = require("./exchangeBootstrapService");
+const { isBootstrap, isHistoricalBootstrap, traderStopAt, tradersEnabledAt, readExamBots, traderId, traderSignal, botLabel } = require("./exchangeBootstrapService");
 
 const MARKET_LIMIT = 5;
 const BOT_EXPOSURE_LIMIT = 5;
+const HISTORICAL_BOT_EXPOSURE_LIMIT = 20;
 const BOT_INITIAL_FUNDING = 2_000 * TP_SCALE;
+const BOT_HOLDING_PERIOD = 45 * 60_000;
 const MM_WALLET_TP = 2000 * TP_SCALE;
 const MM_LOSS_LIMIT = 1000 * TP_SCALE;
 const MM_POSITION_LIMIT = 2;
@@ -28,34 +32,48 @@ const isOperator = (order) => order.liquidityProvider === "matths";
 const sourceOf = (order) => order.source ?? (order.botId ? "BOT" :
   isOperator(order) || String(order.userId) === EXCHANGE_WALLET_ID ? "MM" : "HUMAN");
 const isTradingBot = (order) => sourceOf(order) === "BOT";
-
-
+const automatedOrder = { $or: [{ source: "BOT" }, { liquidityProvider: "matths" }] };
 
 function collateral(direction, price, quantity) {
   return (direction === "long" ? price : 1000 - price) * TP_SCALE * quantity;
 }
 
-async function lockMarket(marketId, session) {
-  const market = await ExchangeMarket.findByIdAndUpdate(marketId, { $inc: { revision: 1 } }, {
-    session, returnDocument: "after",
-  }).select("+botSeed");
-  if (!market) throw error(404, "선물시장을 찾을 수 없습니다.");
-  return market;
+function runInTransaction(session, replay, work) {
+  if (session && !session.inTransaction()) throw new Error("Exchange requires an active transaction");
+  if (replay && !session) throw new Error("Historical Exchange events require an active transaction");
+  return session ? work(session) : mongoose.connection.transaction(work);
 }
 
-async function ensureTradeAccess(market, userId, now, session) {
+async function lockMarket(marketId, session, replay = false) {
+  const market = await ExchangeMarket.findOneAndUpdate({
+    _id: marketId, "historicalBootstrap.status": replay ? "replaying" : { $ne: "replaying" },
+  }, { $inc: { revision: 1 } }, {
+    session, returnDocument: "after",
+  }).select("+botSeed");
+  if (market) return market;
+  if (!await ExchangeMarket.exists({ _id: marketId }).session(session)) throw error(404, "선물시장을 찾을 수 없습니다.");
+  throw error(409, "이 시장의 거래 준비가 완료되지 않았습니다.");
+}
+
+async function ensureTradeAccess(market, userId, now, session, botId, replay = false) {
   if (publicState(market, now) !== "open") throw error(409, "주문을 접수할 수 없는 시장입니다.");
   if (market.type !== "weekly") return;
-  if (String(userId) !== EXCHANGE_WALLET_ID && await User.exists({ _id: userId, $or: [{ isTestAccount: true }, { role: "test" }, { testBatchKey: { $gt: "" } }] }).session(session)) {
+  if (!botId && String(userId) !== EXCHANGE_WALLET_ID && await User.exists({ _id: userId, $or: [{ isTestAccount: true }, { role: "test" }, { testBatchKey: { $gt: "" } }] }).session(session)) {
     throw error(403, "학생 계정으로 주문할 수 있습니다.");
   }
   const exam = await readWeeklyExam(market.examId, session);
-  if (exam?.status !== "open" || now < exam.releaseAt || now >= exam.closeAt
-    || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt || !await weeklyExamReady(exam, session)) {
+  if (!weeklyExamOpenAt(exam, now, replay) || +exam.releaseAt !== +market.opensAt
+    || +exam.closeAt !== +market.closeAt || !await weeklyExamReady(exam, session)) {
     throw error(409, "공개된 주간 모의고사 문제지가 있어야 시장이 열립니다.");
   }
-  if (String(userId) === EXCHANGE_WALLET_ID) return;
-  if (!await PrivateMockExamAttempt.exists({ ...validAttempts(exam, now), userId }).session(session)) {
+  if (!botId && String(userId) === EXCHANGE_WALLET_ID) return;
+  const attempt = botId
+    ? await ExchangeExamBotAttempt.exists({
+      marketId: market._id, examId: exam._id, botId, source: "BOT", reconstructedAt: null,
+      score: { $gte: 0, $lte: 100 }, submittedAt: { $gte: exam.releaseAt, $lt: exam.closeAt, $lte: now },
+    }).session(session)
+    : await PrivateMockExamAttempt.exists({ ...validAttempts(exam, now), userId }).session(session);
+  if (!attempt) {
     throw error(403, "이번 주 모의고사를 완료하면 주문할 수 있습니다.");
   }
 }
@@ -153,7 +171,8 @@ async function applyFill(order, trade, fee, session) {
     const improvement = collateral(direction, order.price, quantity) - payout;
     if (improvement < 0) throw new Error("Exchange fill exceeds reserved collateral");
     await creditMarket(marketId, userId, improvement, session);
-    await new ExchangePosition({ marketId, userId, direction, price, quantity, remaining: quantity, tradeId: trade._id, botId: order.botId })
+    await new ExchangePosition({ marketId, userId, direction, price, quantity, remaining: quantity, tradeId: trade._id,
+      botId: order.botId, openedAt: trade.tradedAt })
       .save({ session });
   } else {
     const positions = await ExchangePosition.find({ marketId, userId, direction, botId: order.botId ?? null, remaining: { $gt: 0 } })
@@ -164,6 +183,7 @@ async function applyFill(order, trade, fee, session) {
       const closed = Math.min(left, position.remaining);
       position.remaining -= closed;
       position.realized += collateral(direction, price, closed) - collateral(direction, position.price, closed);
+      if (!position.remaining) position.closedAt = trade.tradedAt;
       await position.save({ session });
       left -= closed;
     }
@@ -192,15 +212,15 @@ function normalizedOrder(input) {
     quantity: integer(input.quantity, 1, MARKET_LIMIT, "수량") };
 }
 
-async function placeOrder({ marketId, userId, actorId, input, clock = () => new Date() }) {
-  return submitOrder({ marketId, userId, actorId, input, clock });
+async function placeOrder({ marketId, userId, actorId, input, clock = () => new Date(), session, replay = false }) {
+  return submitOrder({ marketId, userId, actorId, input, clock, session, replay });
 }
 
-async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
+async function submitOrder({ marketId, userId, actorId, input, clock, bot, session: existingSession, replay = false }) {
   if (String(userId) === EXCHANGE_WALLET_ID && !actorId && !bot) throw error(403, "운영 월렛 주문에는 관리자 계정이 필요합니다.");
   const orderInput = normalizedOrder(input);
-  return mongoose.connection.transaction(async (session) => {
-    const market = await lockMarket(marketId, session);
+  return runInTransaction(existingSession, replay, async (session) => {
+    const market = await lockMarket(marketId, session, replay);
     const existing = await ExchangeOrder.findOne({ userId, commandId: orderInput.commandId }).session(session);
     if (existing) {
       if (String(existing.marketId) !== String(marketId) ||
@@ -209,8 +229,9 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
       }
       return existing;
     }
-    if (bot && await exchangeAutomationDisabled(session)) return;
+    if (bot && await exchangeAutomationDisabled(session, market)) return;
     const bootstrapOrder = bot && isBootstrap(market);
+    const historicalTrader = bootstrapOrder && isHistoricalBootstrap(market);
     if (bootstrapOrder) {
       if (!tradersEnabledAt(market, clock())) return;
       const published = await latestPublishedMpi(market, clock(), session);
@@ -218,7 +239,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
     }
     if (bot && ((!bootstrapOrder && (!market.botParticipation || market.marketMakerEnabled === false))
       || bot.expiresAt <= clock())) return;
-    await ensureTradeAccess(market, bootstrapOrder ? EXCHANGE_WALLET_ID : userId, clock(), session);
+    await ensureTradeAccess(market, userId, clock(), session, bootstrapOrder ? bot.botId : undefined, replay);
     const order = new ExchangeOrder({ ...orderInput, marketId, userId, actorId, remaining: orderInput.quantity,
       status: "working", sequence: market.revision, acceptedAt: clock(), botId: bot?.botId, expiresAt: bot?.expiresAt,
       source: bot ? "BOT" : String(userId) === EXCHANGE_WALLET_ID ? "MM" : "HUMAN",
@@ -228,7 +249,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
       side: opposite, price: order.side === "buy" ? { $lte: order.price } : { $gte: order.price } };
     if (bot && !bootstrapOrder) {
       if (await ExchangeOrder.exists({ ...crossing, botId: null }).session(session)) return;
-      await cancelFundedBotOrders(marketId, session, { side: opposite, price: crossing.price });
+      await cancelFundedBotOrders(marketId, session, order.acceptedAt, { side: opposite, price: crossing.price });
       const filter = { marketId, userId, botId: { $ne: null } };
       const open = await ExchangePosition.countDocuments({ ...filter, remaining: { $gt: 0 } }).session(session);
       const working = await ExchangeOrder.countDocuments({ ...filter, status: "working" }).session(session);
@@ -236,22 +257,35 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
     } else {
       if (bootstrapOrder && await ExchangeOrder.exists({
         ...activeBookOrders(market._id, order.acceptedAt), userId: { $in: [userId, EXCHANGE_WALLET_ID] },
+        ...(replay ? { $and: [automatedOrder] } : {}),
         side: opposite, price: crossing.price,
       }).session(session)) return;
       if (bootstrapOrder && order.action === "open") {
         const filter = { marketId, source: "BOT" };
         const open = await ExchangePosition.countDocuments({ marketId, botId: { $ne: null }, remaining: { $gt: 0 } }).session(session);
         const working = await ExchangeOrder.countDocuments({ ...filter, status: "working", action: "open" }).session(session);
-        if (open + working >= BOT_EXPOSURE_LIMIT) return;
+        const limit = historicalTrader ? HISTORICAL_BOT_EXPOSURE_LIMIT : BOT_EXPOSURE_LIMIT;
+        if (open + working >= limit) return;
       }
       if (String(userId) === EXCHANGE_WALLET_ID && (market.botParticipation || isBootstrap(market)) &&
         await ExchangeOrder.exists({ ...crossing, botId: { $ne: null } }).session(session)) {
         throw error(409, "반대 방향의 운영 봇 주문을 먼저 취소해 주세요.");
       }
-      await checkPositionLimit(order, session);
-      if (bootstrapOrder && order.action === "open") await fundTrader(marketId, userId, order, session);
+      try {
+        await checkPositionLimit(order, session);
+      } catch (cause) {
+        if (bootstrapOrder && cause.status === 409) return;
+        throw cause;
+      }
+      if (bootstrapOrder && !historicalTrader && order.action === "open") await fundTrader(marketId, userId, order, session);
     }
-    await reserve(market, order, session);
+    try {
+      await reserve(market, order, session);
+    } catch (cause) {
+      // An isolated historical trader can exhaust its own starting TP.
+      if (historicalTrader && cause.status === 409) return;
+      throw cause;
+    }
     order.acceptedAt = clock();
     if (publicState(market, order.acceptedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
     await order.save({ session });
@@ -263,18 +297,19 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
     while (order.remaining) {
       const maker = await ExchangeOrder.findOne({
         ...activeBookOrders(market._id, clock()), ...counterparty, side: bid ? "sell" : "buy",
+        ...(replay ? { $and: [automatedOrder] } : {}),
         price: bid ? { $lte: order.price } : { $gte: order.price },
-      }).sort({ price: bid ? 1 : -1, sequence: 1 }).session(session);
+      }).sort({ price: bid ? 1 : -1, acceptedAt: 1, sequence: 1 }).session(session);
       if (!maker) break;
       if (String(maker.userId) === String(userId)) throw error(409, "자신의 반대 주문을 취소한 후 다시 시도해 주세요.");
+      const tradedAt = clock();
       if (isOperator(maker) && String(userId) === EXCHANGE_WALLET_ID) {
-        await cancel(maker, session);
+        await cancel(maker, session, tradedAt);
         continue;
       }
-      const tradedAt = clock();
       if (isTradingBot(maker) && ((isBootstrap(market) ? !tradersEnabledAt(market, tradedAt) : market.marketMakerEnabled === false)
         || maker.expiresAt <= tradedAt)) {
-        await cancel(maker, session);
+        await cancel(maker, session, tradedAt);
         continue;
       }
       if (isBootstrap(market) && isTradingBot(maker) && sourceOf(order) === "HUMAN"
@@ -282,16 +317,16 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
         throw error(403, "유효 응시 학생만 운영 봇 주문과 체결할 수 있습니다.");
       }
       if (bootstrapOrder && sourceOf(maker) === "HUMAN" && !await User.exists({ _id: maker.userId, ...liveStudent }).session(session)) {
-        await cancel(maker, session);
+        await cancel(maker, session, tradedAt);
         continue;
       }
       if (!isBootstrap(market) && (bot || maker.botId) && !await User.exists({ _id: bot ? maker.userId : userId, ...liveStudent }).session(session)) {
         if (!bot) throw error(403, "유효 응시 학생만 운영 봇 주문과 체결할 수 있습니다.");
-        await cancel(maker, session);
+        await cancel(maker, session, tradedAt);
         continue;
       }
       if (bot && bot.expiresAt <= tradedAt) {
-        await cancel(order, session);
+        await cancel(order, session, tradedAt);
         break;
       }
       if (publicState(market, tradedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
@@ -300,11 +335,11 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
         const plan = snapshot ? null : activeLiquidityPlan(market, tradedAt);
         if (market.marketMakerEnabled === false || !maker.expiresAt || maker.expiresAt <= tradedAt
           || !canFillOperatorOrder(market, maker, snapshot, plan, tradedAt)) {
-          await cancel(maker, session);
+          await cancel(maker, session, tradedAt);
           continue;
         }
       } else if (!isTradingBot(maker) && market.type === "weekly" && String(maker.userId) !== EXCHANGE_WALLET_ID && await User.exists({ _id: maker.userId, $or: [{ isTestAccount: true }, { role: "test" }, { testBatchKey: { $gt: "" } }] }).session(session)) {
-        await cancel(maker, session);
+        await cancel(maker, session, tradedAt);
         continue;
       }
       const quantity = Math.min(order.remaining, maker.remaining);
@@ -327,19 +362,20 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
       if (isOperator(maker) && maker.action === "open") {
         if (maker.scheduledLiquidity) market.liquidityPlan.openingFilledAt = tradedAt;
         else market.marketMakerUsedSnapshot = maker.mpiSnapshotId;
-        await cancelOperatorOrders(market, session, { action: "open" });
+        await cancelOperatorOrders(market, session, tradedAt, { action: "open" });
       }
       await collectFees(totalFee, session);
       const opens = Number(maker.action === "open") + Number(order.action === "open");
       market.escrow += (opens - 1) * 1000 * TP_SCALE * trade.quantity;
       if (botOnly) market.botOnlyVolume = (market.botOnlyVolume ?? 0) + quantity;
-      else {
+      else market.volume += quantity;
+      if ((!botOnly || isHistoricalBootstrap(market))
+        && (!market.lastTradeAt || market.lastTradeAt <= trade.tradedAt)) {
         market.lastPrice = trade.price;
         market.lastTradeAt = trade.tradedAt;
-        market.volume += quantity;
       }
     }
-    await recordReference(market, clock(), session);
+    await recordReference(market, clock(), session, replay);
     if (order.status !== "cancelled") await releaseFeeReserve(order, feeReserveFor(order, "maker"), session);
     await order.save({ session });
     await market.save({ session });
@@ -347,13 +383,14 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot }) {
   });
 }
 
-async function cancel(order, session, actorId) {
+async function cancel(order, session, at, actorId) {
   if (order.status !== "working") return;
   if (order.action === "open") {
     await creditMarket(order.marketId, order.userId, collateral(order.direction, order.price, order.remaining), session);
   }
   await releaseFeeReserve(order, 0, session);
   order.status = "cancelled";
+  order.cancelledAt = at;
   if (actorId) order.cancelledBy = actorId;
   await order.save({ session });
   if (sourceOf(order) === "BOT") await returnUnusedTraderFunds(order, session);
@@ -374,27 +411,29 @@ async function returnUnusedTraderFunds(order, session) {
   await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID }, { $inc: { available: released } }, { session });
 }
 
-async function cancelFundedBotOrders(marketId, session, filter = {}) {
+async function cancelFundedBotOrders(marketId, session, at, filter = {}) {
   const orders = await ExchangeOrder.find({ marketId, botId: { $ne: null },
     status: "working", ...filter }).session(session);
-  for (const order of orders) await cancel(order, session);
+  for (const order of orders) await cancel(order, session, at);
 }
 
-async function initializeBotFunding(marketId, now) {
-  await mongoose.connection.transaction(async (session) => {
-    if (await exchangeAutomationDisabled(session)) return;
+async function initializeBotFunding(marketId, now, existingSession, replay = false) {
+  await runInTransaction(existingSession, replay, async (session) => {
+    const market = await lockMarket(marketId, session, replay);
+    if (await exchangeAutomationDisabled(session, market)) return;
     await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
       { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, session });
     const result = await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID, botFundingAt: null },
       { $set: { botFundingAt: now }, $inc: { available: BOT_INITIAL_FUNDING } }, { session });
     if (result.modifiedCount) await ExchangeEvent.create([{
-      marketId, action: "bot-initial-funding", detail: { amountTp: BOT_INITIAL_FUNDING / TP_SCALE },
+      marketId, at: now, action: "bot-initial-funding", detail: { amountTp: BOT_INITIAL_FUNDING / TP_SCALE },
     }], { session });
   });
 }
 
-async function maintainFundedBotOrders(market, now, clock = () => now) {
-  if (isBootstrap(market)) return maintainBootstrapTraders(market, now, clock);
+async function maintainFundedBotOrders(market, now, clock = () => now, options = {}) {
+  if (isBootstrap(market)) return maintainBootstrapTraders(market, now, clock, options);
+  if (options.replay) throw new Error("Historical Exchange events require a bootstrap market");
   if (!market.botParticipation) return;
   const marketId = market._id;
   const closed = publicState(market, now) !== "open" || market.marketMakerEnabled === false;
@@ -405,7 +444,7 @@ async function maintainFundedBotOrders(market, now, clock = () => now) {
       const current = await lockMarket(marketId, session);
       const at = clock();
       const cancelAll = publicState(current, at) !== "open" || current.marketMakerEnabled === false;
-      await cancelFundedBotOrders(marketId, session, cancelAll ? {} : { expiresAt: { $lte: at } });
+      await cancelFundedBotOrders(marketId, session, at, cancelAll ? {} : { expiresAt: { $lte: at } });
     });
   }
   if (closed) return;
@@ -439,56 +478,62 @@ async function fundTrader(marketId, userId, order, session) {
   }, { upsert: true, session, setDefaultsOnInsert: false });
 }
 
-async function maintainBootstrapTraders(market, now, clock) {
+async function maintainBootstrapTraders(market, now, clock, { session = null, replay = false }) {
+  if (replay && !session?.inTransaction()) throw new Error("Historical Exchange events require an active transaction");
   const marketId = market._id;
   const enabled = publicState(market, now) === "open" && tradersEnabledAt(market, now);
   const expired = { expiresAt: { $lte: now } };
-  if (await ExchangeOrder.exists({ marketId, source: "BOT", status: "working", ...(enabled ? expired : {}) })) {
-    await mongoose.connection.transaction(async (session) => {
-      const current = await lockMarket(marketId, session);
+  if (await ExchangeOrder.exists({ marketId, source: "BOT", status: "working", ...(enabled ? expired : {}) }).session(session)) {
+    await runInTransaction(session, replay, async (transaction) => {
+      const current = await lockMarket(marketId, transaction, replay);
       const at = clock();
       const open = publicState(current, at) === "open" && tradersEnabledAt(current, at);
-      await cancelFundedBotOrders(marketId, session, open ? expired : {});
+      await cancelFundedBotOrders(marketId, transaction, at, open ? expired : {});
     });
   }
   if (!enabled) return;
-  const snapshot = await latestPublishedMpi(market, now);
+  const snapshot = await latestPublishedMpi(market, now, session);
   if (!snapshot || +now - +snapshot.publishAt >= 5 * 60_000) return;
-  const [previous, levels, roster, holdings] = await Promise.all([
-    ExchangeTick.findOne({ ...publishedMpiFilter(marketId, now), unavailable: { $ne: true },
-      publishAt: { $lt: snapshot.publishAt }, mpi: { $ne: null } }).sort({ publishAt: -1 }).select("mpi").lean(),
-    bookLevels(marketId, now, null, snapshot._id, EXCHANGE_WALLET_ID),
-    readExamBots(market, snapshot.dataCutoffAt ?? snapshot.sampledAt),
-    ExchangePosition.find({ marketId, botId: { $ne: null }, remaining: { $gt: 0 } }).select("botId direction").lean(),
-  ]);
+  const previous = await ExchangeTick.findOne({ ...publishedMpiFilter(marketId, now), unavailable: { $ne: true },
+    publishAt: { $lt: snapshot.publishAt }, mpi: { $ne: null } }).sort({ publishAt: -1 }).select("mpi").session(session).lean();
+  const levels = await bookLevels(marketId, now, session, snapshot._id, EXCHANGE_WALLET_ID, false, replay);
+  const roster = await readExamBots(market, snapshot.dataCutoffAt ?? snapshot.sampledAt, session);
+  const holdings = await ExchangePosition.find({ marketId, botId: { $ne: null }, remaining: { $gt: 0 } })
+    .select("botId direction openedAt createdAt").sort({ _id: -1 }).session(session).lean();
   const bids = levels.filter((row) => row._id.side === "buy").map((row) => row._id.price);
   const asks = levels.filter((row) => row._id.side === "sell").map((row) => row._id.price);
   const book = { bid: bids.length ? Math.max(...bids) : null, ask: asks.length ? Math.min(...asks) : null };
-  const heldByBot = new Map(holdings.map((row) => [String(row.botId), row.direction]));
+  const heldByBot = new Map(holdings.map((row) => [String(row.botId), row]));
   const recentlySubmitted = new Set(roster.slice(-4).map((row) => String(row.botId)));
   // Older bots with positions can react too, so they can close before maturity.
   const participants = roster.filter((row) => !row.reconstructedAt
     && (heldByBot.has(String(row.botId)) || recentlySubmitted.has(String(row.botId))));
   for (const examBot of participants) {
-    const signal = traderSignal(examBot, snapshot, previous, book);
-    if (!signal) continue;
     const held = heldByBot.get(String(examBot.botId));
-    if (held === signal.direction) continue;
+    const closeDue = held && isHistoricalBootstrap(market)
+      && +now - +(held.openedAt ?? held.createdAt) >= BOT_HOLDING_PERIOD;
+    const exit = held?.direction === "long"
+      ? { direction: "short", price: book.bid ?? Math.max(1, Math.floor(snapshot.mpi) - 8) }
+      : { direction: "long", price: book.ask ?? Math.min(999, Math.ceil(snapshot.mpi) + 8) };
+    const signal = closeDue ? exit : traderSignal(examBot, snapshot, previous, book);
+    if (!signal) continue;
+    if (held?.direction === signal.direction) continue;
     const userId = traderId(examBot.botId);
     const commandId = `bootstrap-${snapshot._id}-${userId}`;
-    if (await ExchangeOrder.exists({ userId, commandId })) continue;
-    if (!await ExchangeWallet.exists({ _id: EXCHANGE_WALLET_ID, botFundingAt: { $ne: null } })) {
-      await initializeBotFunding(marketId, now);
+    if (await ExchangeOrder.exists({ userId, commandId }).session(session)) continue;
+    if (!isHistoricalBootstrap(market)
+      && !await ExchangeWallet.exists({ _id: EXCHANGE_WALLET_ID, botFundingAt: { $ne: null } }).session(session)) {
+      await initializeBotFunding(marketId, now, session, replay);
     }
     const expiresAt = new Date(Math.min(+snapshot.publishAt + 30 * 60_000, +traderStopAt(market)));
     const bot = { botId: examBot.botId, label: botLabel("TraderBot", examBot.number), snapshotId: snapshot._id, expiresAt };
-    const close = Boolean(held);
     try {
-      await submitOrder({ marketId, userId, clock, bot,
-        input: { commandId, action: close ? "close" : "open", direction: close ? held : signal.direction,
+      await submitOrder({ marketId, userId, clock, bot, session, replay,
+        input: { commandId, action: held ? "close" : "open", direction: held?.direction ?? signal.direction,
           price: signal.price, quantity: 1 } });
     } catch (cause) {
-      if (cause.status !== 409) throw cause;
+      // A shared transaction must abort if an order changed state and then failed.
+      if (session || cause.status !== 409) throw cause;
     }
   }
 }
@@ -501,23 +546,23 @@ async function setTradingBotsEnabled(marketId, enabled, actorId, reason, now = n
     if (!isBootstrap(market) || market.phase !== "scheduled" || now >= market.closeAt) {
       throw error(409, "마감 전 Bootstrap 회차만 거래 봇을 설정할 수 있습니다.");
     }
-    if (enabled && await exchangeAutomationDisabled(session)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
+    if (enabled && await exchangeAutomationDisabled(session, market)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
     if (enabled && now >= traderStopAt(market)) throw error(409, "이 회차의 Trading Bot 운영 시간이 끝났습니다.");
     if (market.tradingBotsEnabled === enabled) return;
     market.tradingBotsEnabled = enabled;
     await market.save({ session });
-    if (!enabled) await cancelFundedBotOrders(marketId, session);
-    await ExchangeEvent.create([{ marketId, actorId, action: enabled ? "trading-bots-enable" : "trading-bots-disable",
+    if (!enabled) await cancelFundedBotOrders(marketId, session, now);
+    await ExchangeEvent.create([{ marketId, actorId, at: now, action: enabled ? "trading-bots-enable" : "trading-bots-disable",
       detail: { reason } }], { session });
   });
 }
 
-async function cancelOperatorOrders(market, session, filter = {}) {
+async function cancelOperatorOrders(market, session, at, filter = {}) {
   if (!market.marketMakerId) return;
   const working = await ExchangeOrder.find({
     marketId: market._id, userId: market.marketMakerId, status: "working", ...filter,
   }).session(session);
-  for (const order of working) await cancel(order, session);
+  for (const order of working) await cancel(order, session, at);
 }
 
 function operatorOpenUntil(market, snapshot, plan) {
@@ -533,19 +578,26 @@ function canFillOperatorOrder(market, order, snapshot, plan, now) {
   return snapshot ? !market.marketMakerUsedSnapshot?.equals(snapshot._id) : !plan.openingFilledAt && !plan.stoppingAt;
 }
 
-async function recordReference(market, now, session) {
+async function recordReference(market, now, session, replay = false) {
   if (market.type !== "weekly") return;
-  let reference = marketReference();
-  if (publicState(market, now) === "open") {
-    const snapshot = await latestPublishedMpi(market, now, session);
-    const book = await bookLevels(market._id, now, session, snapshot?._id ?? null, EXCHANGE_WALLET_ID, Boolean(activeLiquidityPlan(market, now)));
-    const bid = book.filter((row) => row._id.side === "buy").sort((a, b) => b._id.price - a._id.price)[0];
-    const ask = book.filter((row) => row._id.side === "sell").sort((a, b) => a._id.price - b._id.price)[0];
-    reference = marketReference(bid && { ...bid, price: bid._id.price }, ask && { ...ask, price: ask._id.price });
+  const open = publicState(market, now) === "open";
+  const snapshot = open ? await latestPublishedMpi(market, now, session) : null;
+  const book = open ? await bookLevels(market._id, now, session, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
+    Boolean(activeLiquidityPlan(market, now)), replay) : [];
+  const side = (name, sign) => book.filter((row) => row._id.side === name)
+    .map((row) => ({ ...row, price: row._id.price })).sort((a, b) => sign * (a.price - b.price));
+  const bids = side("buy", -1);
+  const asks = side("sell", 1);
+  const reference = marketReference(bids[0], asks[0]);
+  if (isHistoricalBootstrap(market)) {
+    const depth = (levels) => levels.slice(0, 10).map(({ price, quantity }) => ({ price, quantity }));
+    reference.bids = depth(bids);
+    reference.asks = depth(asks);
   }
-  const previous = await ExchangeReference.findOne({ marketId: market._id })
+  const previous = await ExchangeReference.findOne({ marketId: market._id, at: { $lte: now } })
     .sort({ at: -1, sequence: -1 }).session(session).lean();
-  if ((previous?.price ?? null) === reference.price && (previous?.source ?? null) === reference.source) return;
+  if ((previous?.price ?? null) === reference.price && (previous?.source ?? null) === reference.source
+    && isDeepStrictEqual(previous?.bids, reference.bids) && isDeepStrictEqual(previous?.asks, reference.asks)) return;
   await ExchangeReference.create([{ marketId: market._id, at: now, sequence: market.revision, ...reference }], { session });
 }
 
@@ -567,20 +619,26 @@ function operatorRiskAllows(positions, candidate) {
   });
 }
 
-async function maintainMarketMaker(marketId, clock = () => new Date()) {
-  return mongoose.connection.transaction(async (session) => {
-    const market = await lockMarket(marketId, session);
+async function maintainMarketMaker(marketId, clock = () => new Date(), {
+  session: existingSession, replay = false, quoteThrough, includeExisting = false,
+} = {}) {
+  if (quoteThrough != null && (!replay || !Number.isFinite(+quoteThrough))) {
+    throw new Error("Only historical Exchange events can extend the quote clock");
+  }
+  const automatedOnly = replay && !includeExisting;
+  return runInTransaction(existingSession, replay, async (session) => {
+    const market = await lockMarket(marketId, session, replay);
     const now = clock();
-    if (market.type !== "weekly" || !market.openedAt || await exchangeAutomationDisabled(session)) return;
+    if (market.type !== "weekly" || !market.openedAt || await exchangeAutomationDisabled(session, market)) return;
     const exam = await readWeeklyExam(market.examId, session);
     const enabled = market.marketMakerEnabled !== false && publicState(market, now) === "open"
-      && exam?.status === "open" && +exam.releaseAt === +market.opensAt && +exam.closeAt === +market.closeAt
+      && weeklyExamOpenAt(exam, now, replay) && +exam.releaseAt === +market.opensAt && +exam.closeAt === +market.closeAt
       && await weeklyExamReady(exam, session);
     const snapshot = enabled ? await latestPublishedMpi(market, now, session) : null;
     const plan = enabled && !snapshot ? activeLiquidityPlan(market, now) : null;
     if (!snapshot && !plan) {
-      await cancelOperatorOrders(market, session);
-      await recordReference(market, now, session);
+      await cancelOperatorOrders(market, session, now);
+      await recordReference(market, now, session, automatedOnly);
       return;
     }
 
@@ -588,10 +646,10 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
     const filter = { marketId: market._id, userId };
     const positions = await ExchangePosition.find(filter).sort({ _id: 1 }).session(session).lean();
     const working = await ExchangeOrder.find({ ...filter, status: "working" }).session(session);
-    if (working.some((order) => order.expiresAt <= now)) await recordReference(market, now, session);
-    const levels = await bookLevels(market._id, now, session, snapshot?._id ?? null, undefined, Boolean(plan));
+    if (working.some((order) => order.expiresAt <= now)) await recordReference(market, now, session, automatedOnly);
+    const levels = await bookLevels(market._id, now, session, snapshot?._id ?? null, undefined, Boolean(plan), automatedOnly);
     const manualOrders = await ExchangeOrder.find({ ...activeBookOrders(market._id, now),
-      $and: [{ $or: [{ userId: EXCHANGE_WALLET_ID }, { source: "BOT" }] }] })
+      $and: [automatedOnly ? { source: "BOT" } : { $or: [{ userId: EXCHANGE_WALLET_ID }, { source: "BOT" }] }] })
       .select("side price").session(session).lean();
     const net = positions.reduce((sum, row) => sum + (row.direction === "long" ? row.remaining : -row.remaining), 0);
     const center = (snapshot?.mpi ?? plan.referencePrice) - 4 * net;
@@ -616,7 +674,7 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
       const candidate = candidates.find((row) => row.side === order.side);
       if (order.expiresAt <= now || !candidate || order.action !== candidate.action || order.direction !== candidate.direction
         || order.price !== candidate.price || !canFillOperatorOrder(market, order, snapshot, plan, now)) {
-        await cancel(order, session);
+        await cancel(order, session, now);
       }
     }
     if (candidates.length && !market.marketMakerId) {
@@ -628,7 +686,10 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
     for (const candidate of candidates) {
       const at = clock();
       if (publicState(market, at) !== "open") break;
-      const expiresAt = new Date(Math.min(+at + MM_QUOTE_LIFETIME, +market.closeAt, plan ? +plan.endsAt : Infinity,
+      // Between scheduled replay events the existing quote receives the same
+      // renewals it would have received from the live maintenance loop.
+      const renewedThrough = Math.max(+at, +(quoteThrough ?? at));
+      const expiresAt = new Date(Math.min(renewedThrough + MM_QUOTE_LIFETIME, +market.closeAt, plan ? +plan.endsAt : Infinity,
         candidate.action === "open" ? operatorOpenUntil(market, snapshot, plan) : Infinity));
       if (expiresAt <= at) continue;
       const existing = working.find((order) => order.status === "working" && order.side === candidate.side);
@@ -648,8 +709,27 @@ async function maintainMarketMaker(marketId, clock = () => new Date()) {
       }
       await order.save({ session });
     }
-    await recordReference(market, clock(), session);
+    await recordReference(market, clock(), session, automatedOnly);
   });
+}
+
+async function reconcileHistoricalBook(marketId, clock, { session, replay } = {}) {
+  if (replay !== true || !session?.inTransaction()) {
+    throw new Error("Historical Exchange handoff requires an active replay transaction");
+  }
+  const market = await lockMarket(marketId, session, true);
+  const at = clock();
+  const existing = { ...activeBookOrders(marketId, at), $nor: automatedOrder.$or };
+  const bid = await ExchangeOrder.findOne({ ...existing, side: "buy" }).sort({ price: -1 }).select("price").session(session).lean();
+  const ask = await ExchangeOrder.findOne({ ...existing, side: "sell" }).sort({ price: 1 }).select("price").session(session).lean();
+  const conflicts = [{ expiresAt: { $lte: at } }];
+  if (bid) conflicts.push({ side: "sell", price: { $lte: bid.price } });
+  if (ask) conflicts.push({ side: "buy", price: { $gte: ask.price } });
+  const orders = await ExchangeOrder.find({
+    marketId, status: "working", $and: [automatedOrder, { $or: conflicts }],
+  }).session(session);
+  for (const order of orders) await cancel(order, session, at);
+  await maintainMarketMaker(market._id, clock, { session, replay: true, includeExisting: true });
 }
 
 async function scheduleMarketLiquidity(marketId, input, actorId, clock = () => new Date()) {
@@ -662,7 +742,7 @@ async function scheduleMarketLiquidity(marketId, input, actorId, clock = () => n
   return mongoose.connection.transaction(async (session) => {
     const market = await lockMarket(marketId, session);
     const now = clock();
-    if (await exchangeAutomationDisabled(session)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
+    if (await exchangeAutomationDisabled(session, market)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
     if (market.botParticipation && !isBootstrap(market)) throw error(409, "운영 봇 참여 회차는 시간별 운영 봇이 호가를 공급합니다.");
     if (market.type !== "weekly" || market.phase !== "scheduled" || startsAt < market.opensAt
       || endsAt > market.closeAt || endsAt <= now) {
@@ -672,11 +752,11 @@ async function scheduleMarketLiquidity(marketId, input, actorId, clock = () => n
       throw error(403, "관리자 계정으로 운영자 호가 일정을 설정할 수 있습니다.");
     }
     const openingFilledAt = market.liquidityPlan?.openingFilledAt;
-    await cancelOperatorOrders(market, session, { scheduledLiquidity: true });
+    await cancelOperatorOrders(market, session, now, { scheduledLiquidity: true });
     market.liquidityPlan = { startsAt, endsAt, referencePrice, openingFilledAt };
     await market.save({ session });
     await recordReference(market, now, session);
-    await ExchangeEvent.create([{ marketId, actorId, action: "liquidity-scheduled",
+    await ExchangeEvent.create([{ marketId, actorId, at: now, action: "liquidity-scheduled",
       detail: { startsAt, endsAt, referencePrice, reason } }], { session });
   });
 }
@@ -694,13 +774,13 @@ async function stopMarketLiquidity(marketId, actorId, clock = () => new Date()) 
     if (plan.stoppingAt) return;
     plan.stoppingAt = now;
     plan.endsAt = new Date(Math.min(+plan.endsAt, +market.closeAt, +now + LIQUIDITY_CLOSE_ONLY_MS));
-    await cancelOperatorOrders(market, session, {
+    await cancelOperatorOrders(market, session, now, {
       scheduledLiquidity: true, ...(plan.startsAt <= now ? { action: "open" } : {}),
     });
     if (plan.startsAt > now) plan.endsAt = now;
     await market.save({ session });
     await recordReference(market, now, session);
-    await ExchangeEvent.create([{ marketId, actorId, action: "liquidity-stop",
+    await ExchangeEvent.create([{ marketId, actorId, at: now, action: "liquidity-stop",
       detail: { endsAt: plan.endsAt } }], { session });
   });
 }
@@ -713,15 +793,15 @@ async function setMarketMakerEnabled(marketId, enabled, actorId, reason, now = n
     if (market.type !== "weekly" || market.phase !== "scheduled" || now >= market.closeAt) {
       throw error(409, "마감 전 주간 시장에서 운영자 호가를 설정할 수 있습니다.");
     }
-    if (enabled && await exchangeAutomationDisabled(session)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
+    if (enabled && await exchangeAutomationDisabled(session, market)) throw error(409, "Exchange 자동 거래가 중지되었습니다.");
     market.marketMakerEnabled = enabled;
     await market.save({ session });
     if (!enabled) {
-      await cancelOperatorOrders(market, session);
-      if (market.botParticipation && !isBootstrap(market)) await cancelFundedBotOrders(marketId, session);
+      await cancelOperatorOrders(market, session, now);
+      if (market.botParticipation && !isBootstrap(market)) await cancelFundedBotOrders(marketId, session, now);
     }
     await recordReference(market, now, session);
-    await ExchangeEvent.create([{ marketId, actorId, action: enabled ? "mm-enable" : "mm-disable", detail: { reason } }], { session });
+    await ExchangeEvent.create([{ marketId, actorId, at: now, action: enabled ? "mm-enable" : "mm-disable", detail: { reason } }], { session });
   });
 }
 
@@ -737,23 +817,23 @@ async function setPaused(marketId, paused, actorId, reason) {
     market.set({ paused, reason });
     await market.save({ session });
     if (paused) {
-      await cancelOperatorOrders(market, session);
-      if (market.botParticipation || isBootstrap(market)) await cancelFundedBotOrders(marketId, session);
+      await cancelOperatorOrders(market, session, now);
+      if (market.botParticipation || isBootstrap(market)) await cancelFundedBotOrders(marketId, session, now);
     }
     await recordReference(market, now, session);
-    await ExchangeEvent.create([{ marketId, actorId, action: paused ? "pause" : "resume", detail: { reason } }], { session });
+    await ExchangeEvent.create([{ marketId, actorId, at: now, action: paused ? "pause" : "resume", detail: { reason } }], { session });
   });
 }
 
-async function cancelOrder({ orderId, userId, actorId, clock = () => new Date() }) {
+async function cancelOrder({ orderId, userId, actorId, clock = () => new Date(), session: existingSession, replay = false }) {
   if (String(userId) === EXCHANGE_WALLET_ID && !actorId) throw error(403, "운영 월렛 주문에는 관리자 계정이 필요합니다.");
-  const found = await ExchangeOrder.findOne({ _id: orderId, userId }).select("marketId").lean();
-  if (!found) throw error(404, "주문을 찾을 수 없습니다.");
-  return mongoose.connection.transaction(async (session) => {
-    const market = await lockMarket(found.marketId, session);
+  return runInTransaction(existingSession, replay, async (session) => {
     const order = await ExchangeOrder.findOne({ _id: orderId, userId }).session(session);
-    await cancel(order, session, actorId);
-    await recordReference(market, clock(), session);
+    if (!order) throw error(404, "주문을 찾을 수 없습니다.");
+    const market = await lockMarket(order.marketId, session, replay);
+    const at = clock();
+    await cancel(order, session, at, actorId);
+    await recordReference(market, at, session, replay);
     return order;
   });
 }
@@ -765,16 +845,16 @@ async function expireOrders(marketId, now) {
     const market = await lockMarket(marketId, session);
     if (market.phase === "scheduled" && now < market.closeAt) return;
     const orders = await ExchangeOrder.find({ _id: { $in: working.map((row) => row._id) }, status: "working" }).session(session);
-    for (const order of orders) await cancel(order, session);
+    for (const order of orders) await cancel(order, session, now);
   });
 }
 
-async function recordDecision(market, decision, actorId, session) {
-  market.set({ ...decision, phase: "settling", paused: true });
-  await cancelOperatorOrders(market, session);
+async function recordDecision(market, decision, actorId, now, session) {
+  market.set({ ...decision, decisionAt: now, phase: "settling", paused: true });
+  await cancelOperatorOrders(market, session, now);
   await market.save({ session });
   await ExchangeEvent.create([{
-    marketId: market._id, actorId, action: decision.decision, detail: decision,
+    marketId: market._id, actorId, at: now, action: decision.decision, detail: decision,
   }], { session });
   return market;
 }
@@ -784,7 +864,7 @@ async function decide(marketId, decision, actorId, now = new Date()) {
     const market = await lockMarket(marketId, session);
     if (market.phase !== "scheduled") throw error(409, "정산 또는 취소 결정이 이미 등록되었습니다.");
     if (decision.decision === "normal" && now < market.closeAt) throw error(409, "거래 마감 뒤에만 정산할 수 있습니다.");
-    return recordDecision(market, decision, actorId, session);
+    return recordDecision(market, decision, actorId, now, session);
   });
 }
 
@@ -829,6 +909,7 @@ async function settleAccount(marketId, accountId, now) {
         payout += proceeds;
       }
       position.remaining = 0;
+      position.closedAt = now;
       await position.save({ session });
     }
     const credited = market.decision === "void" ? account.allocated : account.cash + payout;
@@ -849,7 +930,7 @@ async function decideWeeklyMarket(marketId, now) {
     if (market.phase !== "scheduled") return market;
     const exam = await readWeeklyExam(market.examId, session);
     if (!await weeklyExamReady(exam, session) || +exam.releaseAt !== +market.opensAt || +exam.closeAt !== +market.closeAt) {
-      return recordDecision(market, { decision: "void", reason: "정규 모의고사 또는 문제지가 취소되었습니다." }, null, session);
+      return recordDecision(market, { decision: "void", reason: "정규 모의고사 또는 문제지가 취소되었습니다." }, null, now, session);
     }
     if (now < market.closeAt || !exam.settlementCompletedAt || exam.settlementCompletedAt > now) return market;
     if ((await pendingAttempts(exam, now, session)).length) return market;
@@ -862,7 +943,7 @@ async function decideWeeklyMarket(marketId, now) {
       participantCount, botParticipantCount: bots.length,
       settlementSource: bots.length ? "주간 모의고사 채점 기록 및 공개 운영 봇 점수" : "맵쓰 주간 모의고사 채점 기록" }
       : { decision: "void", reason: "정산할 유효 응시가 없습니다." };
-    return recordDecision(market, decision, null, session);
+    return recordDecision(market, decision, null, now, session);
   });
 }
 
@@ -887,9 +968,10 @@ async function processMarket(market, now = new Date()) {
     if (current.phase !== "settling" || await ExchangeAccount.exists({ marketId: current._id, releasedAt: null }).session(session)) return;
     if (current.decision === "normal" && current.escrow !== 0) throw new Error("Exchange settlement escrow does not reconcile");
     current.phase = current.decision === "void" ? "void" : "settled";
+    current.settledAt = now;
     current.escrow = 0;
     await current.save({ session });
   });
 }
 
-module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, maintainFundedBotOrders, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity, setMarketMakerEnabled, setPaused };
+module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, reconcileHistoricalBook, maintainFundedBotOrders, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity, setMarketMakerEnabled, setPaused };

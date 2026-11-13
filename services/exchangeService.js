@@ -1,17 +1,18 @@
 const models = require("../models/exchangeModel");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const {
-  ExchangeMarket, ExchangeOrder, ExchangeTrade, ExchangeBotReplayTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent, ExchangeReference,
+  ExchangeMarket, ExchangeSetting, ExchangeOrder, ExchangeTrade, ExchangeBotReplayTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent, ExchangeReference,
 } = models;
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
   publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
-  applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots, exchangeAutomationDisabled,
+  exchangeAutomationDisabled,
 } = require("./exchangeMarketService");
 const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
-const { isBootstrap, traderStopAt } = require("./exchangeBootstrapService");
+const { isBootstrap, isHistoricalBootstrap, traderStopAt } = require("./exchangeBootstrapService");
+const { operatorOnlyExchange, runHistoricalBootstrap } = require("./exchangeHistoricalBootstrapService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
   verifying: "성적 검증 중", "awaiting-result": "성적 발표 대기", settling: "정산 중", settled: "정산 완료", void: "시장 취소" };
@@ -22,8 +23,11 @@ function marketView(market, now) {
   return {
     id: String(market._id), title: market.title, type: market.type, grade: market.grade, year: market.year,
     opensAt: market.opensAt, closeAt: market.closeAt, status, statusLabel: STAGES[status],
-    lastPrice: market.lastPrice ?? null, volume: market.volume, botParticipation: market.botParticipation === true || isBootstrap(market),
+    lastPrice: market.lastPrice ?? null,
+    volume: (market.volume ?? 0) + (isHistoricalBootstrap(market) ? market.botOnlyVolume ?? 0 : 0),
+    botParticipation: market.botParticipation === true || isBootstrap(market),
     bootstrap: isBootstrap(market), botOnlyVolume: market.botOnlyVolume ?? 0,
+    historicalBootstrap: isHistoricalBootstrap(market),
     replayRecordedAt: market.replayRecordedAt, replayVolume: market.replayVolume ?? 0, replayMpiCount: market.replayMpiCount ?? 0,
     settlement: status === "settled" ? market.settlement : null,
     botParticipantCount: status === "settled" ? market.botParticipantCount : undefined,
@@ -50,26 +54,28 @@ async function marketList(now) {
 
 function futuresChartInterval(requested, market, now = new Date()) {
   const hasReplay = market?.replayVolume > 0 && market.replayRecordedAt <= now;
-  return intervalFor(requested, hasReplay ? "1h" : "1m");
+  return intervalFor(requested, isHistoricalBootstrap(market) ? "2h" : hasReplay ? "1h" : "1m");
 }
 
-async function futuresChartHistory(marketId, interval, before, now = new Date()) {
+async function futuresChartHistory(marketId, interval, before, now = new Date(), market) {
   const { ms } = intervalFor(interval, "1m");
   const id = ExchangeMarket.schema.path("_id").cast(marketId);
   // History cursors are exclusive candle boundaries, including for off-boundary requests.
   const tradedAt = before ? { $lt: new Date(bucketStart(before, ms)), $lte: now } : { $lte: now };
   const live = { marketId: id };
+  market ??= await ExchangeMarket.findById(id).select("bootstrapPolicy.version historicalBootstrap.status").lean();
+  const historical = isHistoricalBootstrap(market);
   const replay = { ...live, reconstructedAt: { $lte: now } };
   const lastFill = (model, match) => model.findOne({ ...match, tradedAt }).select("tradedAt").sort({ tradedAt: -1 }).lean();
   const [lastLive, lastReplay] = await Promise.all([
-    lastFill(ExchangeTrade, live), lastFill(ExchangeBotReplayTrade, replay),
+    lastFill(ExchangeTrade, live), historical ? null : lastFill(ExchangeBotReplayTrade, replay),
   ]);
   if (!lastLive && !lastReplay) return [];
   const anchor = new Date(Math.max(+(lastLive?.tradedAt ?? 0), +(lastReplay?.tradedAt ?? 0)));
   const window = { ...tradedAt, $gte: new Date(candleWindow(anchor, ms)), $lte: anchor };
   const options = { dateField: "tradedAt", priceField: "price", ms, volume: true };
   const [liveCandles, replayCandles] = await Promise.all([
-    lastLive ? aggregateCandles(ExchangeTrade, { ...options, match: { ...live, tradedAt: window }, tradeSources: true }) : [],
+    lastLive ? aggregateCandles(ExchangeTrade, { ...options, match: { ...live, tradedAt: window }, tradeSources: !historical }) : [],
     lastReplay ? aggregateCandles(ExchangeBotReplayTrade, { ...options, match: { ...replay, tradedAt: window } }) : [],
   ]);
   const buckets = new Map(replayCandles.map((candle) => [candle._id, { ...candle, source: "REPLAY" }]));
@@ -126,13 +132,15 @@ async function terminalState({ marketId, userId, interval, marketType, now = new
   const list = await marketList(now);
   const choices = marketType ? list.filter((row) => row.type === marketType) : list;
   const market = marketId ? list.find((row) => String(row._id) === marketId) || await ExchangeMarket.findById(marketId).lean()
-    : choices.find((row) => publicState(row, now) === "open")
+    : choices.find((row) => isHistoricalBootstrap(row) && publicState(row, now) === "open")
+      || choices.find((row) => publicState(row, now) === "open")
       || choices.find((row) => ["scheduled", "waiting", "paused"].includes(publicState(row, now)));
   const chartInterval = futuresChartInterval(interval, market, now);
   const result = { serverNow: now, interval: chartInterval.code, markets: list.map((row) => marketView(row, now)), market: null };
   if (!market) return result;
 
   const view = marketView(market, now);
+  const historical = isHistoricalBootstrap(market);
   if (view.status === "open" && market.type === "weekly") {
     const exam = await readWeeklyExam(market.examId);
     if (exam?.status !== "open" || !await weeklyExamReady(exam) || +exam.closeAt !== +market.closeAt) {
@@ -148,7 +156,7 @@ async function terminalState({ marketId, userId, interval, marketType, now = new
       market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
     ExchangeTrade.find({ marketId: market._id, tradedAt: { $lte: now } }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
       .select("price quantity tradedAt liquidityProvider makerSource takerSource botOnly -_id").lean(),
-    futuresChartHistory(market._id, chartInterval.code, undefined, now),
+    futuresChartHistory(market._id, chartInterval.code, undefined, now, market),
     marketSamples(market, now, 120),
     ownMarketState(market, userId, now),
     market.type === "weekly" ? ExchangeReference.find({
@@ -166,8 +174,10 @@ async function terminalState({ marketId, userId, interval, marketType, now = new
   if (market.type === "weekly" && (reference.price !== null || references.at(-1)?.price != null)) {
     references.push({ at: chartEnd, ...reference });
   }
-  const publicLevels = (levels) => levels.map(({ price, quantity, botQuantity }) =>
-    botQuantity ? { price, quantity, botQuantity } : { price, quantity });
+  const publicLevels = (levels) => levels.map(({ price, quantity, botQuantity, operatorQuantity }) => {
+    if (historical) return { price, quantity, operatorQuantity: operatorQuantity - botQuantity };
+    return botQuantity ? { price, quantity, botQuantity } : { price, quantity };
+  });
   const publicTrades = trades.map(({ price, quantity, tradedAt, liquidityProvider, makerSource, takerSource, botOnly }) => {
     if (isBootstrap(market)) return { price, quantity, tradedAt, makerSource, takerSource, botOnly: Boolean(botOnly) };
     return liquidityProvider === "bot" ? { price, quantity, tradedAt, source: "bot" } : { price, quantity, tradedAt };
@@ -235,15 +245,14 @@ async function adminState(year, grade, now = new Date()) {
 async function runExchangeTick(now = new Date(), maintain = true, sample = true, clock = () => now) {
   if (maintain) await syncWeeklyMarkets(now);
   if (sample) {
-    const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now } }).select("+botSeed").lean();
+    const weekly = await ExchangeMarket.find({ type: "weekly", phase: "scheduled", opensAt: { $lte: now }, closeAt: { $gt: now }, "historicalBootstrap.status": { $ne: "replaying" } }).select("+botSeed").lean();
     for (const market of weekly) {
       try { await saveObservedMpi(market, now, clock); }
       catch (cause) { console.error("[exchange] MPI update failed", String(market._id), cause.message); }
     }
   }
   if (!maintain) return;
-  const automationDisabled = await exchangeAutomationDisabled();
-  const markets = await ExchangeMarket.find({ $or: [
+  const markets = await ExchangeMarket.find({ "historicalBootstrap.status": { $ne: "replaying" }, $or: [
     { phase: "settling" },
     { phase: "scheduled", bookClosedAt: null, closeAt: { $lte: now } },
     { phase: "scheduled", type: "weekly", opensAt: { $lte: now } },
@@ -254,7 +263,8 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
       console.error("[exchange] market maintenance failed", String(market._id), cause.message);
       continue;
     }
-    if (automationDisabled || market.type !== "weekly" || !market.openedAt || market.phase !== "scheduled" || now >= market.closeAt) continue;
+    if (market.type !== "weekly" || !market.openedAt || market.phase !== "scheduled" || now >= market.closeAt
+      || await exchangeAutomationDisabled(null, market)) continue;
     if (!market.botParticipation || isBootstrap(market)) {
       try { await maintainMarketMaker(market._id, clock); }
       catch (cause) { console.error("[exchange] MM maintenance failed", String(market._id), cause.message); }
@@ -271,19 +281,10 @@ async function startExchangeScheduler() {
   await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID },
     { $setOnInsert: { available: 0, collectedFees: 0 } }, { upsert: true, setDefaultsOnInsert: false });
   if (process.env.DISABLE_SCHEDULERS === "1") return;
-  if (process.env.NODE_ENV === "production") await applyNovember14MpiMinimum();
-  if (process.env.NODE_ENV === "production" && !await exchangeAutomationDisabled()) {
-    await activateNovember14ExamBots();
-    const startedAt = new Date();
-    try { await backfillNovember14ExamBots(startedAt, () => new Date()); }
-    catch (error) {
-      console.error("[exchange] Exam Bot history restoration failed", error.message);
-      throw error;
-    }
-  }
   let running = false;
   let lastMaintenance = 0;
   let lastSampleMinute;
+  let lastBootstrapCheck = 0;
   const run = async () => {
     if (running) return;
     running = true;
@@ -294,9 +295,19 @@ async function startExchangeScheduler() {
       const sample = minute !== lastSampleMinute;
       if (!maintain && !sample) return;
       await withSchedulerLease({ name: "exchange", leaseMs: 10_000 }, async () => {
-        await runExchangeTick(now, maintain, sample, () => new Date());
-        if (maintain) lastMaintenance = +now;
-        if (sample) lastSampleMinute = minute;
+        if (operatorOnlyExchange() && +now - lastBootstrapCheck >= 30_000) {
+          lastBootstrapCheck = +now;
+          try {
+            if (await ExchangeSetting.exists({ _id: "default", historicalBootstrapEnabled: true })) {
+              await runHistoricalBootstrap();
+            }
+          }
+          catch (cause) { console.error("[exchange] weekly bootstrap failed", cause.message); }
+        }
+        const liveNow = new Date();
+        await runExchangeTick(liveNow, maintain, sample, () => new Date());
+        if (maintain) lastMaintenance = +liveNow;
+        if (sample) lastSampleMinute = +sampleMinute(liveNow);
       });
     } catch (cause) {
       console.error("[exchange] scheduler failed", cause.message);
