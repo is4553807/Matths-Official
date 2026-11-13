@@ -1022,6 +1022,12 @@ router.get(
   authMiddleware.isAdmin,
   matthsController.adminUsersPage
 );
+router.post(
+  "/admin/users/operations-test",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPrepareOperationsTestAccounts
+);
 router.get(
   "/admin/users/sanctions",
   authMiddleware.isLoggedIn,

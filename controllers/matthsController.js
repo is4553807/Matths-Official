@@ -193,6 +193,7 @@ const {
   getAdminUserActivityData,
   getAdminUserDetail,
   getAdminUsersData,
+  ensureOperationsTestAccounts,
   markNotificationRead,
   replyToInquiry,
   sendDirectUserEmail,
@@ -3227,6 +3228,7 @@ exports.adminUpdateInquiryStatus =
 exports.adminUsersPage =
   async (req, res, next) => {
     try {
+      const showTests = req.query.tab === "test" || req.query.role === "test";
       res.set(
         "Cache-Control",
         "no-store"
@@ -3236,6 +3238,7 @@ exports.adminUsersPage =
         {
           user:
             req.session.user,
+          showTests,
           usersData:
             await getAdminUsersData({
               query:
@@ -3250,19 +3253,29 @@ exports.adminUsersPage =
                 req.query.role,
               page:
                 req.query.page,
-              sort:
-                req.query.sort,
+              testAccounts: showTests,
             }),
           feedback:
-            req.query.deleted === "1"
-              ? "계정과 연결된 모든 학습·시험·Arena·게시판 데이터를 삭제했습니다."
-              : null,
+            showTests && req.query.prepared === "1"
+              ? "Exchange 운영 테스트 계정 30개를 준비했습니다."
+              : req.query.deleted === "1"
+                ? "계정과 연결된 모든 학습·시험·Arena·게시판 데이터를 삭제했습니다."
+                : null,
         }
       );
     } catch (error) {
       return next(error);
     }
   };
+
+exports.adminPrepareOperationsTestAccounts = async (req, res, next) => {
+  try {
+    await ensureOperationsTestAccounts(req.session.user.id);
+    return res.redirect(303, "/admin/users?tab=test&prepared=1");
+  } catch (error) {
+    return next(error);
+  }
+};
 
 exports.adminUserSanctionsPage = async (req, res, next) => {
   try {

@@ -15,7 +15,7 @@ process.env.API_TOKEN_SECRET = crypto.randomBytes(48).toString("hex");
 process.env.PASSWORD_RESET_SECRET = crypto.randomBytes(48).toString("hex");
 require("../services/emailService").sendEmail = async () => ({ delivered: false });
 
-const { NicknameChangeRequest, PasswordResetCode, User, UserNotification } = require("../models/matthsModel");
+const { AdminActionLog, NicknameChangeRequest, PasswordResetCode, User, UserNotification } = require("../models/matthsModel");
 const { ParentAccount, ParentAlertDelivery, ParentChildLink, ParentNotification } = require("../models/parentModel");
 const { evaluateParentAlerts } = require("../services/parentAlertService");
 const { Academy, AcademyAccount, AcademyClass, AcademyClassWeek, AcademyStaff, AcademyStudentMembership, AcademyAttendance, AcademyAttendanceSession, AcademyAssignmentSubmission } = require("../models/academyModel");
@@ -93,6 +93,27 @@ async function main() {
       const page = await request(url, adminCookie);
       assert.doesNotMatch(page.text, /페이백|payback/i, `${url} must not expose retired payback operations`);
     }
+    const ordinaryUsers = await request("/admin/users", adminCookie);
+    assert.match(ordinaryUsers.text, /href="\/admin\/users\?tab=test"/);
+    assert.doesNotMatch(ordinaryUsers.text, /test@fixture\.invalid/);
+    const testList = await request("/admin/users?tab=test", adminCookie);
+    assert.match(testList.text, /test@fixture\.invalid/);
+    const preparePath = "/admin/users/operations-test";
+    const studentCookieForTestAccounts = await login("/student/login", student.email);
+    await request(preparePath, studentCookieForTestAccounts, { method: "POST" }, 403);
+    const { response: prepared } = await request(preparePath, adminCookie, { method: "POST" }, 303);
+    assert.equal(prepared.headers.get("location"), "/admin/users?tab=test&prepared=1");
+    const testPool = await User.find({ testBatchKey: "exchange-operations-test" }).lean();
+    assert.equal(testPool.length, 30);
+    assert.ok(testPool.every((user) => user.role === "test" && user.isTestAccount && user.isActive === false && user.accountStatus === "inactive"));
+    assert.equal(new Set(testPool.map((user) => user.email)).size, 30);
+    await request(preparePath, adminCookie, { method: "POST" }, 303);
+    assert.equal(await User.countDocuments({ testBatchKey: "exchange-operations-test" }), 30);
+    assert.equal(await AdminActionLog.countDocuments({ action: "user.operations-test.ensure" }), 1);
+    assert.doesNotMatch((await request("/admin/users?query=exchange-operations-test-", adminCookie)).text, /@matths\.invalid/);
+    const filteredTests = await request("/admin/users?tab=test&query=exchange-operations-test-", adminCookie);
+    assert.match(filteredTests.text, /exchange-operations-test-30@matths\.invalid/);
+    assert.match(filteredTests.text, /tab=test(?:&amp;|&)page=2/);
     const arenaPolicyPage = await request("/admin/arena-policies", adminCookie);
     assert.match(arenaPolicyPage.text, /과거 기록 풀/);
     assert.match(arenaPolicyPage.text, /배치 복구/);

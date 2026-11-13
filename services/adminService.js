@@ -15,6 +15,8 @@ const {
 } = require("../models/matthsModel");
 const { ArenaCompetitiveProfile } = require("../models/goatArenaModel");
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const { randomBytes } = require("node:crypto");
 const { Academy } = require("../models/academyModel");
 const {
   CheckoutIntent,
@@ -96,6 +98,11 @@ const {
 const accountEmailCopy =
   require("../content/email/account");
 
+const OPERATIONS_TEST_BATCH = "exchange-operations-test";
+const OPERATIONS_TEST_COUNT = 30;
+const OPERATIONS_TEST_FILTER = {
+  $or: [{ role: "test" }, { isTestAccount: true }, { testBatchKey: { $gt: "" } }],
+};
 const USERS_PER_PAGE = 20;
 const INQUIRIES_PER_PAGE = 20;
 const USER_ACTIVITY_PAGE_SIZE = 50;
@@ -934,7 +941,10 @@ async function getAdminUsersData({
   state,
   role,
   page,
+  testAccounts = false,
 }) {
+  const showTests = testAccounts || role === "test";
+  const accountScope = showTests ? OPERATIONS_TEST_FILTER : { $nor: OPERATIONS_TEST_FILTER.$or };
   const filter = {};
   const cleanQuery =
     cleanSingleLine(query, 100);
@@ -1034,7 +1044,7 @@ async function getAdminUsersData({
       "parent",
     ]);
 
-  const isParentRole = role === "parent";
+  const isParentRole = !showTests && role === "parent";
   const parentFilter = adminParentFilter({
     cleanQuery,
     state,
@@ -1082,17 +1092,14 @@ async function getAdminUsersData({
     };
   }
 
-  if (
-    allowedRoles.has(role)
-  ) {
-    filter.role = role;
-  }
+  if (!showTests && allowedRoles.has(role)) filter.role = role;
+  filter.$and = [...(filter.$and || []), accountScope];
 
   const hasEducationFilter = Boolean(
     schoolCode ||
       [10, 11, 12, 13, 14, 15].includes(gradeNumber)
   );
-  const normalizedRole = allowedRoles.has(role) ? role : "";
+  const normalizedRole = showTests ? "test" : allowedRoles.has(role) ? role : "";
   const includeParents = !normalizedRole && !hasEducationFilter;
   const currentPage = safePage(page);
   const [studentTotal, parentTotal, schools] = await Promise.all([
@@ -1103,6 +1110,7 @@ async function getAdminUsersData({
     User.aggregate([
       {
         $match: {
+          ...accountScope,
           "school.code": {
             $type: "string",
           },
@@ -1139,7 +1147,7 @@ async function getAdminUsersData({
   const mergeLimit = safeCurrentPage * USERS_PER_PAGE;
   const studentQuery = User.find(filter)
     .select(
-      "name realName email role accountPlan school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak longestStreak lastStudyDate lastLoginAt createdAt"
+      "name realName email role accountPlan school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak longestStreak lastStudyDate lastLoginAt createdAt testBatchKey"
     )
     .sort({ createdAt: -1, _id: -1 });
   if (includeParents) {
@@ -1235,6 +1243,52 @@ async function getAdminUsersData({
     totalPages,
     perPage: USERS_PER_PAGE,
   };
+}
+
+async function ensureOperationsTestAccounts(adminUserId) {
+  const actor = await getActiveAdminSender(adminUserId);
+  const accounts = Array.from({ length: OPERATIONS_TEST_COUNT }, (_, index) => {
+    const serial = String(index + 1).padStart(2, "0");
+    return { name: `Exchange 운영 테스트 ${serial}`, email: `exchange-operations-test-${serial}@matths.invalid` };
+  });
+  const emails = accounts.map(({ email }) => email);
+  await User.init();
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await mongoose.connection.transaction(async (session) => {
+        const existing = await User.find({ email: { $in: emails } })
+          .select("email role isTestAccount testBatchKey").session(session).lean();
+        if (existing.some((user) => user.role !== "test" || user.isTestAccount !== true
+          || user.testBatchKey !== OPERATIONS_TEST_BATCH)) {
+          throw statusError(409, "테스트용 주소와 겹치는 기존 계정이 있습니다.");
+        }
+        const existingEmails = new Set(existing.map(({ email }) => email));
+        const missing = accounts.filter(({ email }) => !existingEmails.has(email));
+        if (!missing.length) return { created: 0 };
+
+        const users = await Promise.all(missing.map(async (account) => ({
+          ...account,
+          passwordHash: await bcrypt.hash(randomBytes(32).toString("base64url"), 10),
+          role: "test",
+          isTestAccount: true,
+          testBatchKey: OPERATIONS_TEST_BATCH,
+          isActive: false,
+          accountStatus: "inactive",
+        })));
+        await User.insertMany(users, { session });
+        await AdminActionLog.create([{
+          adminUserId,
+          action: "user.operations-test.ensure",
+          detail: `Exchange 운영 테스트 계정 ${users.length}개 생성`,
+          metadata: { batch: OPERATIONS_TEST_BATCH, count: users.length, actorSnapshot: actor },
+        }], { session });
+        return { created: users.length };
+      });
+    } catch (error) {
+      if (error.code !== 11000 || attempt === 1) throw error;
+    }
+  }
 }
 
 async function getAdminSanctionHistory({ page } = {}) {
@@ -3065,6 +3119,7 @@ module.exports = {
   getAdminUserActivityData,
   getAdminUserDetail,
   getAdminUsersData,
+  ensureOperationsTestAccounts,
   markNotificationRead,
   replyToInquiry,
   sendDirectUserEmail,
