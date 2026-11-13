@@ -9,6 +9,7 @@
   <script src="/js/exchange-theme.js"></script>
   <link rel="stylesheet" href="/css/exchange.css" />
   <script src="/js/exchange-chart.js" defer></script>
+  <script src="/js/exchange-scenario.js" defer></script>
   <script src="/js/exchange.js" defer></script>
 </head>
 <body>
@@ -36,6 +37,7 @@
       <section class="panel chart-panel" aria-labelledby="chart-heading">
         <header class="panel-heading">
           <h2 id="chart-heading">선물 체결가 캔들</h2>
+          <a class="small-link" href="#exchange-scenario" data-scenario-link <%= scenario ? "" : "hidden" %>>시뮬레이션 체결 ↓</a>
         </header>
         <div class="chart-legend">
           <span class="legend-price">체결가</span>
@@ -99,6 +101,7 @@
           </div>
         </details>
       </section>
+    <%- include("partials/exchange-scenario", { kind: "futures", scenario, intervals: scenarioIntervals }) %>
       <section class="panel activity-panel" aria-label="거래 내역">
         <nav class="activity-tabs" aria-label="거래 내역 종류">
           <button type="button" data-activity="positions" aria-pressed="true">포지션</button>

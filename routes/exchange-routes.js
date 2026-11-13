@@ -3,9 +3,9 @@ const { isObjectIdOrHexString } = require("mongoose");
 const auth = require("../middleware/authMiddleware");
 const { exchangeLogout } = require("../controllers/matthsController");
 const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
-const { ExchangeWallet } = require("../models/exchangeModel");
+const { ExchangeMarket, ExchangeWallet } = require("../models/exchangeModel");
 const {
-  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets,
+  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, readWeeklyExam, weeklyExamReady,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
 const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
@@ -14,8 +14,10 @@ const { terminalState, futuresChartHistory, orderView, adminState, leaderboard }
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
 const { dashboardState } = require("../services/exchangeDashboardService");
 const { mpiState } = require("../services/exchangeMpiService");
+const { scenarioState } = require("../services/exchangeScenarioService");
 
 const router = express.Router();
+const SCENARIO_INTERVALS = ["1h", "15m", "4h", "1d", "1w"].map((code) => intervalFor(code));
 const FUTURES_QUICK_INTERVALS = ["1m", "1s", "5m", "15m", "1h"];
 const FUTURES_INTERVALS = [
   ...FUTURES_QUICK_INTERVALS.map((code) => intervalFor(code)),
@@ -85,9 +87,11 @@ function mpiSelection(req) {
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
+  const initial = await mpiState(mpiSelection(req));
   res.render("exchange-mpi", {
-    ...exchangeNavigation(req),
-    initial: await mpiState(mpiSelection(req)),
+    ...exchangeNavigation(req), initial,
+    scenario: initial.market && scenarioState(initial.market),
+    scenarioIntervals: SCENARIO_INTERVALS,
     intervals: OPTIONS,
     disablePageAnalytics: true,
   });
@@ -105,7 +109,9 @@ async function showFutures(req, res) {
   const wallet = userId && !actorId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
   res.render("exchange", { ...exchangeNavigation(req), initial, exchangeWalletMode: Boolean(actorId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
-    intervals: FUTURES_INTERVALS, chartInterval, disablePageAnalytics: true });
+    intervals: FUTURES_INTERVALS, chartInterval, disablePageAnalytics: true,
+    scenario: initial.market && scenarioState(initial.market, { chart: "futures" }),
+    scenarioIntervals: SCENARIO_INTERVALS });
 }
 
 router.get("/exchange", privateResponse, exchangeWallet, showFutures);
@@ -155,6 +161,15 @@ router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exch
   res.json(await terminalState({ userId: req.exchangeAccount.userId, marketId: selection ? id(selection) : undefined,
     marketType: req.path === "/api/exchange/markets/current" ? "weekly" : undefined,
     interval: typeof req.query.interval === "string" ? req.query.interval : undefined }));
+});
+router.get("/api/exchange/markets/:marketId/scenario", privateResponse, async (req, res) => {
+  const market = await ExchangeMarket.findById(id(req.params.marketId))
+    .select("type examId opensAt closeAt").lean();
+  if (!market || market.type !== "weekly" || !await weeklyExamReady(await readWeeklyExam(market.examId))) {
+    return res.json(null);
+  }
+  const { chart, interval, before } = req.query;
+  res.json(scenarioState(market, { chart, interval, before: historyBefore(before) }));
 });
 router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (req, res) => {
   const interval = intervalFor(req.query.interval, "1m").code;

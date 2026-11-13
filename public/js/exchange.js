@@ -188,6 +188,7 @@
 
   function render() {
     const market = selectedMarket();
+    window.MatthsExchangeScenario?.select(market);
     const isWeekly = market?.type === "weekly";
     const references = isWeekly && showMidPrice.checked ? state.references || [] : [];
     const hasChart = market && (state.candles?.length || references.some((row) => row.price !== null));

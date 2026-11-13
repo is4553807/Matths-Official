@@ -11,6 +11,7 @@ const { EXCHANGE_WALLET_ID } = require("../services/exchangeFees");
 const { dashboardState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState } = require("../services/exchangeMpiService");
+const { scenarioState } = require("../services/exchangeScenarioService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
 const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo, ExchangeOrder } = models;
@@ -82,7 +83,9 @@ async function testHttp() {
     assert.equal(mpiResponse.status, 200);
     const mpiHtml = await mpiResponse.text();
     assert.match(mpiHtml, /id="mpi-chart-heading">MPI 캔들/);
-    assert.equal((mpiHtml.match(/<canvas\b/g) || []).length, 1);
+    assert.match(mpiHtml, /id="mpi-chart" role="img" aria-label="MPI 캔들"/);
+    assert.match(mpiHtml, /가상 모의고사 성적으로 계산한 지수입니다/);
+    assert.match(mpiHtml, /id="exchange-scenario"[\s\S]*?hidden>/);
     assert.doesNotMatch(mpiHtml, /시연|더미|공식 표본|mpi-demo-panel/);
     assert.match(mpiHtml, /회차가 공개되면 집계가 시작됩니다/);
     assert.match(mpiHtml, /제출 반영 기준 · KST/);
@@ -90,6 +93,7 @@ async function testHttp() {
     assert.match(mpiHtml, /id="exchange-theme-toggle"/);
     assert.match(mpiHtml, /id="exchange-login" href="[^"]*\/login\?next=%2Fexchange%2Fmpi"/);
     assert.doesNotMatch(mpiHtml, /data-mpi-source/);
+    assert.match(html, /자동화 계정 간 모의 체결입니다/);
     assert.deepEqual(OPTIONS.slice(0, 5).map((item) => item.code), ["1s", "15m", "1h", "4h", "3d"]);
     for (const { code } of OPTIONS) {
       assert.ok(mpiHtml.includes(`data-interval="${code}"`));
@@ -530,6 +534,33 @@ async function main() {
     const expectedLast = { _id: +midweek + 120_000, open: 620, high: 620, low: 620, close: 620, volume: 4 };
     assert.deepEqual(tradeView.candles, [expectedFirst, expectedLast]);
     assert.deepEqual(await futuresChartHistory(candleMarket._id, "1m", candleNow, candleNow), [expectedFirst]);
+
+    const scenarioRound = { ...weekly.toObject(), opensAt: weekOpen, closeAt: weekClose };
+    const hour = 60 * 60 * 1000;
+    const simAt = (elapsed) => new Date(+weekOpen + elapsed);
+    const scenario = (elapsed, options = {}) => scenarioState(scenarioRound, { now: simAt(elapsed), ...options });
+    assert.equal(scenario(-1).latestMpi, null);
+    assert.equal(scenario(0).latestMpi, null);
+    const firstHour = scenario(hour - 1);
+    assert.equal(firstHour.latestMpi.populationCount, 1);
+    const firstSubmission = firstHour.latestMpi.at;
+    const atSubmission = scenario(firstSubmission - +weekOpen, { chart: "futures" });
+    assert.equal(atSubmission.latestTrade, null);
+    assert.equal(atSubmission.latestMpi.populationCount, 1);
+    const firstDay = scenario(24 * hour, { chart: "futures" });
+    assert.equal(firstDay.latestMpi.populationCount, 24);
+    assert.ok(firstDay.volume > 0);
+    const finalScenario = scenario(141 * hour, { chart: "futures" });
+    assert.equal(finalScenario.source, "simulation");
+    assert.equal(finalScenario.latestMpi.populationCount, 141);
+    assert.ok(finalScenario.latestTrade.at < +weekClose);
+    assert.ok(finalScenario.volume > firstDay.volume && finalScenario.volume <= 141);
+    assert.deepEqual(scenario(141 * hour + 1, { chart: "futures" }), finalScenario);
+    assert.deepEqual(scenario(24 * hour, { chart: "futures" }), firstDay);
+    assert.equal(scenarioState({ ...scenarioRound, type: "csat" }), null);
+    const earlier = scenario(141 * hour, { chart: "futures", before: finalScenario.candles.at(-1)._id });
+    assert.ok(earlier.candles.length);
+    assert.ok(earlier.candles.at(-1)._id < finalScenario.candles.at(-1)._id);
 
     const rolloutAt = new Date("2026-11-13T09:00:00Z");
     const rolloutRound = await ExchangeMarket.create({
