@@ -7,13 +7,18 @@
     timeZone: "Asia/Seoul", hourCycle: "h23", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
   });
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const sourceStyles = {
+    REPLAY: { color: "--sample", shape: "diamond" },
+    AUTOMATED: { color: "--chart-automated", shape: "square" },
+    MIXED: { color: "--chart-mixed", shape: "circle" },
+  };
 
   const left = 13;
   const rightGutter = 58;
   const maxHistory = 5000;
   const rightPad = (span) => Math.min(6, span * .11);
 
-  function create(canvas, { volume = false, averages = false, onInterval, onHistory }) {
+  function create(canvas, { volume = false, averages = false, sourceLabels = {}, onInterval, onHistory }) {
     const panel = canvas.closest(".panel");
     const toolbar = panel.querySelector("[data-chart-toolbar]");
     const summary = panel.querySelector("[data-candle-summary]");
@@ -96,9 +101,15 @@
     }
 
     function showSummary(row) {
-      summary.textContent = row
-        ? `${ms >= 3600000 ? calendar.format(new Date(row._id)) : clock.format(new Date(row._id))} · 시 ${number.format(row.open)}  고 ${number.format(row.high)}  저 ${number.format(row.low)}  종 ${number.format(row.close)}${volume ? `  거래량 ${number.format(row.volume)}` : ""}`
-        : "시가 · 고가 · 저가 · 종가";
+      if (!row) {
+        summary.textContent = "시가 · 고가 · 저가 · 종가";
+        return;
+      }
+      const timestamp = calendar.format(new Date(row._id));
+      const sourceLabel = sourceLabels[row.source];
+      const quantityLabel = row.source === "REPLAY" ? "복원 수량" : "거래량";
+      const quantity = volume && row.volume != null ? `  ${quantityLabel} ${number.format(row.volume)}` : "";
+      summary.textContent = `${timestamp}${sourceLabel ? ` · ${sourceLabel}` : ""} · 시 ${number.format(row.open)}  고 ${number.format(row.high)}  저 ${number.format(row.low)}  종 ${number.format(row.close)}${quantity}`;
     }
 
     function draw() {
@@ -157,18 +168,39 @@
       ctx.clip();
       for (const row of rows) {
         const at = x(row._id + ms / 2);
-        ctx.strokeStyle = row.close >= row.open ? color("--bid") : color("--ask");
+        const sourceStyle = Object.hasOwn(sourceLabels, row.source) ? sourceStyles[row.source] : null;
+        const replay = row.source === "REPLAY" && sourceStyle;
+        const bodyTop = Math.min(y(row.open), y(row.close));
+        const bodyHeight = Math.max(1.5, Math.abs(y(row.open) - y(row.close)));
+        ctx.strokeStyle = replay ? color(sourceStyle.color) : row.close >= row.open ? color("--bid") : color("--ask");
         ctx.fillStyle = ctx.strokeStyle;
         ctx.beginPath();
         ctx.moveTo(at, y(row.high));
         ctx.lineTo(at, y(row.low));
         ctx.stroke();
-        ctx.fillRect(at - bodyWidth / 2, Math.min(y(row.open), y(row.close)), bodyWidth, Math.max(1.5, Math.abs(y(row.open) - y(row.close))));
+        if (replay) ctx.strokeRect(at - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
+        else ctx.fillRect(at - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
         if (volume) {
           const h = (row.volume || 0) / maxVolume * 25;
           ctx.globalAlpha = .32;
           ctx.fillRect(at - bodyWidth / 2, bottom + 29 - h, bodyWidth, h);
           ctx.globalAlpha = 1;
+        }
+        if (sourceStyle && spacing >= 4) {
+          const markY = Math.max(top + 4, y(row.high) - 6);
+          const markSize = Math.min(3, spacing * .35);
+          ctx.fillStyle = color(sourceStyle.color);
+          ctx.beginPath();
+          if (sourceStyle.shape === "diamond") {
+            ctx.moveTo(at, markY - markSize);
+            ctx.lineTo(at + markSize, markY);
+            ctx.lineTo(at, markY + markSize);
+            ctx.lineTo(at - markSize, markY);
+            ctx.closePath();
+          } else if (sourceStyle.shape === "square") {
+            ctx.rect(at - markSize, markY - markSize, 2 * markSize, 2 * markSize);
+          } else ctx.arc(at, markY, markSize, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
       ctx.strokeStyle = color("--accent");
@@ -228,7 +260,8 @@
         ctx.fillStyle = color("--chart-label-text");
         ctx.fillText(number.format(price), right + 6, hover.y + 4);
       }
-      if (volume && hoverInPlot && !hovered) summary.textContent = "이 구간에는 체결이 없습니다.";
+      if (volume && hoverInPlot && !hovered) summary.textContent = sourceLabels.REPLAY
+        ? "이 구간에는 가격 기록이 없습니다." : "이 구간에는 체결이 없습니다.";
       else showSummary(hovered || rows.at(-1) || candles.at(-1));
       const hasData = candles.length || references.some((row) => row.price !== null);
       zoomIn.disabled = !hasData || visible <= 3;

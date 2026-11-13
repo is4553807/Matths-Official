@@ -19,23 +19,14 @@ function candleWindow(time, ms) {
   return bucketStart(time, ms) - (MAX_CANDLES - 1) * ms;
 }
 
-// A sampled index holds its last value until the next calculation.
-function indexCandles(rows, ms, { prior, carryFrom } = {}) {
-  if (!rows.length || (ms !== 1000 && !carryFrom)) return rows;
-  const cutoff = candleWindow(rows.at(-1)._id, ms);
-  return rows.map((row, index) => {
-    const previous = index ? rows[index - 1] : prior;
-    const consecutiveSeconds = ms === 1000 && previous?._id + ms === row._id;
-    const minuteSample = carryFrom && row._id >= +carryFrom;
-    if (!previous || (!consecutiveSeconds && !minuteSample)) return row;
-    const open = previous.close;
-    return { ...row, open, high: Math.max(open, row.high), low: Math.min(open, row.low) };
-  }).filter((row) => row._id >= cutoff);
-}
-
-async function aggregateCandles(model, { match, dateField, priceField, ms, volume = false }) {
+async function aggregateCandles(model, { match, dateField, priceField, ms, volume = false, tradeSources = false }) {
   const price = `$${priceField}`;
   const shifted = { $add: [{ $toLong: `$${dateField}` }, KST] };
+  const makerAutomated = { $in: ["$makerSource", ["BOT", "MM"]] };
+  const takerAutomated = { $in: ["$takerSource", ["BOT", "MM"]] };
+  const botOnly = { $eq: ["$botOnly", true] };
+  const hasAutomated = { $or: [botOnly, makerAutomated, takerAutomated] };
+  const hasHuman = { $and: [{ $not: [botOnly] }, { $not: [{ $and: [makerAutomated, takerAutomated] }] }] };
   return model.aggregate([
     { $match: match },
     { $sort: { [dateField]: 1, ...(volume ? { sequence: 1, _id: 1 } : {}) } },
@@ -43,9 +34,13 @@ async function aggregateCandles(model, { match, dateField, priceField, ms, volum
       _id: { $subtract: [{ $subtract: [shifted, { $mod: [shifted, ms] }] }, KST] },
       open: { $first: price }, high: { $max: price }, low: { $min: price }, close: { $last: price },
       ...(volume ? { volume: { $sum: "$quantity" } } : {}),
+      ...(tradeSources ? {
+        hasAutomated: { $max: { $cond: [hasAutomated, 1, 0] } },
+        hasHuman: { $max: { $cond: [hasHuman, 1, 0] } },
+      } : {}),
     } },
     { $sort: { _id: 1 } },
   ]);
 }
 
-module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, bucketStart, candleWindow, indexCandles, aggregateCandles };
+module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, bucketStart, candleWindow, aggregateCandles };

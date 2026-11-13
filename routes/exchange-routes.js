@@ -3,13 +3,13 @@ const { isObjectIdOrHexString } = require("mongoose");
 const auth = require("../middleware/authMiddleware");
 const { exchangeLogout } = require("../controllers/matthsController");
 const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
-const { ExchangeWallet } = require("../models/exchangeModel");
+const { ExchangeMarket, ExchangeWallet } = require("../models/exchangeModel");
 const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
 const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
-const { terminalState, futuresChartHistory, replayChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
+const { terminalState, futuresChartInterval, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
 const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
@@ -81,7 +81,7 @@ function historyBefore(value) {
 
 function mpiSelection(req) {
   return { marketId: req.query.market ? id(req.query.market) : undefined,
-    interval: req.query.interval, before: historyBefore(req.query.before), series: req.query.series };
+    interval: req.query.interval, before: historyBefore(req.query.before) };
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
@@ -100,12 +100,11 @@ router.get("/api/exchange/mpi", privateResponse, async (req, res) => {
 async function showFutures(req, res) {
   const { userId, actorId } = req.exchangeAccount;
   const selection = req.params.marketId || req.query.market;
-  const chartInterval = intervalFor(req.query.interval, "1m").code;
-  const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: chartInterval });
+  const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: req.query.interval });
   const wallet = userId && !actorId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
   res.render("exchange", { ...exchangeNavigation(req), initial, exchangeWalletMode: Boolean(actorId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
-    intervals: FUTURES_INTERVALS, chartInterval, disablePageAnalytics: true });
+    intervals: FUTURES_INTERVALS, chartInterval: initial.interval, disablePageAnalytics: true });
 }
 
 router.get("/exchange", privateResponse, exchangeWallet, showFutures);
@@ -165,11 +164,13 @@ router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exch
     interval: typeof req.query.interval === "string" ? req.query.interval : undefined }));
 });
 router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (req, res) => {
-  const interval = intervalFor(req.query.interval, "1m").code;
   const marketId = id(req.params.marketId);
   const before = historyBefore(req.query.before);
-  const candles = req.query.series === "replay" ? await replayChartHistory(marketId, interval, before)
-    : await futuresChartHistory(marketId, interval, before, new Date(), req.query.series === "bots");
+  const now = new Date();
+  const market = !OPTIONS.some(({ code }) => code === req.query.interval)
+    ? await ExchangeMarket.findById(marketId).select("replayRecordedAt replayVolume").lean() : null;
+  const interval = futuresChartInterval(req.query.interval, market, now).code;
+  const candles = await futuresChartHistory(marketId, interval, before, now);
   res.json({ interval, candles });
 });
 router.get("/api/exchange/rankings", privateResponse, async (_req, res) => res.json(await leaderboard()));

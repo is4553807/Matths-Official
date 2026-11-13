@@ -48,36 +48,37 @@ async function marketList(now) {
   return [...ready, ...history];
 }
 
-async function chart(marketId, interval, now, botOnly = false) {
-  const { ms } = intervalFor(interval, "1m");
-  return aggregateCandles(ExchangeTrade, {
-    match: { marketId, botOnly: botOnly ? true : { $ne: true }, tradedAt: { $gte: new Date(candleWindow(now, ms)), $lte: now } },
-    dateField: "tradedAt", priceField: "price", ms, volume: true,
-  });
+function futuresChartInterval(requested, market, now = new Date()) {
+  const hasReplay = market?.replayVolume > 0 && market.replayRecordedAt <= now;
+  return intervalFor(requested, hasReplay ? "1h" : "1m");
 }
 
-async function futuresChartHistory(marketId, interval, before, now = new Date(), botOnly = false) {
-  const { ms } = intervalFor(interval, "1m");
-  // History cursors are exclusive candle boundaries, including for off-boundary requests.
-  const tradedAt = before ? { $lt: new Date(bucketStart(before, ms)), $lte: now } : { $lte: now };
-  const latest = await ExchangeTrade.findOne({
-    marketId, tradedAt, botOnly: botOnly ? true : { $ne: true },
-  }).select("marketId tradedAt").sort({ tradedAt: -1 }).lean();
-  return latest ? chart(latest.marketId, interval, latest.tradedAt, botOnly) : [];
-}
-
-async function replayChartHistory(marketId, interval, before, now = new Date()) {
+async function futuresChartHistory(marketId, interval, before, now = new Date()) {
   const { ms } = intervalFor(interval, "1m");
   const id = ExchangeMarket.schema.path("_id").cast(marketId);
+  // History cursors are exclusive candle boundaries, including for off-boundary requests.
   const tradedAt = before ? { $lt: new Date(bucketStart(before, ms)), $lte: now } : { $lte: now };
-  const latest = await ExchangeBotReplayTrade.findOne({ marketId: id, tradedAt, reconstructedAt: { $lte: now } })
-    .select("tradedAt").sort({ tradedAt: -1 }).lean();
-  if (!latest) return [];
-  return aggregateCandles(ExchangeBotReplayTrade, {
-    match: { marketId: id, reconstructedAt: { $lte: now },
-      tradedAt: { $gte: new Date(candleWindow(latest.tradedAt, ms)), $lte: latest.tradedAt } },
-    dateField: "tradedAt", priceField: "price", ms, volume: true,
-  });
+  const live = { marketId: id };
+  const replay = { ...live, reconstructedAt: { $lte: now } };
+  const lastFill = (model, match) => model.findOne({ ...match, tradedAt }).select("tradedAt").sort({ tradedAt: -1 }).lean();
+  const [lastLive, lastReplay] = await Promise.all([
+    lastFill(ExchangeTrade, live), lastFill(ExchangeBotReplayTrade, replay),
+  ]);
+  if (!lastLive && !lastReplay) return [];
+  const anchor = new Date(Math.max(+(lastLive?.tradedAt ?? 0), +(lastReplay?.tradedAt ?? 0)));
+  const window = { ...tradedAt, $gte: new Date(candleWindow(anchor, ms)), $lte: anchor };
+  const options = { dateField: "tradedAt", priceField: "price", ms, volume: true };
+  const [liveCandles, replayCandles] = await Promise.all([
+    lastLive ? aggregateCandles(ExchangeTrade, { ...options, match: { ...live, tradedAt: window }, tradeSources: true }) : [],
+    lastReplay ? aggregateCandles(ExchangeBotReplayTrade, { ...options, match: { ...replay, tradedAt: window } }) : [],
+  ]);
+  const buckets = new Map(replayCandles.map((candle) => [candle._id, { ...candle, source: "REPLAY" }]));
+  // A live bucket replaces its reconstructed counterpart, preserving the live OHLC and volume.
+  for (const { hasHuman, hasAutomated, ...candle } of liveCandles) {
+    if (hasAutomated) candle.source = hasHuman ? "MIXED" : "AUTOMATED";
+    buckets.set(candle._id, candle);
+  }
+  return [...buckets.values()].sort((a, b) => a._id - b._id);
 }
 
 function orderView(row) {
@@ -121,13 +122,14 @@ async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
     .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable").lean();
 }
 
-async function terminalState({ marketId, userId, interval = "1m", marketType, now = new Date() } = {}) {
+async function terminalState({ marketId, userId, interval, marketType, now = new Date() } = {}) {
   const list = await marketList(now);
   const choices = marketType ? list.filter((row) => row.type === marketType) : list;
   const market = marketId ? list.find((row) => String(row._id) === marketId) || await ExchangeMarket.findById(marketId).lean()
     : choices.find((row) => publicState(row, now) === "open")
       || choices.find((row) => ["scheduled", "waiting", "paused"].includes(publicState(row, now)));
-  const result = { serverNow: now, markets: list.map((row) => marketView(row, now)), market: null };
+  const chartInterval = futuresChartInterval(interval, market, now);
+  const result = { serverNow: now, interval: chartInterval.code, markets: list.map((row) => marketView(row, now)), market: null };
   if (!market) return result;
 
   const view = marketView(market, now);
@@ -140,20 +142,18 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
   }
   const snapshot = market.type === "weekly" ? await latestPublishedMpi(market, now) : undefined;
   const chartEnd = new Date(Math.min(+now, +market.closeAt));
-  const { ms } = intervalFor(interval, "1m");
-  const [book, trades, candles, ticks, own, references, botCandles, replayCandles] = await Promise.all([
+  const { ms } = chartInterval;
+  const [book, trades, candles, ticks, own, references] = await Promise.all([
     view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
       market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
-    ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
+    ExchangeTrade.find({ marketId: market._id, tradedAt: { $lte: now } }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
       .select("price quantity tradedAt liquidityProvider makerSource takerSource botOnly -_id").lean(),
-    chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
+    futuresChartHistory(market._id, chartInterval.code, undefined, now),
     marketSamples(market, now, 120),
     ownMarketState(market, userId, now),
     market.type === "weekly" ? ExchangeReference.find({
       marketId: market._id, at: { $gte: new Date(candleWindow(chartEnd, ms)), $lte: chartEnd },
     }).sort({ at: -1, sequence: -1 }).limit(400).select("at price -_id").lean() : [],
-    market.botOnlyVolume ? futuresChartHistory(market._id, interval, undefined, chartEnd, true) : [],
-    market.replayVolume ? replayChartHistory(market._id, interval, undefined, now) : [],
   ]);
   references.reverse();
   const side = (key, sign) => book.filter((row) => row._id.side === key)
@@ -173,7 +173,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
     return liquidityProvider === "bot" ? { price, quantity, tradedAt, source: "bot" } : { price, quantity, tradedAt };
   });
   return { ...result, market: view, bids: publicLevels(bids), asks: publicLevels(asks), reference, references,
-    trades: publicTrades, candles, botCandles, replayCandles,
+    trades: publicTrades, candles,
     ticks: ticks.reverse(), own: { ...own, eligible: own.eligible && view.status === "open" } };
 }
 
@@ -308,4 +308,4 @@ async function startExchangeScheduler() {
   void run();
 }
 
-module.exports = { marketList, marketView, terminalState, futuresChartHistory, replayChartHistory, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };
+module.exports = { marketList, marketView, terminalState, futuresChartInterval, futuresChartHistory, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };

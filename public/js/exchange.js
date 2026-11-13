@@ -8,9 +8,6 @@
   const wallet = root.dataset.wallet;
   const loginLink = get("exchange-login");
   const showMidPrice = get("show-mid-price");
-  const tradeSeries = get("trade-series");
-  const liveBotOption = tradeSeries.querySelector('[value="bots"]');
-  const replayOption = tradeSeries.querySelector('[value="replay"]');
   const walletQuery = wallet ? "?wallet=exchange" : "";
   const price = get("order-price");
   const quantity = get("order-quantity");
@@ -30,20 +27,15 @@
   let marketId = state.market?.id;
   const chart = window.MatthsExchangeChart.create(canvas, {
     volume: true, averages: true, onInterval: () => { void refresh(); },
+    sourceLabels: { REPLAY: "복원 봇 거래", AUTOMATED: "자동화 계정 간 체결", MIXED: "학생·자동화 혼합 봉" },
     async onHistory({ before, interval, seriesKey }) {
       if (!seriesKey) return null;
-      const [market, series] = seriesKey.split(":");
-      const query = new URLSearchParams({ before: String(before), interval, series: series ?? "humans" });
-      const data = await fetchJson(`/api/exchange/markets/${market}/candles?${query}`);
+      const query = new URLSearchParams({ before: String(before), interval });
+      const data = await fetchJson(`/api/exchange/markets/${seriesKey}/candles?${query}`);
       return data.candles;
     },
   });
   let action = "open";
-  let chosenTradeSeries = null;
-  tradeSeries.addEventListener("change", () => {
-    chosenTradeSeries = tradeSeries.value;
-    render();
-  });
   let activity = root.dataset.activityStart;
   let ranking = [];
   let offset = Date.parse(state.serverNow) - Date.now();
@@ -213,24 +205,15 @@
       : market?.botParticipation
       ? "거래소의 운영 봇이 거래 상대방이 될 수 있습니다. 이 회차의 공식 MPI와 만기 정산에는 학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다."
       : "거래소의 자동화 계정이 거래 상대방이 될 수 있습니다. 공식 MPI와 만기 정산 지수는 실제 유효 응시 성적으로 계산합니다.");
-    const hasReplay = market?.replayVolume > 0;
-    get("trade-series-wrap").hidden = !market?.bootstrap && !hasReplay;
-    liveBotOption.hidden = liveBotOption.disabled = !market?.bootstrap;
-    replayOption.hidden = replayOption.disabled = !hasReplay;
-    const defaultSeries = market?.bootstrap && !market.volume && market.botOnlyVolume && !hasReplay ? "bots" : "humans";
-    const selectedOption = [...tradeSeries.options].find((option) => option.value === chosenTradeSeries && !option.disabled);
-    const series = selectedOption?.value || defaultSeries;
-    tradeSeries.value = series;
-    const replay = series === "replay";
-    const botsOnly = series === "bots";
-    const candles = (replay ? state.replayCandles : botsOnly ? state.botCandles : state.candles) || [];
-    const showLiveReference = isWeekly && series === "humans";
-    const references = showLiveReference && showMidPrice.checked ? state.references || [] : [];
+    const candles = market ? state.candles || [] : [];
+    const hasReplay = market?.replayVolume > 0 || candles.some((row) => row.source === "REPLAY");
+    const references = isWeekly && showMidPrice.checked ? state.references || [] : [];
     const hasChart = market && (candles.length || references.some((row) => row.price !== null));
-    get("mid-legend").hidden = !showLiveReference;
-    get("chart-replay-note").hidden = !replay;
-    text("chart-price-legend", replay ? "재생 가격" : "체결가");
-    canvas.setAttribute("aria-label", replay ? "과거 봇 거래 재생 캔들" : "선물 체결가 캔들, 거래량 및 호가 중간값");
+    get("mid-legend").hidden = !isWeekly;
+    get("futures-replay-key").hidden = get("chart-replay-note").hidden = !hasReplay;
+    get("futures-automated-key").hidden = !market?.bootstrap;
+    get("futures-mixed-key").hidden = !market?.bootstrap;
+    text("chart-heading", hasReplay ? "선물 가격 캔들" : "선물 체결가 캔들");
     selectOptions();
     for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", button.dataset.filter === filter);
     text("market-title", market?.title || labels[filter]);
@@ -251,13 +234,12 @@
       resultLink.title = market.settlementSource || "성적 출처";
     }
     text("market-close", when(market?.closeAt));
-    const latestTrade = market && !replay ? state.trades?.find((row) => Boolean(row.botOnly) === botsOnly) : null;
-    text("quote-time", replay ? `재생 수량 ${number(market.replayVolume)}계약${market.replayRecordedAt ? ` · ${when(market.replayRecordedAt)} KST 생성` : ""}`
-      : latestTrade ? `${botsOnly ? "자동화 계정 간 체결" : "최근 체결"} ${time.format(new Date(latestTrade.tradedAt))} KST` : "체결 없음");
+    const latestTrade = market ? state.trades?.[0] : null;
+    text("quote-time", latestTrade ? `${latestTrade.botOnly ? "최근 자동화 계정 간 체결" : "최근 체결"} ${time.format(new Date(latestTrade.tradedAt))} KST` : "체결 없음");
     get("chart-empty").hidden = Boolean(hasChart);
-    text("chart-empty-title", replay ? "이 구간의 재생 기록이 없습니다" : market ? (market.status === "open" ? "체결을 기다리는 중" : market.statusLabel)
+    text("chart-empty-title", market ? (market.status === "open" ? "체결을 기다리는 중" : market.statusLabel)
       : filter === "weekly" ? "이번 주 시장이 아직 열리지 않았습니다" : "등록된 시장이 없습니다");
-    text("chart-empty-copy", replay ? "다른 봉 간격을 선택해 보세요." : market ? (market.status === "scheduled" ? `${when(market.opensAt)} KST 개장`
+    text("chart-empty-copy", market ? (market.status === "scheduled" ? `${when(market.opensAt)} KST 개장`
       : market.status === "open" ? "첫 체결이 발생하면 캔들이 표시됩니다." : "현재 표시할 체결 데이터가 없습니다.")
       : filter === "weekly" ? "정규 주간 모의고사가 공개되면 시장이 자동으로 열립니다." : "시험 일정이 등록되면 개장 시간을 표시합니다.");
     const exam = get("exam-link");
@@ -272,7 +254,7 @@
     countdown();
     updateOrder();
     calculate();
-    chart.update(market ? candles : [], market ? `${market.id}:${series}` : "", references);
+    chart.update(candles, market?.id || "", references);
   }
 
   async function fetchJson(url, body) {
@@ -318,7 +300,6 @@
 
   for (const button of document.querySelectorAll("[data-filter]")) button.addEventListener("click", () => {
     filter = button.dataset.filter;
-    chosenTradeSeries = null;
     chart.reset();
     marketId = state.markets.find((row) => row.type === filter && row.status === "open")?.id
       || state.markets.find((row) => row.type === filter)?.id;
@@ -326,7 +307,7 @@
     render();
     void refresh();
   });
-  select.addEventListener("change", () => { marketId = select.value; chosenTradeSeries = null; chart.reset(); noticeUntil = 0; void refresh(); });
+  select.addEventListener("change", () => { marketId = select.value; chart.reset(); noticeUntil = 0; void refresh(); });
   for (const button of form.querySelectorAll("[data-action]")) button.addEventListener("click", () => {
     action = button.dataset.action;
     for (const item of form.querySelectorAll("[data-action]")) item.setAttribute("aria-pressed", item === button);

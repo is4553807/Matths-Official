@@ -87,7 +87,7 @@ async function testHttp() {
     assert.match(mpiHtml, /id="mpi-chart" role="img" aria-label="MPI 캔들"/);
     assert.doesNotMatch(mpiHtml, /시연|더미|공식 표본|mpi-demo-panel/);
     assert.match(mpiHtml, /회차가 공개되면 집계가 시작됩니다/);
-    assert.match(mpiHtml, /제출 반영 기준 · KST/);
+    assert.match(mpiHtml, /(?:데이터 반영 기준|공개 가능 기준) · KST/);
     assert.match(mpiHtml, /data-interval="1m"[^>]+aria-pressed="true"/);
     assert.match(mpiHtml, /id="exchange-theme-toggle"/);
     assert.match(mpiHtml, /id="exchange-login" href="[^"]*\/login\?next=%2Fexchange%2Fmpi"/);
@@ -332,7 +332,13 @@ async function main() {
     assert.equal(+published.latest.publishAt - +published.latest.dataCutoffAt, 30 * 60_000);
     assert.equal(published.latest.contributions, undefined);
     assert.equal(published.candles.at(-1).close, 700);
-    assert.equal((await mpiState({ marketId: weekly._id, now: publicAt, before: publicAt })).candles.length, 0);
+    assert.equal(published.candles.at(-1)._id, +collectedAt, "MPI chart uses the observation time, not its public release time");
+    assert.equal(+published.dataThroughAt, +collectedAt);
+    const eightMinutesLater = new Date(+publicAt + 8 * 60_000);
+    const held = await mpiState({ marketId: weekly._id, now: eightMinutesLater });
+    assert.equal(held.latest.mpi, 700);
+    assert.equal(+held.dataThroughAt, +collectedAt + 8 * 60_000);
+    assert.equal((await mpiState({ marketId: weekly._id, now: publicAt, before: collectedAt })).candles.length, 0);
 
     const sell = await order(weekly, seller, "short", 640, 2, midweek);
     const commandId = randomUUID();
@@ -546,6 +552,40 @@ async function main() {
     assert.deepEqual(tradeView.candles, [expectedFirst, expectedLast]);
     assert.deepEqual(await futuresChartHistory(candleMarket._id, "1m", candleNow, candleNow), [expectedFirst]);
 
+    const unifiedMarket = await ExchangeMarket.create({
+      key: "unified-ohlcv-audit", type: "mock", title: "Unified OHLCV audit", opensAt: weekOpen, closeAt: weekClose,
+      replayVolume: 3, replayRecordedAt: midweek, volume: 7, botOnlyVolume: 2,
+    });
+    const fillAt = (offset) => new Date(+midweek + offset);
+    await models.ExchangeBotReplayTrade.insertMany([
+      { offset: -60_000, price: 490 }, { offset: 0, price: 900 }, { offset: 120_000, price: 999 },
+    ].map(({ offset, price }, index) => ({
+      marketId: unifiedMarket._id, replayId: `replay-${index}`, source: "BOT_REPLAY", tradedAt: fillAt(offset),
+      reconstructedAt: index === 2 ? fillAt(150_000) : midweek, price, quantity: 1,
+    })));
+    await ExchangeTrade.insertMany([
+      { offset: 0, price: 600, quantity: 2, makerSource: "HUMAN", takerSource: "HUMAN" },
+      { offset: 1000, price: 610, quantity: 3, makerSource: "BOT", takerSource: "HUMAN" },
+      { offset: 60_000, price: 620, quantity: 2, botOnly: true, makerSource: "BOT", takerSource: "MM" },
+      { offset: 150_000, price: 999, quantity: 1, makerSource: "HUMAN", takerSource: "HUMAN" },
+    ].map(({ offset, ...trade }, sequence) => ({
+      ...trade, sequence, marketId: unifiedMarket._id, tradedAt: fillAt(offset),
+    })));
+    const unifiedExpected = [
+      { _id: +fillAt(-60_000), open: 490, high: 490, low: 490, close: 490, volume: 1, source: "REPLAY" },
+      { _id: +midweek, open: 600, high: 610, low: 600, close: 610, volume: 5, source: "MIXED" },
+      { _id: +fillAt(60_000), open: 620, high: 620, low: 620, close: 620, volume: 2, source: "AUTOMATED" },
+    ];
+    const unifiedView = await terminalState({ marketId: String(unifiedMarket._id), interval: "1m", now: candleNow });
+    assert.deepEqual(unifiedView.candles, unifiedExpected);
+    assert.deepEqual(unifiedView.trades.map((trade) => trade.price), [620, 610, 600]);
+    assert.equal(unifiedView.market.volume, 7);
+    assert.equal(unifiedView.market.botOnlyVolume, 2);
+    assert.equal(unifiedView.market.replayVolume, 3);
+    assert.equal((await terminalState({ marketId: String(unifiedMarket._id), now: candleNow })).interval, "1h");
+    assert.deepEqual(await futuresChartHistory(unifiedMarket._id, "1m", undefined, candleNow), unifiedExpected);
+    assert.deepEqual(await futuresChartHistory(unifiedMarket._id, "1m", fillAt(60_000), candleNow), unifiedExpected.slice(0, 2));
+
     const funded = await ExchangeMarket.create({ key: "weekly:funded-bot-audit", type: "weekly", examId: exam._id,
       title: "Funded bots", opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose,
       botParticipation: true, botSeed: randomBytes(32).toString("hex"), minimumMpiAttempts: 1 });
@@ -688,8 +728,8 @@ async function main() {
     assert.equal(botCross.market.volume, 0);
     assert.equal(botCross.market.botOnlyVolume, 1);
     assert.equal(botCross.market.lastPrice, null);
-    assert.equal(botCross.candles.length, 0);
-    assert.equal(botCross.botCandles[0].volume, 1);
+    assert.equal(botCross.candles[0].volume, 1);
+    assert.equal(botCross.candles[0].source, "AUTOMATED");
     assert.deepEqual(botCross.trades.map((trade) => [trade.makerSource, trade.takerSource, trade.botOnly]), [["BOT", "BOT", true]]);
     const botOrders = await ExchangeOrder.find({ marketId: botsOnlyMarket._id }).sort({ sequence: 1 }).lean();
     assert.deepEqual(botOrders.map((row) => row.botLabel), ["TraderBot1", "TraderBot2"]);
@@ -713,7 +753,8 @@ async function main() {
         if (path.endsWith("mpi")) {
           assert.match(html, /잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
         } else {
-          assert.match(html, /<label id="trade-series-wrap" >[\s\S]*자동화 계정 간 체결/);
+          assert.doesNotMatch(html, /trade-series-wrap/);
+          assert.match(html, /자동화 계정 간 체결/);
         }
       }
       const marketApi = `${origin}/api/exchange/markets/${botCrossId}`;
@@ -846,12 +887,18 @@ async function main() {
     const restoredRound = await terminalState({ marketId: rolloutId, interval: "1h", now: replayAt });
     assert.equal(restoredRound.market.volume, 0);
     assert.ok(restoredRound.market.replayVolume > 0);
-    assert.ok(restoredRound.replayCandles.length > 0);
+    assert.ok(restoredRound.candles.length > 0);
+    assert.ok(restoredRound.candles.every((candle) => candle.source === "REPLAY"));
     assert.deepEqual(restoredRound.trades, []);
-    assert.deepEqual(restoredRound.candles, []);
-    const replayMpi = await mpiState({ marketId: rolloutId, interval: "1h", now: replayAt, series: "replay" });
-    assert.equal(replayMpi.source, "bot_replay");
-    assert.ok(replayMpi.candles.length > 0);
+    const unifiedMpi = await mpiState({ marketId: rolloutId, interval: "1h", now: replayAt });
+    assert.equal(unifiedMpi.source, "official");
+    assert.ok(unifiedMpi.candles.some((candle) => candle.source === "REPLAY"));
+    assert.ok(unifiedMpi.candles.some((candle) => !candle.source));
+    assert.equal(+unifiedMpi.dataThroughAt, +replayAt - 30 * 60_000);
+    const firstObservedBucket = unifiedMpi.candles.find((candle) => !candle.source);
+    assert.equal(firstObservedBucket.close, 120, "Published MPI wins when a replay point lands in the same hour");
+    const earlierMpi = await mpiState({ marketId: rolloutId, interval: "1h", now: replayAt, before: new Date(firstObservedBucket._id) });
+    assert.ok(earlierMpi.candles.length && earlierMpi.candles.every((candle) => candle.source === "REPLAY"));
     const beforeBackfillPublication = await mpiState({ marketId: rolloutId, now: new Date(+replayAt + 30 * 60_000 - 1) });
     assert.equal(beforeBackfillPublication.latest.botPopulationCount, 2);
     assert.equal(+(await ExchangeTick.findById(futurePreBackfill._id)).supersededAt, +replayAt);

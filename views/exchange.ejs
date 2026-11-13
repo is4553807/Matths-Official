@@ -36,25 +36,21 @@
     <div class="terminal-grid">
       <section class="panel chart-panel" aria-labelledby="chart-heading">
         <header class="panel-heading">
-          <h2 id="chart-heading">선물 체결가 캔들</h2>
-          <label id="trade-series-wrap" <%= initial.market?.bootstrap || initial.market?.replayVolume > 0 ? "" : "hidden" %>>
-            <select id="trade-series" aria-label="차트 데이터 출처">
-              <option value="humans">학생 참여 체결</option>
-              <option value="bots" <%= initial.market?.bootstrap ? "" : "hidden disabled" %>>자동화 계정 간 체결</option>
-              <option value="replay" <%= initial.market?.replayVolume > 0 ? "" : "hidden disabled" %>>과거 봇 거래 재생</option>
-            </select>
-          </label>
+          <h2 id="chart-heading"><%= initial.market?.replayVolume > 0 ? "선물 가격 캔들" : "선물 체결가 캔들" %></h2>
         </header>
-        <p class="chart-replay-note" id="chart-replay-note" hidden>Exam Bot 점수를 바탕으로 나중에 재생한 거래입니다. 주문장, 운영 거래량, 정산에는 실제 체결 기록을 사용합니다.</p>
         <div class="chart-legend">
-          <span class="legend-price" id="chart-price-legend">체결가</span>
-          <span class="legend-ma">MA 5 · 10</span>
+          <span class="legend-price">체결가</span>
+          <span class="legend-replay" id="futures-replay-key" <%= initial.market?.replayVolume > 0 ? "" : "hidden" %>>복원 봇 거래</span>
+          <span class="legend-automated" id="futures-automated-key" <%= initial.market?.bootstrap ? "" : "hidden" %>>자동화 계정 간 체결</span>
+          <span class="legend-mixed" id="futures-mixed-key" <%= initial.market?.bootstrap ? "" : "hidden" %>>학생·자동화 혼합 봉</span>
+          <span class="legend-ma">차트 기준 MA 5 · 10</span>
           <label id="mid-legend" hidden><input type="checkbox" id="show-mid-price" /> 호가 중간값</label>
         </div>
+        <p class="chart-replay-note" id="chart-replay-note" <%= initial.market?.replayVolume > 0 ? "" : "hidden" %>>복원 봉은 Exam Bot 점수로 나중에 재생한 거래입니다. 거래량과 정산은 실제 체결을 기준으로 합니다.</p>
         <%- include("partials/exchange-chart-controls", { intervals, activeInterval: chartInterval }) %>
         <output class="candle-summary" data-candle-summary aria-label="체결 캔들의 시가·고가·저가·종가·거래량"></output>
         <div class="chart-area">
-          <canvas id="exchange-chart" role="img" aria-label="선물 체결가 캔들, 거래량 및 호가 중간값"></canvas>
+          <canvas id="exchange-chart" role="img" aria-labelledby="chart-heading" aria-describedby="chart-replay-note"></canvas>
           <div class="chart-empty" id="chart-empty">
             <div class="chart-symbol" aria-hidden="true"><i></i><i></i><i></i></div>
             <strong id="chart-empty-title"><%= initial.market ? '체결을 기다리는 중' : '이번 주 시장이 아직 열리지 않았습니다' %></strong>

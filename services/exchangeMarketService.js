@@ -145,8 +145,16 @@ function pendingAttempts(exam, now, session) {
   }, session).append({ $limit: 1 });
 }
 
+function mpiDataCutoff(now) {
+  return new Date(+now - MPI_DELAY_MS);
+}
+
 function publishedMpiFilter(marketId, now) {
-  return { marketId, kind: OBSERVED_MPI, publishAt: { $lte: now }, supersededAt: null };
+  const cutoff = mpiDataCutoff(now);
+  return {
+    marketId, kind: OBSERVED_MPI, publishAt: { $lte: now }, supersededAt: null,
+    $or: [{ dataCutoffAt: { $lte: cutoff } }, { dataCutoffAt: null, sampledAt: { $lte: cutoff } }],
+  };
 }
 
 async function latestPublishedMpi(market, now, session) {
@@ -530,5 +538,5 @@ module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
   readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
   sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
-  publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
+  mpiDataCutoff, publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };
