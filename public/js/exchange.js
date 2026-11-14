@@ -91,8 +91,14 @@
       button.dataset.price = row.price;
       button.style.setProperty("--depth", `${total / sum * 100}%`);
       const priceLabel = el("span", number(row.price));
-      if (row.operatorQuantity) priceLabel.append(el("small", ` MM ${number(row.operatorQuantity)}`, "book-bot"));
-      if (!historical && row.botQuantity) priceLabel.append(el("small", ` 봇 ${number(row.botQuantity)}`, "book-bot"));
+      const maker = row.operatorQuantity;
+      const bots = !historical && row.botQuantity;
+      if (maker || bots) {
+        const sources = el("small", undefined, "book-bot");
+        if (maker) sources.append(el("span", `MM ${number(maker)}`));
+        if (bots) sources.append(el("span", `봇 ${number(bots)}`));
+        priceLabel.append(sources);
+      }
       button.append(priceLabel, el("span", number(row.quantity)), el("span", number(total)));
       return button;
     });
@@ -130,8 +136,7 @@
       rows = (own?.positions || []).map((row) => [row.direction.toUpperCase(), number(row.price), row.remaining, number(row.realized)]);
     } else if (activity === "trades") {
       headers = ["체결 시각 (KST)", "체결가", "수량"];
-      if (market?.historicalBootstrap) headers.push("참여");
-      else if (market?.botParticipation) headers.push("운영 봇");
+      if (market?.historicalBootstrap || market?.botParticipation) headers.push("체결 참여");
       rows = (market ? state.trades || [] : []).map((row) => {
         const cells = [tradeTime.format(new Date(row.tradedAt)), number(row.price), row.quantity];
         if (market.historicalBootstrap) {
@@ -216,7 +221,7 @@
     text("order-market-rules", historical
       ? "지정가로 주문하며, 만기에는 정산 MPI를 적용합니다."
       : market?.bootstrap
-      ? "잠정 MPI에 Exam Bot 점수가 반영될 수 있습니다. 만기 정산은 실제 유효 학생 성적을 사용합니다. 자동화 계정이 거래 상대방이 될 수 있습니다."
+      ? "잠정 MPI에 Exam Bot 점수가 반영될 수 있습니다. 정산은 유효한 학생 성적으로 계산합니다. Trading Bot과 Market Maker도 주문을 냅니다."
       : market?.botParticipation
       ? "거래소의 운영 봇이 거래 상대방이 될 수 있습니다. 이 회차의 공식 MPI와 만기 정산에는 학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다."
       : "거래소의 자동화 계정이 거래 상대방이 될 수 있습니다. 공식 MPI와 만기 정산 지수는 실제 유효 응시 성적으로 계산합니다.");

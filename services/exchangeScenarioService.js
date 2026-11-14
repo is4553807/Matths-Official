@@ -38,6 +38,20 @@ function botParticipationForSchedule(opensAt, closeAt) {
   return +opensAt >= BOT_POLICY_START && eligibleRound({ type: "weekly", opensAt, closeAt });
 }
 
+function weeklyParticipant(market, slot, cadence) {
+  const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
+  return newParticipant(key, market.opensAt, slot, cadence);
+}
+
+function dueLiveExamBot(market, now) {
+  if (!market.botParticipation || !market.botSeed || !eligibleRound(market)
+    || now < market.opensAt || now >= market.closeAt) return null;
+  const cadence = market.bootstrapPolicy.submissionMinutes * MINUTE;
+  const slot = Math.floor((+now - +market.opensAt) / cadence);
+  const bot = weeklyParticipant(market, slot, cadence);
+  return bot.submittedAt <= +now ? { ...bot, submittedAt: +now } : null;
+}
+
 function submittedBots(market, now) {
   if (!market.botSeed || !eligibleRound(market)) return [];
   // An Exam Bot rollout in an already open round begins at activation, never at market open.
@@ -54,10 +68,9 @@ function submittedBots(market, now) {
   if (!market.botParticipation) return [];
   const cadence = (market.bootstrapPolicy?.submissionMinutes ?? 60) * MINUTE;
   const slots = Math.ceil((Math.min(+now, +market.closeAt) - +market.opensAt) / cadence);
-  const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
   const bots = [];
   for (let slot = 0; slot < slots; slot += 1) {
-    const bot = newParticipant(key, market.opensAt, slot, cadence);
+    const bot = weeklyParticipant(market, slot, cadence);
     if (bot.submittedAt <= +now && bot.submittedAt < +market.closeAt) bots.push(bot);
   }
   return bots;
@@ -67,11 +80,10 @@ function dueBotOrder(market, now, publicMpi = 600) {
   if (!market.botParticipation || !market.botSeed || !eligibleRound(market) || +now >= +market.closeAt) return null;
   const hour = Math.floor((+now - +market.opensAt) / HOUR);
   if (hour < 0) return null;
-  const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
-  const bot = newParticipant(key, market.opensAt, hour);
+  const bot = weeklyParticipant(market, hour, HOUR);
   // Submit only in the bot's assigned hour. A restart never backdates a fill.
   if (+now < bot.orderAt) return null;
   return { ...botOrder(bot, publicMpi), botId: bot.id, expiresAt: new Date(Math.min(bot.orderAt + ORDER_LIFETIME, +market.closeAt)) };
 }
 
-module.exports = { eligibleRound, botParticipationForSchedule, submittedBots, dueBotOrder };
+module.exports = { eligibleRound, botParticipationForSchedule, dueLiveExamBot, submittedBots, dueBotOrder };

@@ -14,14 +14,17 @@ const {
 
 const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = require("./exchangeFees");
 const { dueBotOrder, submittedBots } = require("./exchangeScenarioService");
-const { isBootstrap, isHistoricalBootstrap, traderStopAt, tradersEnabledAt, readExamBots, traderId, traderSignal, botLabel } = require("./exchangeBootstrapService");
+const {
+  isBootstrap, isHistoricalBootstrap, isLiveWeeklyBootstrap, usesIndependentTraderWallets,
+  traderStopAt, tradersEnabledAt, readExamBots, traderId, traderSignal, botLabel,
+} = require("./exchangeBootstrapService");
 
 const { loadMarketMakerForecast, recordMarketMakerForecast, captureMarketMakerHistory } = require("./exchangeMarketMakerForecastService");
 const { optimizeMarketMakerQuotes, marketMakerReachableRisk } = require("./exchangeMarketMakerOptimizer");
 
 const MARKET_LIMIT = 5;
 const BOT_EXPOSURE_LIMIT = 5;
-const HISTORICAL_BOT_EXPOSURE_LIMIT = 20;
+const INDEPENDENT_BOT_EXPOSURE_LIMIT = 20;
 const BOT_INITIAL_FUNDING = 2_000 * TP_SCALE;
 const BOT_HOLDING_PERIOD = 45 * 60_000;
 const MM_WALLET_TP = 2000 * TP_SCALE;
@@ -249,7 +252,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
     }
     if (bot && await exchangeAutomationDisabled(session, market)) return;
     const bootstrapOrder = bot && isBootstrap(market);
-    const historicalTrader = bootstrapOrder && isHistoricalBootstrap(market);
+    const independentTrader = bootstrapOrder && usesIndependentTraderWallets(market);
     if (bootstrapOrder) {
       const at = clock();
       if (!tradersEnabledAt(market, at)) return;
@@ -285,7 +288,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
         const filter = { marketId, source: "BOT" };
         const open = await ExchangePosition.countDocuments({ marketId, botId: { $ne: null }, remaining: { $gt: 0 } }).session(session);
         const working = await ExchangeOrder.countDocuments({ ...filter, status: "working", action: "open" }).session(session);
-        const limit = historicalTrader ? HISTORICAL_BOT_EXPOSURE_LIMIT : BOT_EXPOSURE_LIMIT;
+        const limit = independentTrader ? INDEPENDENT_BOT_EXPOSURE_LIMIT : BOT_EXPOSURE_LIMIT;
         if (open + working >= limit) return;
       }
       if (String(userId) === EXCHANGE_WALLET_ID && (market.botParticipation || isBootstrap(market)) &&
@@ -298,13 +301,13 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
         if (bootstrapOrder && cause.status === 409) return;
         throw cause;
       }
-      if (bootstrapOrder && !historicalTrader && order.action === "open") await fundTrader(marketId, userId, order, session);
+      if (bootstrapOrder && !independentTrader && order.action === "open") await fundTrader(marketId, userId, order, session);
     }
     try {
       await reserve(market, order, session);
     } catch (cause) {
-      // An isolated historical trader can exhaust its own starting TP.
-      if (historicalTrader && cause.status === 409) return;
+      // These traders spend their own starting TP.
+      if (independentTrader && cause.status === 409) return;
       throw cause;
     }
     order.acceptedAt = clock();
@@ -391,7 +394,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
       market.escrow += (opens - 1) * 1000 * TP_SCALE * trade.quantity;
       if (botOnly) market.botOnlyVolume = (market.botOnlyVolume ?? 0) + quantity;
       else market.volume += quantity;
-      if ((!botOnly || isHistoricalBootstrap(market))
+      if ((!botOnly || usesIndependentTraderWallets(market))
         && (!market.lastTradeAt || market.lastTradeAt <= trade.tradedAt)) {
         market.lastPrice = trade.price;
         market.lastTradeAt = trade.tradedAt;
@@ -508,7 +511,9 @@ async function maintainBootstrapTraders(market, now, clock, { session = null, re
     throw new Error("Historical Exchange events require an active market transaction");
   }
   const marketId = market._id;
-  const enabled = publicState(market, now) === "open" && tradersEnabledAt(market, now);
+  const managedLive = isLiveWeeklyBootstrap(market);
+  const enabled = publicState(market, now) === "open" && tradersEnabledAt(market, now)
+    && (!managedLive || !await exchangeAutomationDisabled(session, market));
   const expired = { expiresAt: { $lte: now } };
   let changed = false;
   if (replay) {
@@ -518,7 +523,8 @@ async function maintainBootstrapTraders(market, now, clock, { session = null, re
     changed = await runInTransaction(session, replay, async (transaction) => {
       const current = await lockMarket(marketId, transaction, replay);
       const at = clock();
-      const open = publicState(current, at) === "open" && tradersEnabledAt(current, at);
+      const open = publicState(current, at) === "open" && tradersEnabledAt(current, at)
+        && (!managedLive || !await exchangeAutomationDisabled(transaction, current));
       return cancelFundedBotOrders(marketId, transaction, at, open ? expired : {});
     });
   }
@@ -527,7 +533,12 @@ async function maintainBootstrapTraders(market, now, clock, { session = null, re
   if (!snapshot || +now - +snapshot.publishAt >= 5 * 60_000) return changed;
   const previous = await ExchangeTick.findOne({ ...publishedMpiFilter(marketId, now), unavailable: { $ne: true },
     publishAt: { $lt: snapshot.publishAt }, mpi: { $ne: null } }).sort({ publishAt: -1 }).select("mpi").session(session).lean();
-  const levels = await bookLevels(marketId, now, session, snapshot._id, EXCHANGE_WALLET_ID, false, replay);
+  const current = managedLive ? await ExchangeMarket.findById(marketId)
+    .select("marketMakerDecision marketMakerEnabled").session(session).lean() : null;
+  const decision = current?.marketMakerDecision;
+  const makerKey = current?.marketMakerEnabled !== false && decision?.mode === "B" && snapshot._id.equals(decision.bookSnapshotId)
+    ? decision.quoteKey : undefined;
+  const levels = await bookLevels(marketId, now, session, snapshot._id, EXCHANGE_WALLET_ID, false, replay, makerKey);
   const roster = await readExamBots(market, snapshot.dataCutoffAt ?? snapshot.sampledAt, session);
   const holdings = await ExchangePosition.find({ marketId, botId: { $ne: null }, remaining: { $gt: 0 } })
     .select("botId direction openedAt createdAt").sort({ _id: -1 }).session(session).lean();
@@ -541,7 +552,7 @@ async function maintainBootstrapTraders(market, now, clock, { session = null, re
     && (heldByBot.has(String(row.botId)) || recentlySubmitted.has(String(row.botId))));
   const requests = participants.flatMap((examBot) => {
     const held = heldByBot.get(String(examBot.botId));
-    const closeDue = held && isHistoricalBootstrap(market)
+    const closeDue = held && usesIndependentTraderWallets(market)
       && +now - +(held.openedAt ?? held.createdAt) >= BOT_HOLDING_PERIOD;
     const exit = held?.direction === "long"
       ? { direction: "short", price: book.bid ?? Math.max(1, Math.floor(snapshot.mpi) - 8) }
@@ -574,7 +585,7 @@ async function maintainBootstrapTraders(market, now, clock, { session = null, re
   for (const { userId, bot, input } of requests) {
     if (submittedCommands ? submittedCommands.has(`${userId}:${input.commandId}`)
       : await ExchangeOrder.exists({ userId, commandId: input.commandId }).session(session)) continue;
-    if (!isHistoricalBootstrap(market)
+    if (!usesIndependentTraderWallets(market)
       && !await ExchangeWallet.exists({ _id: EXCHANGE_WALLET_ID, botFundingAt: { $ne: null } }).session(session)) {
       await initializeBotFunding(marketId, now, session, replay);
     }

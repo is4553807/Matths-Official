@@ -1,6 +1,6 @@
 const { createHash } = require("node:crypto");
 const { ExchangeExamBotAttempt } = require("../models/exchangeModel");
-const { submittedBots } = require("./exchangeScenarioService");
+const { dueLiveExamBot, eligibleRound, submittedBots } = require("./exchangeScenarioService");
 
 const MINUTE = 60_000;
 const POLICY = Object.freeze({
@@ -10,9 +10,14 @@ const POLICY = Object.freeze({
 // Version 2 activates an already open round from a forward-only cutoff.
 const OPEN_ROUND_POLICY = Object.freeze({ ...POLICY, version: 2 });
 const HISTORICAL_POLICY = Object.freeze({ ...POLICY, version: 3, submissionMinutes: 20 });
+const LIVE_WEEKLY_POLICY = Object.freeze({ ...POLICY, version: 4, submissionMinutes: 20 });
 const isHistoricalBootstrap = (market) => market?.bootstrapPolicy?.version === HISTORICAL_POLICY.version
   && ["replaying", "complete"].includes(market.historicalBootstrap?.status);
-const isBootstrap = (market) => [POLICY.version, OPEN_ROUND_POLICY.version, HISTORICAL_POLICY.version].includes(market.bootstrapPolicy?.version);
+const isLiveWeeklyBootstrap = (market) => market?.bootstrapPolicy?.version === LIVE_WEEKLY_POLICY.version
+  && !market.historicalBootstrap?.status && !market.replayRecordedAt && eligibleRound(market);
+const usesIndependentTraderWallets = (market) => isHistoricalBootstrap(market) || isLiveWeeklyBootstrap(market);
+const isBootstrap = (market) => [POLICY.version, OPEN_ROUND_POLICY.version, HISTORICAL_POLICY.version, LIVE_WEEKLY_POLICY.version]
+  .includes(market?.bootstrapPolicy?.version);
 const traderStopAt = (market) => new Date(+market.closeAt - (market.bootstrapPolicy.tradingStopMinutesBeforeClose ?? POLICY.tradingStopMinutesBeforeClose) * MINUTE);
 const tradersEnabledAt = (market, now) => market.tradingBotsEnabled !== false && now < traderStopAt(market);
 
@@ -40,9 +45,11 @@ async function recordExamBots(market, exam, now, session) {
   const existing = await readExamBots(market, now, session);
   const known = new Set(existing.map((row) => String(row.botId)));
   // The market-wide fade changes the weighting, while the weekly scenario continues.
-  const through = market.mpiFade?.startedAt && !isHistoricalBootstrap(market)
+  const through = market.mpiFade?.startedAt && !usesIndependentTraderWallets(market)
     ? new Date(Math.min(+now, +market.mpiFade.startedAt + market.bootstrapPolicy.fadeMinutes * MINUTE - 1)) : now;
-  const due = submittedBots(market, through).filter(({ id, submittedAt }) =>
+  // The live runner accepts the current slot only and records the server clock.
+  const participants = isLiveWeeklyBootstrap(market) ? [dueLiveExamBot(market, now)].filter(Boolean) : submittedBots(market, through);
+  const due = participants.filter(({ id, submittedAt }) =>
     !known.has(id) && submittedAt >= +exam.releaseAt && submittedAt < +exam.closeAt);
   if (!due.length) return existing;
   const rows = gradeExamBots(market, exam, due);
@@ -82,5 +89,8 @@ function traderSignal(bot, snapshot, previous, book) {
   return null;
 }
 
-module.exports = { POLICY, OPEN_ROUND_POLICY, HISTORICAL_POLICY, isHistoricalBootstrap, isBootstrap, traderStopAt, tradersEnabledAt,
-  fadeAt, weightedMpi, readExamBots, recordExamBots, gradeExamBots, traderId, botLabel, traderSignal };
+module.exports = {
+  POLICY, OPEN_ROUND_POLICY, HISTORICAL_POLICY, LIVE_WEEKLY_POLICY, isHistoricalBootstrap, isLiveWeeklyBootstrap,
+  usesIndependentTraderWallets, isBootstrap, traderStopAt, tradersEnabledAt, fadeAt, weightedMpi, readExamBots, recordExamBots,
+  gradeExamBots, traderId, botLabel, traderSignal,
+};

@@ -5,7 +5,7 @@ const { EXCHANGE_WALLET_ID, initialBalance } = require("./exchangeFees");
 const { marketView, orderView } = require("./exchangeService");
 const { isPublicMarket } = require("./exchangeAccessService");
 const { submittedBots } = require("./exchangeScenarioService");
-const { isBootstrap, isHistoricalBootstrap, readExamBots, traderId, botLabel } = require("./exchangeBootstrapService");
+const { isBootstrap, usesIndependentTraderWallets, readExamBots, traderId, botLabel } = require("./exchangeBootstrapService");
 
 async function dashboardState(userId, now = new Date(), { section, publicOnly = false } = {}) {
   return mongoose.connection.transaction(async (session) => {
@@ -87,7 +87,7 @@ async function operatorBotsState(marketId, now = new Date()) {
     if (!market) return { ...base, market: null, bots: [], legacyMaker: null };
 
     const bootstrap = isBootstrap(market);
-    const historical = isHistoricalBootstrap(market);
+    const independentWallets = usesIndependentTraderWallets(market);
     const filter = { marketId: market._id, botId: { $ne: null }, ...(!bootstrap ? { userId: EXCHANGE_WALLET_ID } : {}) };
     const marketCash = await ExchangeAccount.findOne({ marketId: market._id, userId: EXCHANGE_WALLET_ID, releasedAt: null })
       .select("cash").session(session).lean();
@@ -97,7 +97,7 @@ async function operatorBotsState(marketId, now = new Date()) {
     const roster = bootstrap ? await readExamBots(market, now, session) : submittedBots(market, now);
     const wallets = bootstrap ? await ExchangeWallet.find({
       _id: { $in: roster.map((row) => traderId(row.botId)) },
-      parentWalletId: historical ? null : EXCHANGE_WALLET_ID,
+      parentWalletId: independentWallets ? null : EXCHANGE_WALLET_ID,
     }).session(session).lean() : [];
     const balances = new Map(wallets.map((row) => [String(row._id), row.available / TP_SCALE]));
     const accounts = bootstrap ? await ExchangeAccount.find({ marketId: market._id, userId: { $in: wallets.map((row) => row._id) },
@@ -113,7 +113,7 @@ async function operatorBotsState(marketId, now = new Date()) {
       const pnl = reference != null && botPositions.some((row) => row.remaining)
         ? botPositions.reduce((sum, row) => sum + (reference - row.price) * row.remaining * (row.direction === "long" ? 1 : -1), 0) : null;
       const child = bootstrap ? traderId(key) : "";
-      const available = bootstrap ? (balances.get(child) ?? (historical ? initialBalance(child) / TP_SCALE : 0))
+      const available = bootstrap ? (balances.get(child) ?? (independentWallets ? initialBalance(child) / TP_SCALE : 0))
         + (cash.get(child) ?? 0) : null;
       return { number, score, submittedAt, reconstructedAt, order: botOrders.at(-1), position: botPositions.at(-1),
         examLabel: label ?? botLabel("ExamBot", number), traderLabel: botLabel("TraderBot", number),

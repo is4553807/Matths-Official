@@ -55,20 +55,22 @@
     text("mpi-market-name", state.market?.title || "맵쓰 주간 모의고사");
     text("mpi-value", latest?.mpi != null ? number.format(latest.mpi) : "—");
     text("mpi-score", latest?.mpi != null ? `${number.format(latest.mpi / 10)}점` : "—");
-    const botCount = latest?.botPopulationCount ?? 0;
+    const botCount = latest?.botWeight === 0 ? 0 : latest?.botPopulationCount ?? 0;
     get("mpi-bot-policy").hidden = !explainBots;
     text("mpi-value-label", state.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI");
     text("mpi-bot-policy", state.market?.bootstrap
-      ? `공개 표본의 Exam Bot 가중치 ${latest?.botWeight == null ? "—" : number.format(latest.botWeight * 100) + "%"} · 최종 정산은 실제 유효 학생 성적 기준`
+      ? latest?.botWeight == null
+        ? "잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다. 최종 정산은 유효한 학생 성적으로 계산합니다."
+        : `Exam Bot 점수 가중치 ${number.format(latest.botWeight * 100)}% · 최종 정산은 유효한 학생 성적 기준`
       : "학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다.");
-    if (explainBots && latest?.reconstructedBotPopulationCount) {
+    if (explainBots && botCount && latest?.reconstructedBotPopulationCount) {
       get("mpi-bot-policy").textContent += ` · 과거 봇 점수 ${number.format(latest.reconstructedBotPopulationCount)}건 포함`;
     }
     const humanCount = latest?.humanPopulationCount ?? ((latest?.populationCount ?? 0) - botCount);
-    text("mpi-count", !latest ? "—" : explainBots
+    text("mpi-count", !latest ? "—" : explainBots && botCount
       ? `학생 ${number.format(humanCount)}명 · 봇 ${number.format(botCount)}명` : `${number.format(latest.populationCount)}명`);
     text("mpi-waiting", latest?.unavailable ? "현재 공개 요건을 충족한 성적이 없습니다." : state.market
-      ? `${explainBots ? "학생과 운영 봇 합계" : "유효 응시"} ${number.format(state.minimumMpiAttempts)}명부터 집계합니다.`
+      ? `${explainBots && latest?.botWeight !== 0 ? "학생과 운영 봇 합계" : "유효 응시"} ${number.format(state.minimumMpiAttempts)}명부터 집계합니다.`
       : "주간 모의고사 회차가 공개되면 집계가 시작됩니다.");
     get("mpi-empty").hidden = Boolean(candles.length);
     chart.update(candles, seriesKey(state), [], {

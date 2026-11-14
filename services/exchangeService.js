@@ -11,7 +11,7 @@ const {
 const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
-const { isBootstrap, isHistoricalBootstrap, traderStopAt } = require("./exchangeBootstrapService");
+const { isBootstrap, isHistoricalBootstrap, isLiveWeeklyBootstrap, traderStopAt } = require("./exchangeBootstrapService");
 const { runHistoricalBootstrap } = require("./exchangeHistoricalBootstrapService");
 const { operatorOnlyExchange, publicMarketFilter } = require("./exchangeAccessService");
 
@@ -29,6 +29,7 @@ function marketView(market, now) {
     botParticipation: market.botParticipation === true || isBootstrap(market),
     bootstrap: isBootstrap(market), botOnlyVolume: market.botOnlyVolume ?? 0,
     historicalBootstrap: isHistoricalBootstrap(market),
+    liveWeeklyBots: isLiveWeeklyBootstrap(market),
     replayRecordedAt: market.replayRecordedAt, replayVolume: market.replayVolume ?? 0, replayMpiCount: market.replayMpiCount ?? 0,
     settlement: status === "settled" ? market.settlement : null,
     botParticipantCount: status === "settled" ? market.botParticipantCount : undefined,
@@ -143,6 +144,7 @@ async function terminalState({ marketId, userId, interval, marketType, now = new
 
   const view = marketView(market, now);
   const historical = isHistoricalBootstrap(market);
+  const liveWeeklyBots = isLiveWeeklyBootstrap(market);
   if (view.status === "open" && market.type === "weekly") {
     const exam = await readWeeklyExam(market.examId);
     if (exam?.status !== "open" || !await weeklyExamReady(exam) || +exam.closeAt !== +market.closeAt) {
@@ -179,7 +181,9 @@ async function terminalState({ marketId, userId, interval, marketType, now = new
   }
   const publicLevels = (levels) => levels.map(({ price, quantity, botQuantity, operatorQuantity }) => {
     if (historical) return { price, quantity, operatorQuantity: operatorQuantity - botQuantity };
-    return botQuantity ? { price, quantity, botQuantity } : { price, quantity };
+    const makerQuantity = operatorQuantity - botQuantity;
+    return { price, quantity, ...(botQuantity ? { botQuantity } : {}),
+      ...(liveWeeklyBots && makerQuantity > 0 ? { operatorQuantity: makerQuantity } : {}) };
   });
   const publicTrades = trades.map(({ price, quantity, tradedAt, liquidityProvider, makerSource, takerSource, botOnly }) => {
     if (isBootstrap(market)) return { price, quantity, tradedAt, makerSource, takerSource, botOnly: Boolean(botOnly) };
@@ -276,7 +280,7 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
       try { await maintainMarketMaker(market._id, clock); }
       catch (cause) { console.error("[exchange] MM maintenance failed", String(market._id), cause.message); }
     }
-    if ((market.botParticipation || isBootstrap(market)) && !await exchangeAutomationDisabled(null, market)) {
+    if (isLiveWeeklyBootstrap(market) || ((market.botParticipation || isBootstrap(market)) && !await exchangeAutomationDisabled(null, market))) {
       try { await maintainFundedBotOrders(market, now, clock); }
       catch (cause) { console.error("[exchange] Trading Bot maintenance failed", String(market._id), cause.message); }
     }

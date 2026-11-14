@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const { randomBytes } = require("node:crypto");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
-const { ExchangeMarket, ExchangeSetting, ExchangeTick, ExchangeEvent, ExchangeOrder,
+const { ExchangeMarket, ExchangeSetting, ExchangeTick, ExchangeEvent, ExchangeOrder, ExchangeAccount,
   ExchangeExamBotAttempt, ExchangeBotReplayMpi, ExchangeBotReplayTrade } = require("../models/exchangeModel");
 
 const ROUNDS = Object.freeze({
@@ -18,7 +18,10 @@ const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const CLOSED_WEEKLY_EXAM_STATUSES = new Set(["locked", "aggregating", "ranked", "archived", "finalizing", "finalized"]);
 const { botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
-const { POLICY, OPEN_ROUND_POLICY, isHistoricalBootstrap, isBootstrap, fadeAt, weightedMpi, recordExamBots, gradeExamBots, readExamBots } = require("./exchangeBootstrapService");
+const {
+  POLICY, OPEN_ROUND_POLICY, LIVE_WEEKLY_POLICY, isHistoricalBootstrap, isLiveWeeklyBootstrap, isBootstrap,
+  fadeAt, weightedMpi, recordExamBots, gradeExamBots, readExamBots,
+} = require("./exchangeBootstrapService");
 
 const { replayBotFills } = require("./exchangeBotReplayService");
 const { operatorOnlyExchange, isPublicMarket } = require("./exchangeAccessService");
@@ -251,13 +254,17 @@ function publicState(market, now = new Date()) {
 }
 
 async function exchangeAutomationDisabled(session, market) {
+  if (market?.bootstrapPolicy?.version === LIVE_WEEKLY_POLICY.version) {
+    if (operatorOnlyExchange() || !isLiveWeeklyBootstrap(market)) return true;
+    return !await ExchangeSetting.exists({ _id: "default", publicWeeklyBotsEnabled: true }).session(session || null);
+  }
   if (operatorOnlyExchange() && isHistoricalBootstrap(market)) return false;
   return Boolean(await ExchangeSetting.exists({ _id: "default", automatedTradingDisabled: true }).session(session || null));
 }
 
 async function exchangeMarketMakerAutomationDisabled(session, market) {
   if (market?.type !== "weekly" || operatorOnlyExchange() || !isPublicMarket(market)) {
-    return exchangeAutomationDisabled(session, market);
+    return operatorOnlyExchange() && isHistoricalBootstrap(market) ? false : exchangeAutomationDisabled(session);
   }
   return Boolean(await ExchangeSetting.exists({
     _id: "default", automatedTradingDisabled: true, publicMarketMakerEnabled: { $ne: true },
@@ -282,10 +289,31 @@ async function openWeeklyMarket(market, exam, now, session) {
   await market.save({ session });
 }
 
+async function prepareLiveWeeklyBots(key, now, botRules) {
+  const filter = {
+    key, phase: "scheduled", openedAt: null, paused: { $ne: true }, closeAt: { $gt: now },
+    volume: 0, escrow: 0, botOnlyVolume: { $in: [null, 0] }, "historicalBootstrap.status": null, replayRecordedAt: null,
+    botParticipation: { $ne: true }, tradingBotsEnabled: { $ne: false }, "bootstrapPolicy.version": null,
+    examBotsStartedAt: null, "mpiFade.startedAt": null, mpiCheckedAt: null,
+  };
+  if (!await ExchangeMarket.exists(filter)) return;
+  await mongoose.connection.transaction(async (session) => {
+    if (!await ExchangeSetting.exists({ _id: "default", publicWeeklyBotsEnabled: true }).session(session)) return;
+    const market = await ExchangeMarket.findOne(filter).select("_id").session(session).lean();
+    if (!market) return;
+    const existing = { marketId: market._id };
+    if (await ExchangeOrder.exists(existing).session(session) || await ExchangeAccount.exists(existing).session(session)
+      || await ExchangeExamBotAttempt.exists(existing).session(session)) return;
+    await ExchangeMarket.updateOne(filter, { $set: botRules, $inc: { revision: 1 } }, { session });
+  });
+}
+
 async function syncWeeklyMarkets(now = new Date()) {
-  const setting = await ExchangeSetting.findById("default").select("automatedTradingDisabled publicMarketMakerEnabled").lean();
+  const setting = await ExchangeSetting.findById("default")
+    .select("automatedTradingDisabled publicMarketMakerEnabled publicWeeklyBotsEnabled").lean();
+  const publicMode = !operatorOnlyExchange();
   const automationDisabled = setting?.automatedTradingDisabled === true;
-  const marketMakerEnabled = !automationDisabled || (!operatorOnlyExchange() && setting?.publicMarketMakerEnabled === true);
+  const marketMakerEnabled = !automationDisabled || (publicMode && setting?.publicMarketMakerEnabled === true);
   const exams = await PrivateMockExam.find({
     ...weeklyExamQuery(), status: { $in: ["scheduled", "open"] }, closeAt: { $gt: now },
   }).sort({ releaseAt: 1 }).limit(12)
@@ -295,19 +323,34 @@ async function syncWeeklyMarkets(now = new Date()) {
     if (!await weeklyExamReady(exam)) continue;
     const key = `weekly:${exam._id}`;
     const questionCounts = [2, 3, 4].map((point) => exam.points.filter((value) => value === point).length);
-    const botParticipation = !automationDisabled && botParticipationForSchedule(exam.releaseAt, exam.closeAt);
-    const botRules = botParticipation ? { botParticipation, botSeed: randomBytes(32).toString("hex"),
-      bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1 } : { botParticipation };
+    const eligible = botParticipationForSchedule(exam.releaseAt, exam.closeAt);
+    const publicBots = publicMode && setting?.publicWeeklyBotsEnabled === true && eligible;
+    const legacyBots = !automationDisabled && eligible && (!publicMode || setting?.publicWeeklyBotsEnabled == null);
+    const botRules = publicBots || legacyBots ? { botParticipation: true, botSeed: randomBytes(32).toString("hex"),
+      bootstrapPolicy: publicBots ? LIVE_WEEKLY_POLICY : POLICY, tradingBotsEnabled: true, botWeight: 1 }
+      : { botParticipation: false };
     await ExchangeMarket.updateOne({ key }, { $setOnInsert: {
       key, type: "weekly", examId: exam._id, title: exam.title,
       opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts, marketMakerEnabled,
       ...botRules,
     } }, { upsert: true });
-    await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, "historicalBootstrap.status": null, $or: [
-      { opensAt: { $ne: exam.releaseAt } }, { closeAt: { $ne: exam.closeAt } },
-    ] }, { $set: { opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts, ...botRules }, $inc: { revision: 1 } });
+    const scheduleFilter = {
+      key, phase: "scheduled", openedAt: null, "historicalBootstrap.status": null,
+      $or: [{ opensAt: { $ne: exam.releaseAt } }, { closeAt: { $ne: exam.closeAt } }],
+    };
+    const schedule = { opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts };
+    if (!eligible) {
+      await ExchangeMarket.updateOne({ ...scheduleFilter, "bootstrapPolicy.version": LIVE_WEEKLY_POLICY.version }, {
+        $set: { ...schedule, botParticipation: false },
+        $unset: { bootstrapPolicy: "", botSeed: "" },
+        $inc: { revision: 1 },
+      });
+    }
+    await ExchangeMarket.updateOne(scheduleFilter, { $set: schedule, $inc: { revision: 1 } });
 
-    if (botParticipation) {
+    if (publicBots) {
+      await prepareLiveWeeklyBots(key, now, botRules);
+    } else if (legacyBots) {
       await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, opensAt: { $gt: now }, botParticipation: true, "bootstrapPolicy.version": null },
         { $set: botRules });
     }
@@ -577,8 +620,11 @@ async function saveObservedMpi(market, now, clock = () => now, { session, replay
     const available = mpi !== null && populationCount >= await readMpiMinimum(current, session);
     const contributions = attempts.map(({ _id, score }) => `${_id}:${score}`)
       .concat(botWeight > 0 ? bots.map((bot) => `${bot.botId ?? bot.id}:${bot.score}`) : []);
-    if (!available && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return;
+    const leavingLiveBots = !bootstrap && isLiveWeeklyBootstrap(current) && last?.botWeight > 0 && last.botPopulationCount > 0;
+    if (!available && !leavingLiveBots
+      && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return;
     if (available && last && !last.unavailable && step === previousStep
+      && !leavingLiveBots
       && changedContributors(last.contributions || [], contributions) < (automationAllowed ? 1 : MPI_BATCH_SIZE)) return;
     let sampledAt = clock();
     const publishAt = new Date(+sampledAt + MPI_DELAY_MS);

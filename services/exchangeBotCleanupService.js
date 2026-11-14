@@ -191,7 +191,8 @@ async function cleanupExchangeBots(expectedFingerprint) {
     if (plan.fingerprint !== expectedFingerprint) throw new Error("Exchange bot cleanup candidates changed after review.");
     if (plan.blockers.length) throw new Error(`Exchange bot cleanup blocked: ${plan.blockers.join(", ")}.`);
     await ExchangeSetting.updateOne({ _id: "default" }, {
-      $set: { automatedTradingDisabled: true, historicalBootstrapEnabled: false, publicMarketMakerEnabled: false },
+      $set: { automatedTradingDisabled: true, historicalBootstrapEnabled: false, publicMarketMakerEnabled: false,
+        publicWeeklyBotsEnabled: false },
     }, { upsert: true, session });
 
     if (plan.refund || plan.grant) {
