@@ -608,7 +608,7 @@ async function startMpiBotFade(marketId, actorId, reason, now = new Date()) {
       { session, returnDocument: "after" });
     if (!market || !isBootstrap(market) || market.historicalBootstrap?.status === "replaying"
       || publicState(market, now) !== "open") throw error(409, "거래 중인 주간 회차만 전환할 수 있습니다.");
-    if (market.mpiFade?.startedAt) return;
+    if (market.mpiFade?.startedAt || market.mpiBotsDisabledAt) return;
     const latestPublishAt = +now + market.bootstrapPolicy.fadeMinutes * MINUTE_MS + MPI_DELAY_MS + MINUTE_MS;
     if (latestPublishAt > +market.closeAt) throw error(409, "마감 전에 전환 결과를 공개할 시간이 부족합니다.");
     const exam = await readWeeklyExam(market.examId, session);
@@ -622,6 +622,27 @@ async function startMpiBotFade(marketId, actorId, reason, now = new Date()) {
     await market.save({ session });
     await ExchangeEvent.create([{ marketId, actorId, action: "mpi-bot-fade-start",
       detail: { reason, at: now, initialWeight, endsAt: new Date(+now + market.bootstrapPolicy.fadeMinutes * MINUTE_MS) } }], { session });
+  });
+}
+
+async function stopMpiBotContributions(marketId, actorId, reason, now = new Date()) {
+  reason = String(reason || "").trim().slice(0, 300);
+  if (!reason) throw error(400, "중단 사유를 입력해 주세요.");
+  return mongoose.connection.transaction(async (session) => {
+    const market = await ExchangeMarket.findByIdAndUpdate(marketId, { $inc: { revision: 1 } },
+      { session, returnDocument: "after" });
+    if (!market || !isLiveWeeklyBootstrap(market) || market.phase !== "scheduled" || now >= market.closeAt) {
+      throw error(409, "마감 전 주간 시장만 봇 MPI 반영을 중단할 수 있습니다.");
+    }
+    if (market.mpiBotsDisabledAt) return;
+    const previousWeight = fadeAt(market, now).weight;
+    market.set({ mpiBotsDisabledAt: now, botWeight: 0 });
+    await market.save({ session });
+    await ExchangeTick.updateMany({ marketId, kind: OBSERVED_MPI, supersededAt: null, publishAt: { $gt: now },
+      botWeight: { $gt: 0 }, botPopulationCount: { $gt: 0 },
+    }, { $set: { supersededAt: now } }, { session });
+    await ExchangeEvent.create([{ marketId, actorId, at: now, action: "mpi-bot-contribution-stop",
+      detail: { reason, previousWeight, weight: 0 } }], { session });
   });
 }
 
@@ -689,7 +710,7 @@ async function saveObservedMpi(market, now, clock = () => now, { session, replay
     const available = mpi !== null && populationCount >= minimum;
     const contributions = attempts.map(({ _id, score }) => `${_id}:${score}`)
       .concat(botWeight > 0 ? bots.map((bot) => `${bot.botId ?? bot.id}:${bot.score}`) : []);
-    const leavingLiveBots = !bootstrap && isLiveWeeklyBootstrap(current) && last?.botWeight > 0 && last.botPopulationCount > 0;
+    const leavingLiveBots = botWeight === 0 && isLiveWeeklyBootstrap(current) && last?.botWeight > 0 && last.botPopulationCount > 0;
     if (!available && !leavingLiveBots
       && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return openingTick;
     if (available && last && !last.unavailable && step === previousStep
@@ -720,7 +741,7 @@ module.exports = {
   ROUNDS, MPI_DELAY_MS, error, integer, seoulInput, seoulDate, actualExamOpenTime, scheduleInput, readWeeklyExam, weeklyExamReady, weeklyExamOpenAt,
   validAttempts, validAttemptsAtMarketTime,
   readSetting, readMpiMinimum, publicState, openWeeklyMarket, syncWeeklyMarkets, saveSchedule, saveGroupedSchedule, saveMinimum, saveMpiMinimum,
-  sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
+  sampleMinute, saveObservedMpi, startMpiBotFade, stopMpiBotContributions, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
   exchangeAutomationDisabled, exchangeMarketMakerAutomationDisabled, mpiDataCutoff, publishedMpiFilter,
   latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

@@ -15,6 +15,7 @@
     const decisionReasons = {
       "insufficient-history": "복원 가능한 정산 이력 또는 유효 시나리오 부족",
       "flow-unvalidated": "주문 흐름 모형 검증 대기",
+      "weighted-settlement-unvalidated": "봇 가중 정산의 B안 예측 모형 검증 대기",
       "risk-policy-unavailable": "기대 손실·CVaR 한도 설정 대기",
       selected: "위험 한도를 충족한 호가 선택",
       "no-quote": "현재 주문장과 위험 한도에서 호가 보류",
@@ -175,7 +176,7 @@
                   <div><dt>Exam Bot 가중치</dt><dd><%= ((market.botWeight ?? 1) * 100).toLocaleString("ko-KR") %>%</dd></div>
                   <div><dt>Trading Bots</dt><dd><%= market.tradingBotsWindowEnded ? "운영 시간 종료" : market.tradingBotsEnabled ? "활성" : "중단" %></dd></div>
                   <div><dt>Trading Bots 종료 · KST</dt><dd><%= seoulInput(market.tradingBotsStopAt).replace("T", " ") %></dd></div>
-                  <% if (market.mpiFade?.startedAt) { %><div><dt>가중치 종료 예정 · KST</dt><dd><%= seoulInput(new Date(+market.mpiFade.startedAt + market.bootstrapPolicy.fadeMinutes * 60000)).replace("T", " ") %></dd></div><% } %>
+                  <% if (market.mpiBotsDisabledAt) { %><div><dt>MPI 봇 반영 중단 · KST</dt><dd><%= seoulInput(market.mpiBotsDisabledAt).replace("T", " ") %></dd></div><% } else if (market.mpiFade?.startedAt) { %><div><dt>가중치 종료 예정 · KST</dt><dd><%= seoulInput(new Date(+market.mpiFade.startedAt + market.bootstrapPolicy.fadeMinutes * 60000)).replace("T", " ") %></dd></div><% } %>
                 <% } else if (market.botParticipation) { %><div><dt>공식 MPI 운영 봇</dt><dd>학생과 같은 비중 · 공개</dd></div><% } %>
                 <div><dt>MPI 집계 · KST</dt><dd><%= seoulInput(market.latestTick?.sampledAt).replace("T", " ") || "—" %></dd></div>
                 <div><dt>공개 시각 · KST</dt><dd><%= seoulInput(market.latestTick?.publishAt).replace("T", " ") || "—" %></dd></div>
@@ -217,7 +218,14 @@
                 <label>변경 사유 <input name="reason" maxlength="300" required /></label>
                 <button name="action" value="<%= market.tradingBotsEnabled ? 'trading-bots-disable' : 'trading-bots-enable' %>"><%= market.tradingBotsEnabled ? "Trading Bots 중단" : "Trading Bots 활성화" %></button>
               </form><% } %>
-              <% if (market.status === "open" && !market.mpiFade?.startedAt) { %>
+              <% if (market.liveWeeklyBots && !market.mpiBotsDisabledAt) { %>
+                <form class="exchange-admin-form inline" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
+                  <label>중단 사유 <input name="reason" maxlength="300" required /></label>
+                  <button name="action" value="mpi-bot-stop">MPI 봇 반영 즉시 중단</button>
+                  <p>봇 가중치를 0%로 고정하고 만기 정산에도 적용합니다.</p>
+                </form>
+              <% } %>
+              <% if (market.status === "open" && !market.mpiFade?.startedAt && !market.mpiBotsDisabledAt) { %>
                 <form class="exchange-admin-form inline" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
                   <label>전환 사유 <input name="reason" maxlength="300" required /></label>
                   <button name="action" value="mpi-bot-fade">MPI 봇 기여도 단계적 종료</button>

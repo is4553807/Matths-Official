@@ -29,6 +29,7 @@ const defaultTargets = [
   { target: "audit/verifyExchangeHistoricalBootstrapDb.js", dropAfter: true },
   { target: "audit/verifyExchangeMarketMakerBDb.js", dropAfter: true },
   { target: "audit/verifyExchangePublicWeeklyBotsDb.js", dropAfter: true },
+  { target: "audit/verifyExchangeWeightedSettlementDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];
 

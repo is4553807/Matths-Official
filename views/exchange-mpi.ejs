@@ -13,7 +13,6 @@
 </head>
 <body>
   <% const historical = initial.market?.historicalBootstrap === true; %>
-  <% const settled = initial.market?.status === "settled" && initial.market.settlement != null; %>
   <%- include("partials/exchange-header", { exchangePage: "mpi" }) %>
   <main id="exchange-mpi" class="terminal" data-state="<%= JSON.stringify(initial) %>">
     <section class="market-bar mpi-summary" aria-labelledby="mpi-title">
@@ -22,11 +21,10 @@
         <p id="mpi-market-name"><%= initial.market?.title || "맵쓰 주간 모의고사" %></p>
         <label class="market-select" id="mpi-select-wrap" hidden>회차 <select id="mpi-select" aria-label="회차 선택"></select></label>
       </div>
-      <dl class="market-metrics" id="mpi-metrics"<% if (settled) { %> data-settled<% } %>>
-        <div><dt id="mpi-value-label"><%= settled ? "관측 MPI" : initial.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI" %></dt><dd id="mpi-value">—</dd></div>
+      <dl class="market-metrics">
+        <div><dt id="mpi-value-label"><%= initial.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI" %></dt><dd id="mpi-value">—</dd></div>
         <div><dt>평균 원점수</dt><dd id="mpi-score">—</dd></div>
         <div><dt>유효 응시 인원</dt><dd id="mpi-count">—</dd></div>
-        <div id="mpi-settlement" <%= settled ? "" : "hidden" %>><dt>정산 MPI</dt><dd id="mpi-settlement-value"><%= settled ? initial.market.settlement.toLocaleString("ko-KR") : "—" %></dd></div>
       </dl>
     </section>
     <section class="panel mpi-panel" aria-labelledby="mpi-chart-heading">

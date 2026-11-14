@@ -16,7 +16,7 @@ const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = r
 const { dueBotOrder, submittedBots } = require("./exchangeScenarioService");
 const {
   isBootstrap, isHistoricalBootstrap, isLiveWeeklyBootstrap, usesIndependentTraderWallets,
-  traderStopAt, tradersEnabledAt, readExamBots, traderId, traderSignal, botLabel,
+  traderStopAt, tradersEnabledAt, readExamBots, traderId, traderSignal, botLabel, fadeAt, weightedMpi,
 } = require("./exchangeBootstrapService");
 
 const { loadMarketMakerForecast, recordMarketMakerForecast, captureMarketMakerHistory } = require("./exchangeMarketMakerForecastService");
@@ -1037,6 +1037,8 @@ async function maintainMarketMaker(marketId, clock = () => new Date(), {
         if (market.marketMakerDecision?.mode === "B") {
           await makerDecision(market, now, { mode: "halted", reason: "market-unavailable", quoteKey: market.marketMakerDecision.quoteKey }, session);
         }
+      } else if (liveWeekly && fadeAt(market, market.closeAt).weight > 0) {
+        await makerDecision(market, now, { mode: "baseline", reason: "weighted-settlement-unvalidated" }, session);
       } else if (await applyMarketMakerB(market, { snapshot, now, clock, setting, session })) return;
     } else if (!replay && market.marketMakerDecision?.mode && market.marketMakerDecision.reason !== "baseline-selected") {
       await makerDecision(market, now, { mode: "baseline", reason: "baseline-selected" }, session);
@@ -1394,13 +1396,23 @@ async function decideWeeklyMarket(marketId, now) {
     if ((await pendingAttempts(exam, now, session)).length) return market;
     const [summary] = await liveAttemptRows(validAttempts(exam, now), session)
       .append({ $group: { _id: null, total: { $sum: "$score" }, count: { $sum: 1 } } });
-    const bots = isBootstrap(market) ? [] : submittedBots(market, market.closeAt);
-    const participantCount = (summary?.count ?? 0) + bots.length;
-    const scoreTotal = (summary?.total ?? 0) + bots.reduce((sum, bot) => sum + bot.score, 0);
-    const decision = participantCount ? { decision: "normal", settlement: Math.round(scoreTotal * 1000 / participantCount) / 100,
-      participantCount, botParticipantCount: bots.length,
-      settlementSource: bots.length ? "주간 모의고사 채점 기록 및 공개 운영 봇 점수" : "맵쓰 주간 모의고사 채점 기록" }
-      : { decision: "void", reason: "정산할 유효 응시가 없습니다." };
+    const liveWeekly = isLiveWeeklyBootstrap(market);
+    const botWeight = liveWeekly ? fadeAt(market, market.closeAt).weight : isBootstrap(market) ? 0 : 1;
+    let bots = [];
+    if (botWeight > 0) {
+      bots = liveWeekly ? await ExchangeExamBotAttempt.find({
+        ...botAttemptFilter(market, exam, market.closeAt), botId: { $ne: null },
+      }).select("score").session(session).lean() : submittedBots(market, market.closeAt);
+    }
+    const humanCount = summary?.count ?? 0;
+    const humanScoreSum = summary?.total ?? 0;
+    const botScoreSum = bots.reduce((sum, bot) => sum + bot.score, 0);
+    const settlement = weightedMpi(humanScoreSum, humanCount, botScoreSum, bots.length, botWeight);
+    const decision = settlement !== null ? {
+      decision: "normal", settlement, participantCount: humanCount + bots.length, botParticipantCount: bots.length,
+      ...(liveWeekly ? { settlementBotWeight: botWeight } : {}),
+      settlementSource: bots.length ? "주간 모의고사 채점 기록 및 공개 운영 봇 점수" : "맵쓰 주간 모의고사 채점 기록",
+    } : { decision: "void", reason: "정산할 유효 응시가 없습니다." };
     await captureMarketMakerHistory(market, { exam, decision, decidedAt: now, session });
     return recordDecision(market, decision, null, now, session);
   });
