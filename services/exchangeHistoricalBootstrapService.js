@@ -10,12 +10,10 @@ const {
 const { eligibleRound, submittedBots } = require("./exchangeScenarioService");
 const { maintainFundedBotOrders, maintainMarketMaker, reconcileHistoricalBook } = require("./exchangeTradingService");
 
+const { operatorOnlyExchange } = require("./exchangeAccessService");
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
-
-function operatorOnlyExchange() {
-  return process.env.EXCHANGE_OPERATOR_ONLY !== "0";
-}
 
 function currentWeekOpensAt(now) {
   const start = new Date(now);
@@ -206,4 +204,4 @@ async function runHistoricalBootstrap({ clock = () => new Date(), marketId } = {
   }
 }
 
-module.exports = { currentWeekOpensAt, operatorOnlyExchange, runHistoricalBootstrap };
+module.exports = { currentWeekOpensAt, runHistoricalBootstrap };

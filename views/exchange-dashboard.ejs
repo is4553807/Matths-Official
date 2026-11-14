@@ -81,7 +81,7 @@
             <thead><tr><th scope="col">시장</th><th scope="col">방향</th><th scope="col">계약 수</th><th scope="col">진입가</th><th scope="col">진입 금액</th><th scope="col">증거금</th><th scope="col">평가 손익</th></tr></thead>
             <tbody>
               <% for (const row of data.positions) { %>
-                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                <tr><td><% if (row.market?.id) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %><%= row.market?.title ?? "—" %><% } %></td>
                   <td class="<%= row.direction === 'long' ? 'bid' : 'ask' %>"><%= row.direction.toUpperCase() %></td>
                   <td><%= row.remaining %></td><td><%= format(row.price) %></td><td><%= format(row.notional) %> TP</td>
                   <td><%= format(row.collateral) %> TP</td><td><%= row.unrealized == null ? '—' : format(row.unrealized) + ' TP' %></td></tr>
@@ -102,7 +102,7 @@
             <thead><tr><th scope="col">시장</th><th scope="col">주문</th><th scope="col">지정가</th><th scope="col">미체결 수량</th><th scope="col">예약 수수료</th></tr></thead>
             <tbody>
               <% for (const row of data.orders) { %>
-                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                <tr><td><% if (row.market?.id) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %><%= row.market?.title ?? "—" %><% } %></td>
                   <td><%= row.direction.toUpperCase() %> · <%= row.action === 'open' ? '신규' : '청산' %></td><td><%= format(row.price) %></td><td><%= row.remaining %></td><td><%= format(row.feeReserved) %> TP</td></tr>
               <% } %>
             </tbody>
@@ -121,7 +121,7 @@
             <thead><tr><th scope="col">시장</th><th scope="col">방향</th><th scope="col">종료 수량</th><th scope="col">진입가</th><th scope="col">거래 손익 (수수료 제외)</th><th scope="col">상태</th><th scope="col">갱신 · KST</th></tr></thead>
             <tbody>
               <% for (const row of data.history) { %>
-                <tr><td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                <tr><td><% if (row.market?.id) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %><%= row.market?.title ?? "—" %><% } %></td>
                   <td><%= row.direction.toUpperCase() %></td><td><%= row.closed %></td><td><%= format(row.price) %></td>
                   <td><%= format(row.realized) %> TP</td><td><%= row.status %></td><td><%= row.updatedAt ? date.format(new Date(row.updatedAt)) : '—' %></td></tr>
               <% } %>
@@ -152,7 +152,7 @@
               <tbody>
                 <% for (const row of data.feeTrades) { %>
                   <tr>
-                    <td><% if (row.market) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %>—<% } %></td>
+                    <td><% if (row.market?.id) { %><a href="/exchange/markets/<%= row.market.id %><%= query %>"><%= row.market.title %></a><% } else { %><%= row.market?.title ?? "—" %><% } %></td>
                     <td><%= format(row.price) %></td><td><%= row.quantity %></td>
                     <td><%= format(row.makerFee) %> TP</td><td><%= format(row.takerFee) %> TP</td>
                     <td class="bid">+<%= format(row.total) %> TP</td><td><%= date.format(new Date(row.at)) %></td>

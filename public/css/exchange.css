@@ -262,10 +262,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 .terminal-footer img { width: 118px; height: auto; }
-.mpi-summary .market-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 9px; }
+.mpi-summary .market-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 640px) {
-  .mpi-summary .market-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mpi-summary .market-metrics div:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .mpi-summary .market-metrics div:nth-child(3) { border-left: 1px solid var(--border); padding-left: 9px; }
 }
 
 @media (max-width: 420px) {

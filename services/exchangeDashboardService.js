@@ -3,10 +3,11 @@ const { ExchangeAccount, ExchangeMarket, ExchangeOrder, ExchangePosition, Exchan
 const { TP_SCALE, collateral } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, initialBalance } = require("./exchangeFees");
 const { marketView, orderView } = require("./exchangeService");
+const { isPublicMarket } = require("./exchangeAccessService");
 const { submittedBots } = require("./exchangeScenarioService");
 const { isBootstrap, isHistoricalBootstrap, readExamBots, traderId, botLabel } = require("./exchangeBootstrapService");
 
-async function dashboardState(userId, now = new Date(), { section } = {}) {
+async function dashboardState(userId, now = new Date(), { section, publicOnly = false } = {}) {
   return mongoose.connection.transaction(async (session) => {
     const wallet = await ExchangeWallet.findById(userId).session(session).lean();
     const accounts = await ExchangeAccount.find({ userId, releasedAt: null }).session(session).lean();
@@ -25,7 +26,10 @@ async function dashboardState(userId, now = new Date(), { section } = {}) {
     const byId = new Map(markets.map((market) => [String(market._id), market]));
     function marketFor(row) {
       const market = byId.get(String(row.marketId));
-      return market ? marketView(market, now) : null;
+      if (!market) return null;
+      if (publicOnly && !isPublicMarket(market)) return { title: "이전 운영 테스트 회차", status: marketView(market, now).status,
+        settlement: market.settlement, lastPrice: market.lastPrice };
+      return marketView(market, now);
     }
     const toTp = (amount) => amount / TP_SCALE;
     const positionCollateral = positions.reduce((sum, row) => sum + collateral(row.direction, row.price, row.remaining), 0);

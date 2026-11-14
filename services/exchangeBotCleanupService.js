@@ -190,7 +190,9 @@ async function cleanupExchangeBots(expectedFingerprint) {
     const plan = await buildPlan(session);
     if (plan.fingerprint !== expectedFingerprint) throw new Error("Exchange bot cleanup candidates changed after review.");
     if (plan.blockers.length) throw new Error(`Exchange bot cleanup blocked: ${plan.blockers.join(", ")}.`);
-    await ExchangeSetting.updateOne({ _id: "default" }, { $set: { automatedTradingDisabled: true, historicalBootstrapEnabled: false } }, { upsert: true, session });
+    await ExchangeSetting.updateOne({ _id: "default" }, {
+      $set: { automatedTradingDisabled: true, historicalBootstrapEnabled: false, publicMarketMakerEnabled: false },
+    }, { upsert: true, session });
 
     if (plan.refund || plan.grant) {
       await ExchangeWallet.updateOne({ _id: EXCHANGE_WALLET_ID }, {

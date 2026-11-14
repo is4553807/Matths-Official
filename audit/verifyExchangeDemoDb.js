@@ -87,7 +87,7 @@ async function testHttp() {
     assert.match(mpiHtml, /id="mpi-chart" role="img" aria-label="MPI 캔들"/);
     assert.doesNotMatch(mpiHtml, /시연|더미|공식 표본|mpi-demo-panel/);
     assert.match(mpiHtml, /회차가 공개되면 집계가 시작됩니다/);
-    assert.match(mpiHtml, /(?:데이터 반영 기준|공개 가능 기준) · KST/);
+    assert.doesNotMatch(mpiHtml, /30분 지연|최근 지수 변경 표본|최근 표본 데이터 기준|데이터 반영 기준/);
     assert.match(mpiHtml, /data-interval="1m"[^>]+aria-pressed="true"/);
     assert.match(mpiHtml, /id="exchange-theme-toggle"/);
     assert.match(mpiHtml, /id="exchange-login" href="[^"]*\/login\?next=%2Fexchange%2Fmpi"/);
@@ -220,6 +220,28 @@ async function testHttp() {
     assert.equal(logout.headers.get("location"), "/exchange/futures");
     assert.match(logout.headers.get("set-cookie"), /connect\.sid=;/);
     assert.match(await (await fetch(`${origin}/exchange/futures`, { headers: { Cookie: student } })).text(), /id="exchange-login"/);
+    const hiddenMarket = await ExchangeMarket.create({
+      key: "weekly:operator-history", type: "weekly", title: "Operator history", phase: "settled",
+      opensAt: new Date("2026-11-08T06:00:00Z"), closeAt: new Date("2026-11-14T03:00:00Z"),
+      historicalBootstrap: { status: "complete" },
+    });
+    try {
+      const publicResult = await (await fetch(origin + "/api/exchange/markets/current")).json();
+      assert.ok(publicResult.markets.every((row) => row.id !== String(hiddenMarket._id)));
+      for (const path of [
+        `/exchange/markets/${hiddenMarket._id}`,
+        `/api/exchange/markets/${hiddenMarket._id}/chart`,
+        `/api/exchange/markets/${hiddenMarket._id}/candles`,
+        `/exchange/mpi?market=${hiddenMarket._id}`,
+        `/api/exchange/mpi?market=${hiddenMarket._id}`,
+      ]) {
+        assert.equal((await fetch(origin + path)).status, 404, path);
+        assert.equal((await fetch(origin + path, { headers: { Cookie: student } })).status, 404, path);
+        assert.equal((await fetch(origin + path, { headers: { Cookie: admin } })).status, 200, path);
+      }
+    } finally {
+      await ExchangeMarket.deleteOne({ _id: hiddenMarket._id });
+    }
   } finally {
     await new Promise((resolve) => http.close(resolve));
   }

@@ -21,6 +21,7 @@ const { botParticipationForSchedule, submittedBots } = require("./exchangeScenar
 const { POLICY, OPEN_ROUND_POLICY, isHistoricalBootstrap, isBootstrap, fadeAt, weightedMpi, recordExamBots, gradeExamBots, readExamBots } = require("./exchangeBootstrapService");
 
 const { replayBotFills } = require("./exchangeBotReplayService");
+const { operatorOnlyExchange, isPublicMarket } = require("./exchangeAccessService");
 
 function error(status, message) {
   return Object.assign(new Error(message), { status });
@@ -250,8 +251,17 @@ function publicState(market, now = new Date()) {
 }
 
 async function exchangeAutomationDisabled(session, market) {
-  if (isHistoricalBootstrap(market)) return false;
+  if (operatorOnlyExchange() && isHistoricalBootstrap(market)) return false;
   return Boolean(await ExchangeSetting.exists({ _id: "default", automatedTradingDisabled: true }).session(session || null));
+}
+
+async function exchangeMarketMakerAutomationDisabled(session, market) {
+  if (market?.type !== "weekly" || operatorOnlyExchange() || !isPublicMarket(market)) {
+    return exchangeAutomationDisabled(session, market);
+  }
+  return Boolean(await ExchangeSetting.exists({
+    _id: "default", automatedTradingDisabled: true, publicMarketMakerEnabled: { $ne: true },
+  }).session(session || null));
 }
 
 async function openWeeklyMarket(market, exam, now, session) {
@@ -273,7 +283,9 @@ async function openWeeklyMarket(market, exam, now, session) {
 }
 
 async function syncWeeklyMarkets(now = new Date()) {
-  const automationDisabled = await exchangeAutomationDisabled();
+  const setting = await ExchangeSetting.findById("default").select("automatedTradingDisabled publicMarketMakerEnabled").lean();
+  const automationDisabled = setting?.automatedTradingDisabled === true;
+  const marketMakerEnabled = !automationDisabled || (!operatorOnlyExchange() && setting?.publicMarketMakerEnabled === true);
   const exams = await PrivateMockExam.find({
     ...weeklyExamQuery(), status: { $in: ["scheduled", "open"] }, closeAt: { $gt: now },
   }).sort({ releaseAt: 1 }).limit(12)
@@ -285,10 +297,10 @@ async function syncWeeklyMarkets(now = new Date()) {
     const questionCounts = [2, 3, 4].map((point) => exam.points.filter((value) => value === point).length);
     const botParticipation = !automationDisabled && botParticipationForSchedule(exam.releaseAt, exam.closeAt);
     const botRules = botParticipation ? { botParticipation, botSeed: randomBytes(32).toString("hex"),
-      bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1 } : { botParticipation, ...(automationDisabled ? { marketMakerEnabled: false } : {}) };
+      bootstrapPolicy: POLICY, tradingBotsEnabled: true, botWeight: 1 } : { botParticipation };
     await ExchangeMarket.updateOne({ key }, { $setOnInsert: {
       key, type: "weekly", examId: exam._id, title: exam.title,
-      opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts,
+      opensAt: exam.releaseAt, closeAt: exam.closeAt, questionCounts, marketMakerEnabled,
       ...botRules,
     } }, { upsert: true });
     await ExchangeMarket.updateOne({ key, phase: "scheduled", openedAt: null, "historicalBootstrap.status": null, $or: [
@@ -593,5 +605,6 @@ module.exports = {
   validAttempts, validAttemptsAtMarketTime,
   readSetting, readMpiMinimum, publicState, openWeeklyMarket, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
   sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
-  exchangeAutomationDisabled, mpiDataCutoff, publishedMpiFilter, latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
+  exchangeAutomationDisabled, exchangeMarketMakerAutomationDisabled, mpiDataCutoff, publishedMpiFilter,
+  latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,
 };

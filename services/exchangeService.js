@@ -6,13 +6,14 @@ const {
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveObservedMpi,
   publishedMpiFilter, latestPublishedMpi, activeLiquidityPlan, bookLevels, marketReference, liveAttemptRows, pendingAttempts, sampleMinute,
-  exchangeAutomationDisabled,
+  exchangeAutomationDisabled, exchangeMarketMakerAutomationDisabled,
 } = require("./exchangeMarketService");
 const { TP_SCALE, processMarket, maintainMarketMaker, maintainFundedBotOrders } = require("./exchangeTradingService");
 const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFees");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 const { isBootstrap, isHistoricalBootstrap, traderStopAt } = require("./exchangeBootstrapService");
-const { operatorOnlyExchange, runHistoricalBootstrap } = require("./exchangeHistoricalBootstrapService");
+const { runHistoricalBootstrap } = require("./exchangeHistoricalBootstrapService");
+const { operatorOnlyExchange, publicMarketFilter } = require("./exchangeAccessService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
   verifying: "성적 검증 중", "awaiting-result": "성적 발표 대기", settling: "정산 중", settled: "정산 완료", void: "시장 취소" };
@@ -38,10 +39,11 @@ function marketView(market, now) {
   };
 }
 
-async function marketList(now) {
+async function marketList(now, { publicOnly = false } = {}) {
+  const visibility = publicOnly ? publicMarketFilter() : {};
   const [current, history] = await Promise.all([
-    ExchangeMarket.find({ phase: "scheduled", closeAt: { $gt: now } }).sort({ opensAt: 1, _id: 1 }).limit(80).lean(),
-    ExchangeMarket.find({ $or: [{ phase: { $ne: "scheduled" } }, { closeAt: { $lte: now } }] })
+    ExchangeMarket.find({ ...visibility, phase: "scheduled", closeAt: { $gt: now } }).sort({ opensAt: 1, _id: 1 }).limit(80).lean(),
+    ExchangeMarket.find({ ...visibility, $or: [{ phase: { $ne: "scheduled" } }, { closeAt: { $lte: now } }] })
       .sort({ closeAt: -1, _id: -1 }).limit(20).lean(),
   ]);
   // A deleted or unpublished weekly source may be discovered between background passes.
@@ -128,10 +130,10 @@ async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
     .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable").lean();
 }
 
-async function terminalState({ marketId, userId, interval, marketType, now = new Date() } = {}) {
-  const list = await marketList(now);
+async function terminalState({ marketId, userId, interval, marketType, now = new Date(), publicOnly = false } = {}) {
+  const list = await marketList(now, { publicOnly });
   const choices = marketType ? list.filter((row) => row.type === marketType) : list;
-  const market = marketId ? list.find((row) => String(row._id) === marketId) || await ExchangeMarket.findById(marketId).lean()
+  const market = marketId ? list.find((row) => String(row._id) === marketId) || await ExchangeMarket.findOne({ _id: marketId, ...(publicOnly ? publicMarketFilter() : {}) }).lean()
     : choices.find((row) => isHistoricalBootstrap(row) && publicState(row, now) === "open")
       || choices.find((row) => publicState(row, now) === "open")
       || choices.find((row) => ["scheduled", "waiting", "paused"].includes(publicState(row, now)));
@@ -188,10 +190,11 @@ async function terminalState({ marketId, userId, interval, marketType, now = new
     ticks: ticks.reverse(), own: { ...own, eligible: own.eligible && view.status === "open" } };
 }
 
-async function leaderboard() {
+async function leaderboard({ publicOnly = false } = {}) {
+  const visibility = publicOnly ? { "market.historicalBootstrap.status": null, "market.replayRecordedAt": null } : {};
   const rows = await ExchangePosition.aggregate([
     { $lookup: { from: ExchangeMarket.collection.name, localField: "marketId", foreignField: "_id", as: "market" } },
-    { $match: { "market.phase": "settled" } },
+    { $match: { "market.phase": "settled", ...visibility } },
     { $group: { _id: "$userId", profit: { $sum: "$realized" } } },
     { $lookup: { from: ExchangeWallet.collection.name, localField: "_id", foreignField: "_id", as: "wallet" } },
     { $match: { "wallet.rankingVisible": true } },
@@ -268,13 +271,12 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
       console.error("[exchange] market maintenance failed", String(market._id), cause.message);
       continue;
     }
-    if (market.type !== "weekly" || !market.openedAt || market.phase !== "scheduled" || now >= market.closeAt
-      || await exchangeAutomationDisabled(null, market)) continue;
-    if (!market.botParticipation || isBootstrap(market)) {
+    if (market.type !== "weekly" || !market.openedAt || market.phase !== "scheduled" || now >= market.closeAt) continue;
+    if ((!market.botParticipation || isBootstrap(market)) && !await exchangeMarketMakerAutomationDisabled(null, market)) {
       try { await maintainMarketMaker(market._id, clock); }
       catch (cause) { console.error("[exchange] MM maintenance failed", String(market._id), cause.message); }
     }
-    if (market.botParticipation || isBootstrap(market)) {
+    if ((market.botParticipation || isBootstrap(market)) && !await exchangeAutomationDisabled(null, market)) {
       try { await maintainFundedBotOrders(market, now, clock); }
       catch (cause) { console.error("[exchange] Trading Bot maintenance failed", String(market._id), cause.message); }
     }

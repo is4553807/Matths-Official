@@ -5,9 +5,6 @@
   const text = (id, value) => { get(id).textContent = value; };
   const select = get("mpi-select");
   const number = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
-  const time = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul", hourCycle: "h23", hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
 
   let state = JSON.parse(root.dataset.state);
   let selected = state.market?.id;
@@ -60,7 +57,7 @@
     text("mpi-score", latest?.mpi != null ? `${number.format(latest.mpi / 10)}점` : "—");
     const botCount = latest?.botPopulationCount ?? 0;
     get("mpi-bot-policy").hidden = !explainBots;
-    text("mpi-value-label", state.market?.bootstrap && !historical ? "잠정 MPI · 30분 지연" : "공개 MPI · 30분 지연");
+    text("mpi-value-label", state.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI");
     text("mpi-bot-policy", state.market?.bootstrap
       ? `공개 표본의 Exam Bot 가중치 ${latest?.botWeight == null ? "—" : number.format(latest.botWeight * 100) + "%"} · 최종 정산은 실제 유효 학생 성적 기준`
       : "학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다.");
@@ -70,11 +67,8 @@
     const humanCount = latest?.humanPopulationCount ?? ((latest?.populationCount ?? 0) - botCount);
     text("mpi-count", !latest ? "—" : explainBots
       ? `학생 ${number.format(humanCount)}명 · 봇 ${number.format(botCount)}명` : `${number.format(latest.populationCount)}명`);
-    text("mpi-time", latest ? time.format(new Date(latest.sampledAt)) : "—");
-    text("mpi-cutoff", latest?.dataCutoffAt ? time.format(new Date(latest.dataCutoffAt)) : "—");
-    text("mpi-data-through", state.dataThroughAt ? time.format(new Date(state.dataThroughAt)) : "—");
     text("mpi-waiting", latest?.unavailable ? "현재 공개 요건을 충족한 성적이 없습니다." : state.market
-      ? `${explainBots ? "학생과 운영 봇 합계" : "유효 응시"} ${number.format(state.minimumMpiAttempts)}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
+      ? `${explainBots ? "학생과 운영 봇 합계" : "유효 응시"} ${number.format(state.minimumMpiAttempts)}명부터 집계합니다.`
       : "주간 모의고사 회차가 공개되면 집계가 시작됩니다.");
     get("mpi-empty").hidden = Boolean(candles.length);
     chart.update(candles, seriesKey(state), [], {

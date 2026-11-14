@@ -25,12 +25,9 @@
         <label class="market-select" id="mpi-select-wrap" hidden>회차 <select id="mpi-select" aria-label="회차 선택"></select></label>
       </div>
       <dl class="market-metrics">
-        <div><dt id="mpi-value-label"><%= initial.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI" %> · 30분 지연</dt><dd id="mpi-value">—</dd></div>
+        <div><dt id="mpi-value-label"><%= initial.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI" %></dt><dd id="mpi-value">—</dd></div>
         <div><dt>평균 원점수</dt><dd id="mpi-score">—</dd></div>
         <div><dt>유효 응시 인원</dt><dd id="mpi-count">—</dd></div>
-        <div><dt>최근 지수 변경 표본 · KST</dt><dd id="mpi-time">—</dd></div>
-        <div><dt>최근 표본 데이터 기준 · KST</dt><dd id="mpi-cutoff">—</dd></div>
-        <div><dt>데이터 반영 기준 · KST</dt><dd id="mpi-data-through">—</dd></div>
       </dl>
     </section>
     <section class="panel mpi-panel" aria-labelledby="mpi-chart-heading">
@@ -47,7 +44,7 @@
         <div class="chart-empty" id="mpi-empty" <%= initial.candles.length ? "hidden" : "" %>>
           <strong>MPI 공개 대기</strong>
           <p id="mpi-waiting"><%= initial.market
-            ? `${initial.market.botParticipation && !historical ? "학생과 운영 봇 합계" : "유효 응시"} ${initial.minimumMpiAttempts.toLocaleString("ko-KR")}명부터 집계하며, 집계 30분 뒤 공개됩니다.`
+            ? `${initial.market.botParticipation && !historical ? "학생과 운영 봇 합계" : "유효 응시"} ${initial.minimumMpiAttempts.toLocaleString("ko-KR")}명부터 집계합니다.`
             : "주간 모의고사 회차가 공개되면 집계가 시작됩니다." %></p>
         </div>
       </div>

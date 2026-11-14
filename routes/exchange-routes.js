@@ -3,7 +3,7 @@ const { isObjectIdOrHexString } = require("mongoose");
 const auth = require("../middleware/authMiddleware");
 const { exchangeLogout } = require("../controllers/matthsController");
 const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
-const { ExchangeMarket, ExchangeWallet } = require("../models/exchangeModel");
+const { ExchangeMarket, ExchangeOrder, ExchangeWallet } = require("../models/exchangeModel");
 const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
 } = require("../services/exchangeMarketService");
@@ -14,7 +14,7 @@ const { terminalState, futuresChartInterval, futuresChartHistory, orderView, adm
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
 const { dashboardState, operatorBotsState } = require("../services/exchangeDashboardService");
 const { mpiState } = require("../services/exchangeMpiService");
-const { operatorOnlyExchange } = require("../services/exchangeHistoricalBootstrapService");
+const { operatorOnlyExchange, publicMarketFilter } = require("../services/exchangeAccessService");
 
 const router = express.Router();
 const FUTURES_QUICK_INTERVALS = ["1m", "1s", "5m", "1h", "2h"];
@@ -60,12 +60,25 @@ function apiLogin(req, res, next) {
 }
 
 router.use(["/exchange", "/api/exchange"], privateResponse, (req, res, next) => {
-  if (!operatorOnlyExchange()) return next();
+  if (!operatorOnlyExchange()) {
+    return req.session?.user?.role === "admin" ? auth.isLoggedIn(req, res, next) : next();
+  }
   if (!req.session?.user?.id && req.originalUrl.startsWith("/api/exchange")) {
     return res.status(401).json({ message: "운영자 계정으로 로그인해 주세요." });
   }
   return auth.isLoggedIn(req, res, (cause) => cause ? next(cause) : auth.isAdmin(req, res, next));
 });
+
+const publicOnly = (req) => req.authenticatedUser?.role !== "admin";
+
+function marketFilter(req, marketId) {
+  return { _id: marketId, ...(publicOnly(req) ? publicMarketFilter() : {}) };
+}
+
+function requireMarket(market) {
+  if (!market) throw error(404, "선물시장을 찾을 수 없습니다.");
+  return market;
+}
 
 function exchangeNavigation(req) {
   const signedIn = Boolean(viewer(req));
@@ -90,11 +103,13 @@ function historyBefore(value) {
 
 function mpiSelection(req) {
   return { marketId: req.query.market ? id(req.query.market) : undefined,
-    interval: req.query.interval, before: historyBefore(req.query.before) };
+    interval: req.query.interval, before: historyBefore(req.query.before), publicOnly: publicOnly(req) };
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
-  const initial = await mpiState(mpiSelection(req));
+  const selection = mpiSelection(req);
+  const initial = await mpiState(selection);
+  if (selection.marketId && publicOnly(req)) requireMarket(initial.market);
   res.render("exchange-mpi", {
     ...exchangeNavigation(req), initial,
     intervals: OPTIONS,
@@ -103,13 +118,17 @@ router.get("/exchange/mpi", privateResponse, async (req, res) => {
 });
 
 router.get("/api/exchange/mpi", privateResponse, async (req, res) => {
-  res.json(await mpiState(mpiSelection(req)));
+  const selection = mpiSelection(req);
+  const state = await mpiState(selection);
+  if (selection.marketId && publicOnly(req)) requireMarket(state.market);
+  res.json(state);
 });
 
 async function showFutures(req, res) {
   const { userId, actorId } = req.exchangeAccount;
   const selection = req.params.marketId || req.query.market;
-  const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: req.query.interval });
+  const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: req.query.interval, publicOnly: publicOnly(req) });
+  if (selection && publicOnly(req)) requireMarket(initial.market);
   const wallet = userId && !actorId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
   res.render("exchange", { ...exchangeNavigation(req), initial, isAdmin: req.session?.user?.role === "admin", exchangeWalletMode: Boolean(actorId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
@@ -149,7 +168,7 @@ function showDashboard(section) {
     }
     res.render("exchange-dashboard", {
       ...exchangeNavigation(req), section, sections,
-      data: botData ?? (userId ? await dashboardState(userId, now, { section }) : null),
+      data: botData ?? (userId ? await dashboardState(userId, now, { section, publicOnly: publicOnly(req) }) : null),
       exchangeWalletMode: Boolean(actorId), isAdmin: req.session?.user?.role === "admin",
       accountName: actorId ? "Matths Exchange" : req.session?.user?.name || "내 Exchange 월렛",
       disablePageAnalytics: true,
@@ -168,21 +187,24 @@ router.get("/exchange/portfolio", ...walletAccess, showDashboard("overview"));
 router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exchange/markets/:marketId",
   "/api/exchange/markets/:marketId/chart"], privateResponse, exchangeWallet, async (req, res) => {
   const selection = req.params.marketId || req.query.market;
-  res.json(await terminalState({ userId: req.exchangeAccount.userId, marketId: selection ? id(selection) : undefined,
-    marketType: req.path === "/api/exchange/markets/current" ? "weekly" : undefined,
-    interval: typeof req.query.interval === "string" ? req.query.interval : undefined }));
+  const state = await terminalState({ userId: req.exchangeAccount.userId, marketId: selection ? id(selection) : undefined,
+    marketType: req.path === "/api/exchange/markets/current" ? "weekly" : undefined, publicOnly: publicOnly(req),
+    interval: typeof req.query.interval === "string" ? req.query.interval : undefined });
+  if (selection && publicOnly(req)) requireMarket(state.market);
+  res.json(state);
 });
 router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (req, res) => {
   const marketId = id(req.params.marketId);
   const before = historyBefore(req.query.before);
   const now = new Date();
-  const market = await ExchangeMarket.findById(marketId)
+  const market = await ExchangeMarket.findOne(marketFilter(req, marketId))
     .select("bootstrapPolicy.version historicalBootstrap.status replayRecordedAt replayVolume").lean();
+  if (publicOnly(req)) requireMarket(market);
   const interval = futuresChartInterval(req.query.interval, market, now).code;
   const candles = await futuresChartHistory(marketId, interval, before, now, market);
   res.json({ interval, candles });
 });
-router.get("/api/exchange/rankings", privateResponse, async (_req, res) => res.json(await leaderboard()));
+router.get("/api/exchange/rankings", privateResponse, async (req, res) => res.json(await leaderboard({ publicOnly: publicOnly(req) })));
 router.post("/api/exchange/rankings/visibility", privateResponse, apiLogin, auth.isStudent, async (req, res) => {
   if (typeof req.body.visible !== "boolean") throw error(400, "공개 여부를 선택해 주세요.");
   await ExchangeWallet.updateOne({ _id: viewer(req) }, { $set: { rankingVisible: req.body.visible },
@@ -190,11 +212,18 @@ router.post("/api/exchange/rankings/visibility", privateResponse, apiLogin, auth
   res.json({ visible: req.body.visible });
 });
 router.post("/api/exchange/markets/:marketId/orders", privateResponse, apiLogin, auth.isStudent, exchangeWallet, async (req, res) => {
-  const order = await placeOrder({ marketId: id(req.params.marketId), ...req.exchangeAccount, input: req.body });
+  const marketId = id(req.params.marketId);
+  if (publicOnly(req)) requireMarket(await ExchangeMarket.exists(marketFilter(req, marketId)));
+  const order = await placeOrder({ marketId, ...req.exchangeAccount, input: req.body });
   res.json(orderView(order));
 });
 router.post("/api/exchange/orders/:orderId/cancel", privateResponse, apiLogin, auth.isStudent, exchangeWallet, async (req, res) => {
-  res.json(orderView(await cancelOrder({ orderId: id(req.params.orderId), ...req.exchangeAccount })));
+  const orderId = id(req.params.orderId);
+  if (publicOnly(req)) {
+    const order = await ExchangeOrder.findOne({ _id: orderId, userId: req.exchangeAccount.userId }).select("marketId").lean();
+    if (!order || !await ExchangeMarket.exists(marketFilter(req, order.marketId))) throw error(404, "주문을 찾을 수 없습니다.");
+  }
+  res.json(orderView(await cancelOrder({ orderId, ...req.exchangeAccount })));
 });
 
 const admin = [privateResponse, auth.isLoggedIn, auth.isAdmin];

@@ -117,6 +117,7 @@ const setting = new Schema({
   minimumMpiAttempts: { type: Number, default: 1 },
   automatedTradingDisabled: Boolean,
   historicalBootstrapEnabled: Boolean,
+  publicMarketMakerEnabled: Boolean,
   marketMakerPolicy: { type: String, enum: ["baseline", "B"] },
   marketMakerExpectedLossLimitTp: { type: Number, min: 0, max: 1000 },
   marketMakerTailLossLimitTp: { type: Number, min: 0, max: 1000 },

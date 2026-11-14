@@ -62,8 +62,8 @@ async function chartFor({ visible, replayFilter, latest, before, interval, marke
   return candles;
 }
 
-async function mpiState({ marketId, interval: requestedInterval, before, now = new Date() } = {}) {
-  const choices = (await marketList(now)).filter((market) => market.type === "weekly");
+async function mpiState({ marketId, interval: requestedInterval, before, now = new Date(), publicOnly = false } = {}) {
+  const choices = (await marketList(now, { publicOnly })).filter((market) => market.type === "weekly");
   const selected = marketId ? choices.find((market) => String(market._id) === String(marketId))
     : choices.find((market) => market.opensAt <= now && now < market.closeAt && market.phase === "scheduled")
       || choices.find((market) => market.opensAt > now);
