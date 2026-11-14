@@ -8,7 +8,7 @@ const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
-const { placeOrder, cancelOrder, registerResult, voidMarket, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
+const { placeOrder, cancelOrder, registerResult, voidMarket, saveMarketMakerBudgets, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
 const { terminalState, futuresChartInterval, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
@@ -228,6 +228,11 @@ router.post("/admin/exchange/mpi-minimum", ...admin, async (req, res) => {
   await saveMpiMinimum({ marketId: req.body.marketId ? id(req.body.marketId) : undefined,
     value: req.body.minimumMpiAttempts, actorId: viewer(req) });
   adminRedirect(res, req.body);
+});
+
+router.post("/admin/exchange/market-maker-budget", ...admin, async (req, res) => {
+  await saveMarketMakerBudgets(req.body, viewer(req));
+  adminRedirect(res);
 });
 
 router.post("/admin/exchange/markets/:marketId/action", ...admin, async (req, res) => {

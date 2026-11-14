@@ -27,6 +27,7 @@ const defaultTargets = [
   { target: "audit/verifyExchangeBootstrapStudentHttpDb.js", dropAfter: true },
   { target: "audit/verifyExchangeBotCleanupDb.js", dropAfter: true },
   { target: "audit/verifyExchangeHistoricalBootstrapDb.js", dropAfter: true },
+  { target: "audit/verifyExchangeMarketMakerBDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];
 

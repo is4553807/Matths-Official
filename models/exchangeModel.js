@@ -73,6 +73,30 @@ const market = new Schema({
   marketMakerId: objectId,
   marketMakerEnabled: { type: Boolean, default: true },
   marketMakerUsedSnapshot: objectId,
+  marketMakerDecision: {
+    at: Date,
+    mode: { type: String, enum: ["baseline", "B", "halted"] },
+    reason: String,
+    forecastId: objectId,
+    quoteKey: String,
+    bookSnapshotId: objectId,
+    policyKey: String,
+    calibratedRoundCount: Number,
+    mark: Number,
+    p10: Number,
+    p90: Number,
+    scenarioCount: Number,
+    restorableRoundCount: Number,
+    expectedLossTp: Number,
+    cvarTp: Number,
+    hardLossTp: Number,
+    expectedQuantity: Number,
+    collateralRequiredTp: Number,
+    collateralReleasedTp: Number,
+    quotes: { type: [Schema.Types.Mixed], default: undefined },
+    flowWindowCount: Number,
+    flowOrderCount: Number,
+  },
   liquidityPlan: {
     startsAt: Date,
     endsAt: Date,
@@ -93,6 +117,9 @@ const setting = new Schema({
   minimumMpiAttempts: { type: Number, default: 1 },
   automatedTradingDisabled: Boolean,
   historicalBootstrapEnabled: Boolean,
+  marketMakerPolicy: { type: String, enum: ["baseline", "B"] },
+  marketMakerExpectedLossLimitTp: { type: Number, min: 0, max: 1000 },
+  marketMakerTailLossLimitTp: { type: Number, min: 0, max: 1000 },
 }, options);
 const wallet = new Schema({
   _id: objectId, available: balance(), collectedFees: balance(), rankingVisible: { type: Boolean, default: false },
@@ -129,6 +156,7 @@ const order = new Schema({
   botLabel: String,
   botId: objectId,
   mpiSnapshotId: objectId,
+  marketMakerQuoteKey: String,
   scheduledLiquidity: Boolean,
   expiresAt: Date,
   actorId: objectId,
@@ -280,6 +308,47 @@ reference.index({ marketId: 1, at: -1, sequence: -1 });
 const event = new Schema({ marketId: objectId, actorId: objectId, at: Date, action: String, detail: Schema.Types.Mixed }, options);
 event.index({ createdAt: -1 });
 
+const marketMakerCohort = new Schema({
+  snapshotId: { type: objectId, required: true },
+  cutoffAt: { type: Date, required: true },
+  publishAt: { type: Date, required: true },
+  supersededAt: Date,
+  earlyMean: Number,
+  remainingCount: Number,
+  remainingScoreSum: Number,
+}, { _id: false });
+
+const marketMakerHistory = new Schema({
+  marketId: { type: objectId, required: true },
+  examId: { type: objectId, required: true },
+  version: { type: Number, required: true },
+  decidedAt: { type: Date, required: true },
+  participantCount: { type: Number, required: true },
+  scoreSum: { type: Number, required: true },
+  cohorts: { type: [marketMakerCohort], default: [] },
+  flowOrderCount: { type: Number, min: 0 },
+}, options);
+marketMakerHistory.index({ marketId: 1, version: 1 }, { unique: true });
+
+const marketMakerForecast = new Schema({
+  marketId: { type: objectId, required: true },
+  inputKey: { type: String, required: true },
+  modelVersion: { type: String, required: true },
+  publicSnapshotId: objectId,
+  cutoffAt: Date,
+  at: { type: Date, required: true },
+  historicalMarketIds: [objectId],
+  restorableRoundCount: Number,
+  validScenarioCount: Number,
+  invalidScenarioCount: Number,
+  mark: Number,
+  p10: Number,
+  p90: Number,
+  reason: String,
+}, options);
+marketMakerForecast.index({ marketId: 1, inputKey: 1 }, { unique: true });
+marketMakerForecast.index({ marketId: 1, at: -1 });
+
 module.exports = {
   ExchangeMarket: model("ExchangeMarket", market),
   ExchangeSetting: model("ExchangeSetting", setting),
@@ -295,4 +364,6 @@ module.exports = {
   ExchangeMpiDemo: model("ExchangeMpiDemo", mpiDemo),
   ExchangeReference: model("ExchangeReference", reference),
   ExchangeEvent: model("ExchangeEvent", event),
+  ExchangeMarketMakerHistory: model("ExchangeMarketMakerHistory", marketMakerHistory),
+  ExchangeMarketMakerForecast: model("ExchangeMarketMakerForecast", marketMakerForecast),
 };

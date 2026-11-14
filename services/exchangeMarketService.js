@@ -197,13 +197,15 @@ function activeLiquidityPlan(market, now) {
   return plan?.startsAt <= now && now < plan.endsAt ? plan : null;
 }
 
-function bookLevels(marketId, now, session, snapshotId, operatorWalletId, scheduledLiquidity = false, automatedOnly = false) {
+function bookLevels(marketId, now, session, snapshotId, operatorWalletId, scheduledLiquidity = false, automatedOnly = false, marketMakerQuoteKey) {
   const filter = activeBookOrders(marketId, now);
   const constraints = [];
   if (snapshotId !== undefined) {
     constraints.push({ $or: [
       { liquidityProvider: { $ne: "matths" } },
-      snapshotId ? { mpiSnapshotId: snapshotId } : scheduledLiquidity ? { scheduledLiquidity: true } : { _id: null },
+      ...(marketMakerQuoteKey ? [{ marketMakerQuoteKey }] : []),
+      { marketMakerQuoteKey: null, ...(snapshotId ? { mpiSnapshotId: snapshotId } :
+        scheduledLiquidity ? { scheduledLiquidity: true } : { _id: null }) },
     ] });
   }
   if (automatedOnly) constraints.push({ $or: [{ source: "BOT" }, { liquidityProvider: "matths" }] });

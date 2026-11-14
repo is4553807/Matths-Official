@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
-const { randomUUID } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
 const { isDeepStrictEqual } = require("node:util");
 const { PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const {
   ExchangeMarket, ExchangeOrder, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeTrade, ExchangeEvent, ExchangeReference, ExchangeTick,
-  ExchangeExamBotAttempt,
+  ExchangeExamBotAttempt, ExchangeSetting,
 } = require("../models/exchangeModel");
 const {
   error, integer, seoulDate, readWeeklyExam, weeklyExamReady, weeklyExamOpenAt, validAttempts, publicState,
@@ -14,6 +14,9 @@ const {
 const { EXCHANGE_WALLET_ID, TP_SCALE, INITIAL_TP, initialBalance, tradeFee } = require("./exchangeFees");
 const { dueBotOrder, submittedBots } = require("./exchangeScenarioService");
 const { isBootstrap, isHistoricalBootstrap, traderStopAt, tradersEnabledAt, readExamBots, traderId, traderSignal, botLabel } = require("./exchangeBootstrapService");
+
+const { loadMarketMakerForecast, recordMarketMakerForecast, captureMarketMakerHistory } = require("./exchangeMarketMakerForecastService");
+const { optimizeMarketMakerQuotes, marketMakerReachableRisk } = require("./exchangeMarketMakerOptimizer");
 
 const MARKET_LIMIT = 5;
 const BOT_EXPOSURE_LIMIT = 5;
@@ -26,6 +29,9 @@ const MM_POSITION_LIMIT = 2;
 const MM_SNAPSHOT_MAX_AGE = 60 * 60_000;
 const MM_CLOSE_ONLY_WINDOW = 30 * 60_000;
 const MM_QUOTE_LIFETIME = 20_000;
+const MM_B_QUOTE_LIFETIME = 120_000;
+const MM_B_HORIZON = 60_000;
+const MM_MPI_HEARTBEAT_TIMEOUT = 3 * 60_000;
 const LIQUIDITY_CLOSE_ONLY_MS = 5 * 60_000;
 
 const isOperator = (order) => order.liquidityProvider === "matths";
@@ -345,10 +351,11 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
       }
       if (publicState(market, tradedAt) !== "open") throw error(409, "시장 거래가 마감되었습니다.");
       if (isOperator(maker)) {
-        const snapshot = replayContext?.at === +tradedAt ? replayContext.snapshot : await latestPublishedMpi(market, tradedAt, session);
-        const plan = snapshot ? null : activeLiquidityPlan(market, tradedAt);
-        if (market.marketMakerEnabled === false || !maker.expiresAt || maker.expiresAt <= tradedAt
-          || !canFillOperatorOrder(market, maker, snapshot, plan, tradedAt)) {
+        if (!await canExecuteOperatorOrder(market, maker, tradedAt, session, replayContext)) {
+          if (market.marketMakerDecision?.reason === "ledger-inconsistent" && maker.action === "open"
+            && !await ExchangeAccount.exists({ marketId, userId: maker.userId }).session(session)) {
+            throw error(409, "운영자 호가의 담보를 확인하는 중입니다.");
+          }
           await cancel(maker, session, tradedAt);
           continue;
         }
@@ -375,7 +382,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
       await applyFill(order, trade, takerFee, session);
       if (isOperator(maker) && maker.action === "open") {
         if (maker.scheduledLiquidity) market.liquidityPlan.openingFilledAt = tradedAt;
-        else market.marketMakerUsedSnapshot = maker.mpiSnapshotId;
+        else if (!maker.marketMakerQuoteKey) market.marketMakerUsedSnapshot = maker.mpiSnapshotId;
         await cancelOperatorOrders(market, session, tradedAt, { action: "open" });
       }
       await collectFees(totalFee, session);
@@ -614,6 +621,7 @@ function operatorOpenUntil(market, snapshot, plan) {
 }
 
 function canFillOperatorOrder(market, order, snapshot, plan, now) {
+  if (order.marketMakerQuoteKey) return false;
   const matchingReference = snapshot ? order.mpiSnapshotId?.equals(snapshot._id) : plan && order.scheduledLiquidity;
   if (!matchingReference) return false;
   if (order.action === "close") return true;
@@ -626,7 +634,8 @@ async function recordReference(market, now, session, replay = false, knownSnapsh
   const open = publicState(market, now) === "open";
   const snapshot = open ? (knownSnapshot === undefined ? await latestPublishedMpi(market, now, session) : knownSnapshot) : null;
   const book = open ? await bookLevels(market._id, now, session, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
-    Boolean(activeLiquidityPlan(market, now)), replay) : [];
+    Boolean(activeLiquidityPlan(market, now)), replay,
+    market.marketMakerEnabled !== false && market.marketMakerDecision?.mode === "B" ? market.marketMakerDecision.quoteKey : undefined) : [];
   const side = (name, sign) => book.filter((row) => row._id.side === name)
     .map((row) => ({ ...row, price: row._id.price })).sort((a, b) => sign * (a.price - b.price));
   const bids = side("buy", -1);
@@ -662,6 +671,183 @@ function operatorRiskAllows(positions, candidate) {
   });
 }
 
+function mpiPipelineStale(market, now) {
+  return market.mpiCheckedAt ? now - market.mpiCheckedAt > MM_MPI_HEARTBEAT_TIMEOUT
+    : now - market.openedAt > MM_MPI_HEARTBEAT_TIMEOUT;
+}
+
+async function canExecuteOperatorOrder(market, maker, at, session, replayContext) {
+  if (market.marketMakerEnabled === false || !maker.expiresAt || maker.expiresAt <= at) return false;
+  const decision = market.marketMakerDecision;
+  if (!maker.marketMakerQuoteKey) {
+    if (decision?.mode === "halted") return false;
+    const snapshot = replayContext?.at === +at ? replayContext.snapshot : await latestPublishedMpi(market, at, session);
+    return canFillOperatorOrder(market, maker, snapshot, snapshot ? null : activeLiquidityPlan(market, at), at);
+  }
+  if (decision?.mode !== "B" || maker.marketMakerQuoteKey !== decision.quoteKey || mpiPipelineStale(market, at)
+    || !maker.userId.equals(market.marketMakerId) || maker.action === "open" && +at >= +market.closeAt - MM_CLOSE_ONLY_WINDOW
+    || await exchangeAutomationDisabled(session, market)) return false;
+
+  const setting = await readMakerSetting(session);
+  const budget = setting?.marketMakerPolicy === "B" && riskBudget(setting);
+  if (!budget || decision.policyKey !== budgetKey(budget)) return false;
+  const latest = await latestPublishedMpi(market, at, session);
+  if (String(latest?._id ?? "") !== String(decision.bookSnapshotId ?? "")) return false;
+  const exam = await readWeeklyExam(market.examId, session);
+  if (!weeklyExamOpenAt(exam, at, false) || +exam.releaseAt !== +market.opensAt
+    || +exam.closeAt !== +market.closeAt || !await weeklyExamReady(exam, session)) return false;
+
+  const filter = { marketId: market._id, userId: maker.userId };
+  const positions = await ExchangePosition.find(filter).sort({ _id: 1 }).session(session).lean();
+  const others = await ExchangeOrder.find({
+    ...activeBookOrders(market._id, at), userId: maker.userId, marketMakerQuoteKey: decision.quoteKey, _id: { $ne: maker._id },
+  }).session(session).lean();
+  const risk = marketMakerReachableRisk({ positions, quotes: [maker, ...others] });
+  if (risk.hardLoss <= MM_LOSS_LIMIT && risk.peakPosition <= MM_POSITION_LIMIT) return true;
+  if (decision.reason !== "close-only" || maker.action !== "close") return false;
+  const held = marketMakerReachableRisk({ positions, quotes: [] });
+  return risk.hardLoss <= held.hardLoss && risk.peakPosition <= held.peakPosition;
+}
+
+async function makerDecision(market, at, detail, session) {
+  const { at: lastAt, ...last } = market.marketMakerDecision.toObject();
+  const comparable = (value) => JSON.parse(JSON.stringify(value));
+  const changed = !isDeepStrictEqual(comparable(last), comparable(detail));
+  if (!changed && lastAt && at - lastAt < MM_B_HORIZON) return;
+  market.marketMakerDecision = { at, ...detail };
+  await market.save({ session });
+  if (changed) await ExchangeEvent.create([{
+    marketId: market._id, at, action: "market-maker-decision", detail,
+  }], { session });
+}
+
+function readMakerSetting(session) {
+  return ExchangeSetting.findById("default")
+    .select("marketMakerPolicy marketMakerExpectedLossLimitTp marketMakerTailLossLimitTp").session(session).lean();
+}
+
+function riskBudget(setting) {
+  const mean = setting.marketMakerExpectedLossLimitTp;
+  const tail = setting.marketMakerTailLossLimitTp;
+  if (!Number.isFinite(mean) || !Number.isFinite(tail) || mean < 0 || tail < mean || tail > MM_LOSS_LIMIT / TP_SCALE) return null;
+  return { expectedLossLimit: Math.round(mean * TP_SCALE), tailLossLimit: Math.round(tail * TP_SCALE) };
+}
+
+function budgetKey({ expectedLossLimit, tailLossLimit }) {
+  return `${expectedLossLimit}:${tailLossLimit}`;
+}
+
+async function applyMarketMakerB(market, { snapshot, now, clock, setting, session }) {
+  // Current limits apply only to new quotes. Existing positions are read in their
+  // ledger order and stay in the same market and wallet.
+  if (mpiPipelineStale(market, now)) {
+    await cancelOperatorOrders(market, session, now);
+    await makerDecision(market, now, { mode: "halted", reason: "pipeline-stale", quoteKey: market.marketMakerDecision?.quoteKey }, session);
+    return true;
+  }
+  const forecast = await loadMarketMakerForecast({ market, snapshot, now, horizonMs: MM_B_HORIZON, session });
+  const forecastRow = await recordMarketMakerForecast({ market, snapshot, forecast, at: now, session });
+  const detail = {
+    mode: "baseline",
+    forecastId: forecastRow?._id,
+    mark: forecast.mark ?? null,
+    p10: forecast.p10 ?? null,
+    p90: forecast.p90 ?? null,
+    scenarioCount: forecast.validScenarioCount,
+    restorableRoundCount: forecast.restorableRoundCount,
+    flowWindowCount: forecast.flowWindowCount,
+    calibratedRoundCount: forecast.calibratedRoundCount,
+    flowOrderCount: forecast.flowOrderCount,
+  };
+  const budget = riskBudget(setting);
+  if (forecast.mark == null || !forecast.flowReady || !budget) {
+    detail.reason = forecast.mark == null ? "insufficient-history" : !forecast.flowReady ? "flow-unvalidated" : "risk-policy-unavailable";
+    // A market already using B stays fail-closed if a previously valid input is lost.
+    // Rollout standby preserves the baseline liquidity policy until B is ready.
+    const wasB = Boolean(market.marketMakerDecision?.quoteKey);
+    if (wasB) {
+      detail.mode = "halted";
+      detail.quoteKey = market.marketMakerDecision.quoteKey;
+      await cancelOperatorOrders(market, session, now);
+    }
+    await makerDecision(market, now, detail, session);
+    return wasB;
+  }
+
+  const userId = market.marketMakerId ?? new mongoose.Types.ObjectId();
+  const filter = { marketId: market._id, userId };
+  const positions = await ExchangePosition.find(filter).sort({ _id: 1 }).session(session).lean();
+  const working = await ExchangeOrder.find({ ...filter, liquidityProvider: "matths", status: "working" }).session(session);
+  const bookOrders = await ExchangeOrder.find({ ...activeBookOrders(market._id, now), userId: { $ne: userId } }).session(session).lean();
+  const wallet = await ExchangeWallet.findById(userId).session(session).lean();
+  const account = await ExchangeAccount.findOne(filter).session(session);
+  const balances = [wallet?.available ?? 0, account?.cash ?? 0, account?.allocated ?? 0];
+  const reserved = working.reduce((sum, order) => sum + (order.action === "open"
+    ? collateral(order.direction, order.price, order.remaining) : 0), 0);
+  const tiedUp = positions.reduce((sum, row) => sum + collateral(row.direction, row.price, row.remaining), reserved);
+  const realized = positions.reduce((sum, row) => sum + row.realized, 0);
+  const missingAccount = !account && reserved > 0;
+  const unreconciled = market.marketMakerId
+    && (!wallet || wallet.available + (account?.cash ?? 0) + tiedUp !== MM_WALLET_TP + realized);
+  if (unreconciled || balances.some((amount) => !Number.isSafeInteger(amount) || amount < 0)
+    || missingAccount || account?.releasedAt || working.length > 2
+    || working.some((order) => order.remaining !== 1)
+    || new Set(working.map((order) => order.side)).size !== working.length) {
+    // Mark the decision non-fillable immediately. Where the collateral account is
+    // missing, do not fabricate a refund to make the corrupted ledger look whole.
+    if (!missingAccount) await cancelOperatorOrders(market, session, now);
+    await makerDecision(market, now, { ...detail, mode: "halted", reason: "ledger-inconsistent",
+      quoteKey: market.marketMakerDecision?.quoteKey }, session);
+    return true;
+  }
+  const risk = optimizeMarketMakerQuotes({
+    forecast, positions, working, bookOrders, now, ...budget, available: (wallet?.available ?? MM_WALLET_TP) + (account?.cash ?? 0),
+    hardLossLimit: MM_LOSS_LIMIT, positionLimit: MM_POSITION_LIMIT, opensAllowed: +now < +market.closeAt - MM_CLOSE_ONLY_WINDOW,
+  });
+  const quoteKey = createHash("sha256").update(JSON.stringify([forecast.inputKey, risk.quotes.map(({ side, action, direction, price, quantity }) =>
+    [side, action, direction, price, quantity]), risk.reason])).digest("hex");
+  const matches = (order, candidate) => order.status === "working" && order.expiresAt > now
+    && order.side === candidate.side && order.action === candidate.action && order.direction === candidate.direction
+    && order.price === candidate.price && order.remaining === candidate.quantity;
+  for (const order of working) {
+    if (!risk.quotes.some((candidate) => matches(order, candidate))) await cancel(order, session, now);
+  }
+  if (risk.quotes.length && !market.marketMakerId) {
+    market.marketMakerId = userId;
+    await ExchangeWallet.create([{ _id: userId, available: MM_WALLET_TP }], { session });
+  }
+
+  const at = clock();
+  for (const candidate of risk.quotes) {
+    const until = +market.closeAt - (candidate.action === "open" ? MM_CLOSE_ONLY_WINDOW : 0);
+    if (at >= until) continue;
+    const expiresAt = new Date(Math.min(+at + MM_B_QUOTE_LIFETIME, until));
+    const existing = working.find((order) => matches(order, candidate));
+    if (existing) {
+      existing.set({ expiresAt, marketMakerQuoteKey: quoteKey, mpiSnapshotId: snapshot?._id, scheduledLiquidity: undefined });
+      await existing.save({ session });
+      continue;
+    }
+    market.revision++;
+    const order = new ExchangeOrder({ ...candidate, marketId: market._id, userId,
+      commandId: `mm-b-${market._id}-${market.revision}-${candidate.side}`,
+      remaining: candidate.quantity, status: "working", sequence: market.revision, acceptedAt: at,
+      liquidityProvider: "matths", source: "MM", botLabel: "MM1", marketMakerQuoteKey: quoteKey, mpiSnapshotId: snapshot?._id, expiresAt });
+    await reserve(market, order, session);
+    await order.save({ session });
+  }
+  const tp = (amount) => Number.isFinite(amount) ? amount / TP_SCALE : undefined;
+  await makerDecision(market, now, {
+    ...detail, mode: "B", reason: risk.reason, quoteKey, policyKey: budgetKey(budget),
+    bookSnapshotId: snapshot?._id, quotes: risk.quotes,
+    expectedLossTp: tp(risk.expectedLoss), cvarTp: tp(risk.tailLoss), hardLossTp: tp(risk.hardLoss),
+    expectedQuantity: risk.expectedQuantity, collateralRequiredTp: tp(risk.collateralRequired), collateralReleasedTp: tp(risk.collateralReleased),
+  }, session);
+  if (market.isModified()) await market.save({ session });
+  await recordReference(market, at, session, false);
+  return true;
+}
+
 async function maintainMarketMaker(marketId, clock = () => new Date(), {
   session: existingSession, replay = false, quoteThrough, includeExisting = false,
 } = {}) {
@@ -678,6 +864,16 @@ async function maintainMarketMaker(marketId, clock = () => new Date(), {
       && weeklyExamOpenAt(exam, now, replay) && +exam.releaseAt === +market.opensAt && +exam.closeAt === +market.closeAt
       && await weeklyExamReady(exam, session);
     const snapshot = enabled ? await latestPublishedMpi(market, now, session) : null;
+    const setting = replay ? null : await readMakerSetting(session);
+    if (setting?.marketMakerPolicy === "B") {
+      if (!enabled) {
+        if (market.marketMakerDecision?.mode === "B") {
+          await makerDecision(market, now, { mode: "halted", reason: "market-unavailable", quoteKey: market.marketMakerDecision.quoteKey }, session);
+        }
+      } else if (await applyMarketMakerB(market, { snapshot, now, clock, setting, session })) return;
+    } else if (!replay && market.marketMakerDecision?.mode && market.marketMakerDecision.reason !== "baseline-selected") {
+      await makerDecision(market, now, { mode: "baseline", reason: "baseline-selected" }, session);
+    }
     const plan = enabled && !snapshot ? activeLiquidityPlan(market, now) : null;
     if (!snapshot && !plan) {
       await cancelOperatorOrders(market, session, now);
@@ -830,6 +1026,24 @@ async function stopMarketLiquidity(marketId, actorId, clock = () => new Date()) 
     await recordReference(market, now, session);
     await ExchangeEvent.create([{ marketId, actorId, at: now, action: "liquidity-stop",
       detail: { endsAt: plan.endsAt } }], { session });
+  });
+}
+
+async function saveMarketMakerBudgets(input, actorId, now = new Date()) {
+  const parse = (value) => /^\d+(?:\.\d{1,2})?$/.test(String(value).trim()) ? Number(value) : null;
+  const marketMakerExpectedLossLimitTp = parse(input.expectedLossTp);
+  const marketMakerTailLossLimitTp = parse(input.tailLossTp);
+  const reason = String(input.reason ?? "").trim().slice(0, 300);
+  const budget = { marketMakerExpectedLossLimitTp, marketMakerTailLossLimitTp };
+  if (!reason || !riskBudget(budget)) throw error(400, "0에서 1,000 TP 사이의 기대 손실·CVaR 한도와 설정 사유를 확인해 주세요.");
+  return mongoose.connection.transaction(async (session) => {
+    if (!await User.exists({ _id: actorId, role: "admin" }).session(session)) throw error(403, "운영자만 위험 한도를 설정할 수 있습니다.");
+    const result = await ExchangeSetting.updateOne({ _id: "default", marketMakerPolicy: "B" },
+      { $set: budget }, { session });
+    if (!result.matchedCount) throw error(409, "Market Maker B 정책이 선택된 상태에서 위험 한도를 설정할 수 있습니다.");
+    if (result.modifiedCount) await ExchangeEvent.create([{
+      actorId, at: now, action: "market-maker-risk-budget", detail: { ...budget, reason },
+    }], { session });
   });
 }
 
@@ -991,6 +1205,7 @@ async function decideWeeklyMarket(marketId, now) {
       participantCount, botParticipantCount: bots.length,
       settlementSource: bots.length ? "주간 모의고사 채점 기록 및 공개 운영 봇 점수" : "맵쓰 주간 모의고사 채점 기록" }
       : { decision: "void", reason: "정산할 유효 응시가 없습니다." };
+    await captureMarketMakerHistory(market, { exam, decision, decidedAt: now, session });
     return recordDecision(market, decision, null, now, session);
   });
 }
@@ -1022,4 +1237,4 @@ async function processMarket(market, now = new Date()) {
   });
 }
 
-module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, reconcileHistoricalBook, maintainFundedBotOrders, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity, setMarketMakerEnabled, setPaused };
+module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket, maintainMarketMaker, reconcileHistoricalBook, maintainFundedBotOrders, saveMarketMakerBudgets, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity, setMarketMakerEnabled, setPaused };

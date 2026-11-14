@@ -153,7 +153,8 @@ async function terminalState({ marketId, userId, interval, marketType, now = new
   const { ms } = chartInterval;
   const [book, trades, candles, ticks, own, references] = await Promise.all([
     view.status === "open" ? bookLevels(market._id, now, null, snapshot?._id ?? null, EXCHANGE_WALLET_ID,
-      market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now))) : [],
+      market.marketMakerEnabled !== false && Boolean(activeLiquidityPlan(market, now)), false,
+      market.marketMakerEnabled !== false && market.marketMakerDecision?.mode === "B" ? market.marketMakerDecision.quoteKey : undefined) : [],
     ExchangeTrade.find({ marketId: market._id, tradedAt: { $lte: now } }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
       .select("price quantity tradedAt liquidityProvider makerSource takerSource botOnly -_id").lean(),
     futuresChartHistory(market._id, chartInterval.code, undefined, now, market),
@@ -204,11 +205,13 @@ async function leaderboard() {
 }
 
 async function adminState(year, grade, now = new Date()) {
-  const [markets, settings, minimumMpiAttempts, events, schedules, sourceExams] = await Promise.all([
+  const [markets, settings, minimumMpiAttempts, events, schedules, sourceExams, makerSetting] = await Promise.all([
     marketList(now), readSetting(), readMpiMinimum(), ExchangeEvent.find().sort({ createdAt: -1 }).limit(25).lean(),
     ExchangeMarket.find({ year, grade, type: { $in: ["mock", "csat"] } }).lean(),
     PrivateMockExam.find({ formCode: "WEEKLY", isTest: { $ne: true }, closeAt: { $gt: now } })
       .select("title status releaseAt closeAt questionCount archiveItemId +answerKey +points").sort({ releaseAt: 1 }).limit(12).lean(),
+    ExchangeSetting.findById("default")
+      .select("marketMakerPolicy marketMakerExpectedLossLimitTp marketMakerTailLossLimitTp").lean(),
   ]);
   const controls = [];
   for (const market of markets) {
@@ -219,6 +222,8 @@ async function adminState(year, grade, now = new Date()) {
         ? readWeeklyExam(market.examId).then((exam) => exam ? pendingAttempts(exam, now) : []) : [],
     ]);
     controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum, marketMakerEnabled: market.marketMakerEnabled !== false,
+      marketMakerPolicy: makerSetting?.marketMakerPolicy ?? "baseline",
+      marketMakerDecision: market.marketMakerDecision,
       bootstrapPolicy: market.bootstrapPolicy, mpiFade: market.mpiFade, botWeight: market.botWeight,
       tradingBotsEnabled: market.tradingBotsEnabled !== false, internalBotCount: market.internalBotCount,
       tradingBotsStopAt: isBootstrap(market) ? traderStopAt(market) : null,
@@ -239,7 +244,7 @@ async function adminState(year, grade, now = new Date()) {
     ]);
     exams.push({ id: String(exam._id), title: exam.title, status: exam.status, releaseAt: exam.releaseAt, count, ready, file: Boolean(file) });
   }
-  return { markets: controls, settings, minimumMpiAttempts, events, schedules, exams };
+  return { markets: controls, settings, minimumMpiAttempts, events, schedules, exams, makerSetting };
 }
 
 async function runExchangeTick(now = new Date(), maintain = true, sample = true, clock = () => now) {

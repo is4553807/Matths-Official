@@ -11,6 +11,22 @@
   <script src="/js/admin-exchange.js" defer></script>
 </head>
 <body class="admin-page">
+  <% const makerModes = { B: "B안 · CVaR", baseline: "기본 호가", halted: "호가 중지" };
+    const decisionReasons = {
+      "insufficient-history": "복원 가능한 정산 이력 또는 유효 시나리오 부족",
+      "flow-unvalidated": "주문 흐름 모형 검증 대기",
+      "risk-policy-unavailable": "기대 손실·CVaR 한도 설정 대기",
+      selected: "위험 한도를 충족한 호가 선택",
+      "no-quote": "현재 주문장과 위험 한도에서 호가 보류",
+      "close-only": "보유분을 줄이는 청산 호가만 허용",
+      "risk-limit": "위험 한도로 호가 보류",
+      "forecast-unavailable": "예상 정산 MPI 계산 대기",
+      "market-unavailable": "호가를 등록할 수 없는 시장 상태",
+      "pipeline-stale": "호가 입력 갱신 대기",
+      "ledger-inconsistent": "MM 잔액·미체결 주문 확인 필요",
+      "baseline-selected": "기본 호가 정책 선택",
+    };
+  %>
   <%- include("partials/admin-navigation", { activePage: "exchange" }) %>
   <main class="admin-main exchange-admin">
     <header class="admin-heading">
@@ -21,6 +37,18 @@
       </div>
     </header>
     <% if (saved) { %><p class="exchange-admin-notice" role="status">운영 설정을 저장했습니다.</p><% } %>
+    <% if (typeof makerSetting !== "undefined" && makerSetting?.marketMakerPolicy === "B") { %>
+      <section class="exchange-admin-section" aria-labelledby="maker-policy-title">
+        <div class="section-top"><div><h2 id="maker-policy-title">Market Maker B · CVaR</h2>
+          <p>복원 가능한 유효 정산 시나리오 8개, 실제 주문 흐름, 운영 위험 한도가 준비되면 B안으로 호가를 평가합니다.</p></div></div>
+        <form class="exchange-admin-form inline" method="post" action="/admin/exchange/market-maker-budget">
+          <label>기대 손실 한도 (TP) <input type="number" min="0" max="1000" step="0.01" name="expectedLossTp" value="<%= makerSetting.marketMakerExpectedLossLimitTp ?? '' %>" required /></label>
+          <label>CVaR 95% 한도 (TP) <input type="number" min="0" max="1000" step="0.01" name="tailLossTp" value="<%= makerSetting.marketMakerTailLossLimitTp ?? '' %>" required /></label>
+          <label>설정 사유 <input name="reason" maxlength="300" required /></label>
+          <button type="submit">위험 한도 저장</button>
+        </form>
+      </section>
+    <% } %>
 
     <section class="exchange-admin-section" aria-labelledby="weekly-title">
       <div class="section-top"><div><h2 id="weekly-title">맵쓰 주간 모의고사</h2><p>공개된 정규 시험, 등록된 문제지와 채점 데이터가 모두 있어야 시장이 열립니다.</p></div>
@@ -84,8 +112,12 @@
     <section class="exchange-admin-section" aria-labelledby="market-ops-title">
       <h2 id="market-ops-title">시장 상태와 정산</h2>
       <% if (!markets.length) { %><p class="exchange-admin-empty">예약 또는 개장된 선물시장이 없습니다.</p><% } %>
+      <% const riskNumber = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
+        const formatRisk = (value, unit = "") => Number.isFinite(value) ? riskNumber.format(value) + unit : "—";
+      %>
       <% for (const market of markets) {
         const terminal = ["settled", "settling", "void"].includes(market.status);
+        const decision = market.marketMakerDecision;
       %>
         <details class="exchange-admin-round">
           <summary><strong><%= market.title %></strong><span><%= market.statusLabel %> · 미체결 <%= market.openOrders %>건</span></summary>
@@ -109,8 +141,33 @@
                 <% } else if (market.botParticipation) { %><div><dt>공식 MPI 운영 봇</dt><dd>학생과 같은 비중 · 공개</dd></div><% } %>
                 <div><dt>MPI 집계 · KST</dt><dd><%= seoulInput(market.latestTick?.sampledAt).replace("T", " ") || "—" %></dd></div>
                 <div><dt>공개 시각 · KST</dt><dd><%= seoulInput(market.latestTick?.publishAt).replace("T", " ") || "—" %></dd></div>
+                <% if (market.marketMakerPolicy) { %>
+                  <div><dt>운영자 호가 정책</dt><dd><%= makerModes[market.marketMakerPolicy] || market.marketMakerPolicy %> · <%= market.marketMakerEnabled ? "활성" : "중지" %></dd></div>
+                <% } %>
               <% } %>
             </dl>
+            <% if (market.type === "weekly" && market.marketMakerPolicy === "B") { %>
+              <section class="exchange-admin-liquidity" aria-label="Market Maker B 최근 호가 판단">
+                <h3>Market Maker B 최근 호가 판단</h3>
+                <% if (!decision) { %>
+                  <p>호가 판단 기록이 없습니다.</p>
+                <% } else { %>
+                  <dl>
+                    <div><dt>판단 · KST</dt><dd><%= seoulInput(decision.at).replace("T", " ") || "—" %></dd></div>
+                    <div><dt>적용 모드</dt><dd><%= makerModes[decision.mode] || "—" %></dd></div>
+                    <div><dt>판단 사유</dt><dd><%= decisionReasons[decision.reason] || decision.reason || "—" %></dd></div>
+                    <div><dt>복원 가능한 정산 회차</dt><dd><%= formatRisk(decision.restorableRoundCount, "개") %></dd></div>
+                    <div><dt>유효 정산 시나리오</dt><dd><%= formatRisk(decision.scenarioCount, "개") %></dd></div>
+                    <div><dt>실제 주문 흐름 확인 회차</dt><dd><%= formatRisk(decision.calibratedRoundCount, "개") %></dd></div>
+                    <div><dt>예상 정산 MPI (Mark)</dt><dd><%= formatRisk(decision.mark) %></dd></div>
+                    <div><dt>예상 범위 (P10–P90)</dt><dd><%= Number.isFinite(decision.p10) && Number.isFinite(decision.p90) ? `${formatRisk(decision.p10)}–${formatRisk(decision.p90)}` : "—" %></dd></div>
+                    <div><dt>기대 손실</dt><dd><%= formatRisk(decision.expectedLossTp, " TP") %></dd></div>
+                    <div><dt>CVaR 95%</dt><dd><%= formatRisk(decision.cvarTp, " TP") %></dd></div>
+                    <div><dt>최악 손실</dt><dd><%= formatRisk(decision.hardLossTp, " TP") %></dd></div>
+                  </dl>
+                <% } %>
+              </section>
+            <% } %>
             <% if (market.type === "weekly" && !terminal && market.status !== "verifying") { %>
               <form class="exchange-admin-form inline" method="post" action="/admin/exchange/markets/<%= market.id %>/action">
                 <label>변경 사유 <input type="text" name="reason" maxlength="300" required /></label>
@@ -200,15 +257,18 @@
       <% if (!events.length) { %><p class="exchange-admin-empty">저장된 운영 이력이 없습니다.</p><% } %>
       <% for (const event of events) {
         const minimum = event.detail?.minimumMpiAttempts ?? event.detail?.minimumAttempts;
-        const description = event.action === "mpi-bot-weight"
+        const makerDecision = event.action === "market-maker-decision";
+        const description = makerDecision
+          ? [makerModes[event.detail?.mode], decisionReasons[event.detail?.reason] || event.detail?.reason].filter(Boolean).join(" · ")
+          : event.action === "mpi-bot-weight"
           ? `${event.detail.before * 100}% → ${event.detail.after * 100}% · MPI ${event.detail.previousMpi ?? "—"} → ${event.detail.nextMpi ?? "—"}`
           : event.detail?.reason || (minimum != null ? `최소 ${minimum}명` :
           event.action === "mpi-minimum" ? "공개 기본값 사용" : event.action === "bot-initial-funding"
             ? `${event.detail.amountTp.toLocaleString("ko-KR")} TP` : event.marketId || "기본 설정");
       %>
         <article class="exchange-admin-row">
-          <div><strong><%= actions[event.action] || event.action %></strong><p><%= description %></p></div>
-          <span><%= seoulInput(event.createdAt).replace("T", " ") %> KST</span>
+          <div><strong><%= makerDecision ? "MM 호가 판단" : actions[event.action] || event.action %></strong><p><%= description %></p></div>
+          <span><%= seoulInput(makerDecision ? event.at ?? event.createdAt : event.createdAt).replace("T", " ") %> KST</span>
         </article>
       <% } %>
     </section>
