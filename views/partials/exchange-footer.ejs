@@ -1,0 +1,22 @@
+<%
+  const publicOrigin = typeof serviceUrls !== "undefined" && serviceUrls?.public
+    ? String(serviceUrls.public).replace(/\/$/, "")
+    : "";
+%>
+<footer class="exchange-footer">
+  <div class="exchange-footer__row">
+    <a class="exchange-footer__brand" href="/exchange">
+      <%- include("exchange-brand", { width: 118, height: 29 }) %>
+    </a>
+    <nav class="exchange-footer__links" aria-label="하단 정책 및 고객지원">
+      <a href="<%= publicOrigin %>/terms">이용약관</a>
+      <a href="<%= publicOrigin %>/privacy">개인정보처리방침</a>
+      <a href="<%= publicOrigin %>/contact">문의하기</a>
+    </nav>
+  </div>
+  <%- include("business-footer-details", { detailsClass: "exchange-footer__details" }) %>
+  <div class="exchange-footer__row exchange-footer__bottom">
+    <span>© <%= new Date().getFullYear() %> Matths. All rights reserved.</span>
+    <span>TP는 현금으로 전환할 수 없습니다.</span>
+  </div>
+</footer>

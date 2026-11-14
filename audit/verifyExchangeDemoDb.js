@@ -298,7 +298,14 @@ async function testHttp() {
     const hiddenMarket = await ExchangeMarket.create({
       key: "weekly:operator-history", type: "weekly", title: "Operator history", phase: "settled",
       opensAt: new Date("2026-11-08T06:00:00Z"), closeAt: new Date("2026-11-14T03:00:00Z"),
-      historicalBootstrap: { status: "complete" },
+      historicalBootstrap: { status: "complete" }, bootstrapPolicy: { version: 3 },
+      minimumMpiAttempts: 1, settlement: 120, participantCount: 1, botParticipantCount: 0,
+    });
+    const observedAt = new Date(+hiddenMarket.closeAt - 60 * 60_000);
+    await ExchangeTick.create({
+      marketId: hiddenMarket._id, kind: "observed", sampledAt: observedAt, dataCutoffAt: observedAt,
+      publishAt: new Date(+observedAt + 30 * 60_000), mpi: 615.21,
+      populationCount: 424, humanPopulationCount: 1, botPopulationCount: 423, botWeight: 1,
     });
     try {
       const publicResult = await (await fetch(origin + "/api/exchange/markets/current")).json();
@@ -314,7 +321,19 @@ async function testHttp() {
         assert.equal((await fetch(origin + path, { headers: { Cookie: student } })).status, 404, path);
         assert.equal((await fetch(origin + path, { headers: { Cookie: admin } })).status, 200, path);
       }
+      const mpiPage = await fetch(`${origin}/exchange/mpi?market=${hiddenMarket._id}`, { headers: { Cookie: admin } });
+      const settledHtml = await mpiPage.text();
+      assert.match(settledHtml, /id="mpi-value-label">관측 MPI<\/dt>/);
+      assert.match(settledHtml, /id="mpi-settlement"\s*><dt>정산 MPI<\/dt><dd id="mpi-settlement-value">120<\/dd>/);
+      const api = await fetch(`${origin}/api/exchange/mpi?market=${hiddenMarket._id}`, { headers: { Cookie: admin } });
+      const data = await api.json();
+      assert.equal(data.market.settlement, 120);
+      assert.equal(data.latest.mpi, 615.21);
+      assert.equal(data.latest.populationCount, 424);
+      const livePage = await fetch(`${origin}/exchange/mpi`, { headers: { Cookie: admin } });
+      assert.match(await livePage.text(), /id="mpi-settlement" hidden/);
     } finally {
+      await ExchangeTick.deleteMany({ marketId: hiddenMarket._id });
       await ExchangeMarket.deleteOne({ _id: hiddenMarket._id });
     }
   } finally {

@@ -82,6 +82,12 @@
   }
 
   function renderBook(id, entries, empty) {
+    const book = get(id);
+    const key = JSON.stringify(entries.map(({ price, quantity, operatorQuantity }) => [price, quantity, operatorQuantity]));
+    if (book.dataset.levels === key) return;
+    const scrollTop = book.scrollTop;
+    const ask = id === "asks";
+    const pinned = ask && book.scrollHeight - book.clientHeight - scrollTop <= 1;
     let total = 0;
     const sum = entries.reduce((acc, row) => acc + row.quantity, 0);
     const nodes = entries.map((row) => {
@@ -95,8 +101,10 @@
       button.append(priceLabel, el("span", number(row.quantity)), el("span", number(total)));
       return button;
     });
-    if (id === "asks") nodes.reverse();
-    get(id).replaceChildren(...(nodes.length ? nodes : [el("p", empty)]));
+    if (ask) nodes.reverse();
+    book.replaceChildren(...(nodes.length ? nodes : [el("p", empty)]));
+    book.dataset.levels = key;
+    book.scrollTop = pinned ? book.scrollHeight - book.clientHeight : scrollTop;
   }
 
   function table(headers, rows) {

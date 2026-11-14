@@ -42,6 +42,7 @@
     const candles = state.candles || [];
     const historical = state.market?.historicalBootstrap === true;
     const explainBots = state.market?.botParticipation && !historical;
+    const settled = state.market?.status === "settled" && state.market.settlement != null;
     get("mpi-replay-key").hidden = historical || !(state.market?.replayMpiCount || candles.some((row) => row.source === "REPLAY"));
     const marketKey = JSON.stringify(state.markets.map(({ id, title }) => [id, title]));
     if (marketKey !== select.dataset.options) {
@@ -56,7 +57,10 @@
     text("mpi-value", latest?.mpi != null ? number.format(latest.mpi) : "—");
     text("mpi-score", latest?.mpi != null ? `${number.format(latest.mpi / 10)}점` : "—");
     const botCount = latest?.botWeight === 0 ? 0 : latest?.botPopulationCount ?? 0;
-    text("mpi-value-label", explainBots && state.market?.bootstrap ? "잠정 MPI" : "공개 MPI");
+    text("mpi-value-label", settled ? "관측 MPI" : explainBots && state.market?.bootstrap ? "잠정 MPI" : "공개 MPI");
+    get("mpi-metrics").toggleAttribute("data-settled", settled);
+    get("mpi-settlement").hidden = !settled;
+    text("mpi-settlement-value", settled ? number.format(state.market.settlement) : "—");
     const humanCount = latest?.humanPopulationCount ?? ((latest?.populationCount ?? 0) - botCount);
     text("mpi-count", !latest ? "—" : explainBots && botCount
       ? `학생 ${number.format(humanCount)}명 · 봇 ${number.format(botCount)}명` : `${number.format(latest.populationCount)}명`);

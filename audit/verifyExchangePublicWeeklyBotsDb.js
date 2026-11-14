@@ -7,6 +7,7 @@ const { LIVE_WEEKLY_POLICY, traderId } = require("../services/exchangeBootstrapS
 const { runExchangeTick, terminalState } = require("../services/exchangeService");
 const { placeOrder, TP_SCALE } = require("../services/exchangeTradingService");
 const { mpiState } = require("../services/exchangeMpiService");
+const { botDepthOrderFilter, botDepthQuotes, isBotDepthOrder } = require("../services/exchangeBotDepthStrategy");
 
 const {
   ExchangeMarket, ExchangeSetting, ExchangeExamBotAttempt, ExchangeOrder, ExchangeTrade, ExchangeWallet,
@@ -15,6 +16,7 @@ const {
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const opensAt = new Date("2026-11-15T06:00:00.000Z");
+const marketId = new mongoose.Types.ObjectId("123456789123456789123456");
 const at = (minutes) => new Date(+opensAt + minutes * MINUTE);
 const points = [...Array(3).fill(2), ...Array(14).fill(3), ...Array(13).fill(4)];
 const run = (now) => runExchangeTick(now, true, true, () => now);
@@ -51,9 +53,10 @@ async function main() {
   ]);
   const exam = await examFor(admin, opensAt);
   await ExchangeSetting.create({ _id: "default", automatedTradingDisabled: true, publicMarketMakerEnabled: true });
+  await ExchangeMarket.create({ _id: marketId, key: `weekly:${exam._id}`, type: "weekly", examId: exam._id,
+    title: exam.title, opensAt: exam.releaseAt, closeAt: exam.closeAt, botParticipation: false });
   await run(at(-60));
   const preregistered = await ExchangeMarket.findOne({ examId: exam._id });
-  const marketId = preregistered._id;
   const filter = { marketId };
   assert.equal(preregistered.botParticipation, false);
   assert.equal(preregistered.openedAt, undefined);
@@ -125,6 +128,20 @@ async function main() {
   assert.equal(+first.latest.publishAt, +at(30));
   assert.ok(first.candles.length);
   assert.ok(first.candles.every(({ close }) => close === first.latest.mpi));
+  const openingLevels = await ExchangeOrder.find({ ...filter, ...botDepthOrderFilter, status: "working" }).lean();
+  assert.ok(openingLevels.length >= 4 && openingLevels.length <= 6, `Opening has ${openingLevels.length} passive orders`);
+  assert.ok(openingLevels.every((row) => row.quantity === 1 && row.price >= 250 && row.price <= 750));
+  assert.ok(openingLevels.every((row) => +row.acceptedAt === +at(30)));
+  assert.equal(await ExchangeTrade.countDocuments({ ...filter, takerOrderId: { $in: openingLevels.map(({ _id }) => _id) } }), 0);
+  const healthyBook = await terminalState({ marketId: String(marketId), now: at(31), publicOnly: true });
+  assert.ok(healthyBook.bids[0].price < healthyBook.asks[0].price);
+  assert.ok(healthyBook.bids.length >= 2 && healthyBook.asks.length >= 2);
+  const openDepthKey = { ...filter, ...botDepthOrderFilter, status: "working" };
+  const snapshotAfterOpen = await ExchangeTick.findOne(openingFilter).lean();
+  assert.equal(await ExchangeOrder.countDocuments({ ...openDepthKey, mpiSnapshotId: snapshotAfterOpen._id }), openingLevels.length);
+  assert.equal(isBotDepthOrder({ ...openingLevels[0], source: "HUMAN", botId: undefined }), false);
+  assert.equal(botDepthQuotes(600, 5, [{ side: "buy", price: 599 }, { side: "sell", price: 601 }]).length, 6);
+
   const stillOpening = await mpiState({ marketId: String(marketId), now: at(59), publicOnly: true });
   assert.equal(stillOpening.latest.humanPopulationCount, 0);
   assert.equal(stillOpening.latest.mpi, first.latest.mpi);
@@ -147,7 +164,13 @@ async function main() {
   for (let minute = 103; minute <= 245; minute++) {
     const now = at(minute);
     await run(now);
-    resting = await ExchangeOrder.findOne({ ...filter, source: "BOT", status: "working", expiresAt: { $gt: now } }).lean();
+    const candidateBook = await terminalState({ marketId: String(marketId), now, publicOnly: true });
+    for (const [side, best] of [["buy", candidateBook.bids[0]], ["sell", candidateBook.asks[0]]]) {
+      if (!best?.botQuantity || best.botQuantity !== best.quantity) continue;
+      resting = await ExchangeOrder.findOne({ ...filter, source: "BOT", side, price: best.price,
+        status: "working", expiresAt: { $gt: now } }).sort({ acceptedAt: 1, sequence: 1 }).lean();
+      if (resting) break;
+    }
     if (resting) {
       tradeAt = now;
       break;

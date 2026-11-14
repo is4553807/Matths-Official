@@ -24,6 +24,7 @@ const {
 } = require("./exchangeBootstrapService");
 
 const { replayBotFills } = require("./exchangeBotReplayService");
+const { botDepthOrderFilter } = require("./exchangeBotDepthStrategy");
 const { operatorOnlyExchange, isPublicMarket } = require("./exchangeAccessService");
 
 function error(status, message) {
@@ -221,6 +222,7 @@ function bookLevels(marketId, now, session, snapshotId, operatorWalletId, schedu
       { marketMakerQuoteKey: null, ...(snapshotId ? { mpiSnapshotId: snapshotId } :
         scheduledLiquidity ? { scheduledLiquidity: true } : { _id: null }) },
     ] });
+    constraints.push({ $or: [{ $nor: [botDepthOrderFilter] }, ...(snapshotId ? [{ mpiSnapshotId: snapshotId }] : [])] });
   }
   if (automatedOnly) constraints.push({ $or: [{ source: "BOT" }, { liquidityProvider: "matths" }] });
   if (constraints.length) filter.$and = constraints;

@@ -21,12 +21,19 @@ const {
 
 const { loadMarketMakerForecast, recordMarketMakerForecast, captureMarketMakerHistory } = require("./exchangeMarketMakerForecastService");
 const { optimizeMarketMakerQuotes, marketMakerReachableRisk } = require("./exchangeMarketMakerOptimizer");
+const { botDepthQuotes, botDepthOrderFilter, depthSlot, isBotDepthOrder, BOT_DEPTH_MIN_PRICE, BOT_DEPTH_MAX_PRICE } = require("./exchangeBotDepthStrategy");
 
 const MARKET_LIMIT = 5;
 const BOT_EXPOSURE_LIMIT = 5;
 const INDEPENDENT_BOT_EXPOSURE_LIMIT = 20;
 const BOT_INITIAL_FUNDING = 2_000 * TP_SCALE;
 const BOT_HOLDING_PERIOD = 45 * 60_000;
+const BOT_DEPTH_REFRESH_MS = 30_000;
+const BOT_DEPTH_QUOTE_MS = 10 * 60_000;
+const BOT_DEPTH_ORDER_BUCKET_MS = 5 * 60_000;
+const BOT_DEPTH_POSITION_LIMIT = 3;
+const BOT_DEPTH_MIN_POPULATION = 5;
+const botDepthRefreshedAt = new Map();
 const MM_WALLET_TP = 2000 * TP_SCALE;
 const MM_LOSS_LIMIT = 1000 * TP_SCALE;
 const MM_POSITION_LIMIT = 2;
@@ -65,12 +72,15 @@ async function lockMarket(marketId, session, replay = false) {
   throw error(409, "이 시장의 거래 준비가 완료되지 않았습니다.");
 }
 
-async function requireOpenWeeklyExam(market, now, session, replay) {
+async function openTradingExam(market, now, session, replay) {
   const exam = await readWeeklyExam(market.examId, session);
-  if (!weeklyExamOpenAt(exam, now, replay) || +exam.releaseAt !== +market.opensAt
-    || +exam.closeAt !== +market.closeAt || !await weeklyExamReady(exam, session)) {
-    throw error(409, "공개된 주간 모의고사 문제지가 있어야 시장이 열립니다.");
-  }
+  return weeklyExamOpenAt(exam, now, replay) && +exam.releaseAt === +market.opensAt
+    && +exam.closeAt === +market.closeAt && await weeklyExamReady(exam, session) ? exam : null;
+}
+
+async function requireOpenWeeklyExam(market, now, session, replay) {
+  const exam = await openTradingExam(market, now, session, replay);
+  if (!exam) throw error(409, "공개된 주간 모의고사 문제지가 있어야 시장이 열립니다.");
   return exam;
 }
 
@@ -258,6 +268,8 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
       if (!tradersEnabledAt(market, at)) return;
       const published = replayContext?.at === +at ? replayContext.snapshot : await latestPublishedMpi(market, at, session);
       if (!published || !published._id.equals(bot.snapshotId)) return;
+      if (bot.passive && (!botDepthAvailable(market, published, at) || orderInput.action !== "open"
+        || orderInput.quantity !== 1 || orderInput.price < BOT_DEPTH_MIN_PRICE || orderInput.price > BOT_DEPTH_MAX_PRICE)) return;
     }
     if (bot && ((!bootstrapOrder && (!market.botParticipation || market.marketMakerEnabled === false))
       || bot.expiresAt <= clock())) return;
@@ -271,6 +283,9 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
     const opposite = order.side === "buy" ? "sell" : "buy";
     const crossing = { ...activeBookOrders(market._id, order.acceptedAt), userId: EXCHANGE_WALLET_ID,
       side: opposite, price: order.side === "buy" ? { $lte: order.price } : { $gte: order.price } };
+    if (bot?.passive && await ExchangeOrder.exists({
+      ...activeBookOrders(market._id, order.acceptedAt), side: opposite, price: crossing.price,
+    }).session(session)) return;
     if (bot && !bootstrapOrder) {
       if (await ExchangeOrder.exists({ ...crossing, botId: null }).session(session)) return;
       await cancelFundedBotOrders(marketId, session, order.acceptedAt, { side: opposite, price: crossing.price });
@@ -318,7 +333,7 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
     const counterparty = bootstrapOrder ? { userId: { $ne: userId } } : bot
       ? { userId: { $nin: [EXCHANGE_WALLET_ID, ...(market.marketMakerId ? [market.marketMakerId] : [])] },
       liquidityProvider: { $ne: "matths" } } : String(userId) === EXCHANGE_WALLET_ID ? { botId: null } : {};
-    while (order.remaining) {
+    while (!bot?.passive && order.remaining) {
       const maker = await ExchangeOrder.findOne({
         ...activeBookOrders(market._id, clock()), ...counterparty, side: bid ? "sell" : "buy",
         ...(replay ? { $and: [automatedOrder] } : {}),
@@ -335,6 +350,13 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
         || maker.expiresAt <= tradedAt || await exchangeAutomationDisabled(session, market))) {
         await cancel(maker, session, tradedAt);
         continue;
+      }
+      if (isBotDepthOrder(maker)) {
+        const latest = await latestPublishedMpi(market, tradedAt, session);
+        if (!botDepthAvailable(market, latest, tradedAt) || !maker.mpiSnapshotId?.equals(latest._id)) {
+          await cancel(maker, session, tradedAt);
+          continue;
+        }
       }
       if (isBootstrap(market) && isTradingBot(maker) && sourceOf(order) === "HUMAN"
         && !await User.exists({ _id: userId, ...liveStudent }).session(session)) {
@@ -400,9 +422,11 @@ async function submitOrder({ marketId, userId, actorId, input, clock, bot, sessi
         market.lastTradeAt = trade.tradedAt;
       }
     }
-    const referenceAt = clock();
-    await recordReference(market, referenceAt, session, replay,
-      replayContext?.at === +referenceAt ? replayContext.snapshot : undefined);
+    if (!bot?.passive) {
+      const referenceAt = clock();
+      await recordReference(market, referenceAt, session, replay,
+        replayContext?.at === +referenceAt ? replayContext.snapshot : undefined);
+    }
     if (order.status !== "cancelled") await releaseFeeReserve(order, feeReserveFor(order, "maker"), session);
     if (!replay || order.isModified()) await order.save({ session });
     if (!replay || market.isModified()) await market.save({ session });
@@ -460,7 +484,14 @@ async function initializeBotFunding(marketId, now, existingSession, replay = fal
 }
 
 async function maintainFundedBotOrders(market, now, clock = () => now, options = {}) {
-  if (isBootstrap(market)) return maintainBootstrapTraders(market, now, clock, options);
+  if (isBootstrap(market)) {
+    const changed = await maintainBootstrapTraders(market, now, clock, options);
+    if (isLiveWeeklyBootstrap(market) && !options.replay && !options.session && publicState(market, now) === "open") {
+      const depthChanged = await maintainBotDepth(market, clock);
+      return changed || depthChanged;
+    }
+    return changed;
+  }
   if (options.replay) throw new Error("Historical Exchange events require a bootstrap market");
   if (!market.botParticipation) return;
   const marketId = market._id;
@@ -504,6 +535,124 @@ async function fundTrader(marketId, userId, order, session) {
   await ExchangeWallet.updateOne({ _id: userId }, {
     $setOnInsert: { parentWalletId: EXCHANGE_WALLET_ID }, $inc: { available: transfer },
   }, { upsert: true, session, setDefaultsOnInsert: false });
+}
+
+function botDepthEnd(market, snapshot) {
+  return Math.min(+snapshot.sampledAt + MM_SNAPSHOT_MAX_AGE, +traderStopAt(market) - BOT_HOLDING_PERIOD);
+}
+
+function botDepthAvailable(market, snapshot, now) {
+  return isLiveWeeklyBootstrap(market) && publicState(market, now) === "open" && tradersEnabledAt(market, now)
+    && !mpiPipelineStale(market, now) && (market.marketMakerEnabled === false || market.marketMakerDecision?.mode !== "halted")
+    && snapshot?.populationCount >= BOT_DEPTH_MIN_POPULATION
+    && snapshot.mpi >= BOT_DEPTH_MIN_PRICE && snapshot.mpi <= BOT_DEPTH_MAX_PRICE
+    && +now < botDepthEnd(market, snapshot);
+}
+
+async function maintainBotDepth(market, clock) {
+  const marketKey = String(market._id);
+  const now = clock();
+  if (+now - (botDepthRefreshedAt.get(marketKey) ?? -Infinity) < BOT_DEPTH_REFRESH_MS) return false;
+  const changed = await mongoose.connection.transaction(async (session) => {
+    const current = await lockMarket(market._id, session);
+    const at = clock();
+    const filter = { marketId: current._id, ...botDepthOrderFilter, status: "working" };
+    const existing = await ExchangeOrder.find(filter).sort({ acceptedAt: 1, sequence: 1 }).session(session);
+    const snapshot = await exchangeAutomationDisabled(session, current) ? null : await latestPublishedMpi(current, at, session);
+    const exam = botDepthAvailable(current, snapshot, at) ? await openTradingExam(current, at, session, false) : null;
+    if (!exam) {
+      for (const order of existing) await cancel(order, session, at);
+      if (existing.length) await recordReference(current, at, session);
+      return existing.length > 0;
+    }
+
+    const orders = await ExchangeOrder.find(activeBookOrders(current._id, at)).session(session).lean();
+    const quotes = botDepthQuotes(snapshot.mpi, snapshot.populationCount, orders.filter((order) => !isBotDepthOrder(order)));
+    const retained = new Set();
+    const retainedIds = new Set();
+    const endsAt = botDepthEnd(current, snapshot);
+    let changed = false;
+    for (const order of existing) {
+      const key = depthSlot(order);
+      if (retained.has(key) || order.expiresAt <= at || !quotes.some((quote) => depthSlotForQuote(quote) === key && quote.price === order.price)) {
+        await cancel(order, session, at);
+        changed = true;
+        continue;
+      }
+      retained.add(key);
+      retainedIds.add(String(order._id));
+      const needsRenewal = +order.expiresAt - +at < BOT_DEPTH_QUOTE_MS / 2;
+      const expiresAt = new Date(Math.min(needsRenewal ? +at + BOT_DEPTH_QUOTE_MS : +order.expiresAt, endsAt));
+      if (!order.mpiSnapshotId?.equals(snapshot._id) || +order.expiresAt !== +expiresAt) {
+        order.set({ mpiSnapshotId: snapshot._id, expiresAt });
+        await order.save({ session });
+      }
+    }
+    const missing = quotes.filter((quote) => !retained.has(depthSlotForQuote(quote)));
+    if (!missing.length) {
+      if (changed) await recordReference(current, at, session, false, snapshot);
+      return changed;
+    }
+
+    const bucket = Math.floor(+at / BOT_DEPTH_ORDER_BUCKET_MS);
+    const commands = new Map(missing.map((quote) => [depthSlotForQuote(quote),
+      `bot-depth-${depthSlotForQuote(quote)}-${current._id}-${bucket}`]));
+    const attempts = await ExchangeOrder.find({ marketId: current._id, source: "BOT", commandId: { $in: Array.from(commands.values()) } })
+      .select("commandId").session(session).lean();
+    const submitted = new Set(attempts.map(({ commandId }) => commandId));
+    const roster = await readExamBots(current, snapshot.dataCutoffAt ?? snapshot.sampledAt, session);
+    const holdings = await ExchangePosition.find({ marketId: current._id, botId: { $ne: null }, remaining: { $gt: 0 } })
+      .select("botId direction remaining").session(session).lean();
+    const exposure = new Map();
+    for (const row of holdings.concat(orders.filter((order) => order.source === "BOT" && order.action === "open"
+      && (!isBotDepthOrder(order) || retainedIds.has(String(order._id)))))) {
+      const key = String(row.botId);
+      const prior = exposure.get(key);
+      exposure.set(key, { quantity: (prior?.quantity ?? 0) + row.remaining,
+        direction: !prior || prior.direction === row.direction ? row.direction : "mixed" });
+    }
+    const eligible = await ExchangeExamBotAttempt.find(botAttemptFilter(current, exam, at)).select("botId").session(session).lean();
+    const eligibleBots = new Set(eligible.map(({ botId }) => String(botId)));
+    const expiresAt = new Date(Math.min(+at + BOT_DEPTH_QUOTE_MS, endsAt));
+    for (const quote of missing) {
+      const commandId = commands.get(depthSlotForQuote(quote));
+      if (submitted.has(commandId)) continue;
+      const traders = roster.filter((bot) => {
+        const held = exposure.get(String(bot.botId));
+        return eligibleBots.has(String(bot.botId)) &&
+          (!held || (held.direction === quote.direction && held.quantity < BOT_DEPTH_POSITION_LIMIT));
+      }).sort((left, right) => {
+        const leftExposure = exposure.get(String(left.botId));
+        const rightExposure = exposure.get(String(right.botId));
+        // A trader already exposed on this side cannot quote the other side.
+        // Use it before assigning a flat trader that can still quote either side.
+        return Number(!leftExposure) - Number(!rightExposure)
+          || (leftExposure?.quantity ?? 0) - (rightExposure?.quantity ?? 0)
+          || (quote.side === "buy" ? right.score - left.score : left.score - right.score)
+          || right.number - left.number;
+      });
+      for (const trader of traders) {
+        const bot = { botId: trader.botId, label: botLabel("TraderBot", trader.number), snapshotId: snapshot._id, expiresAt, passive: true };
+        const order = await submitOrder({ marketId: current._id, userId: traderId(trader.botId), clock, bot, session,
+          input: { commandId, action: "open", direction: quote.direction, price: quote.price, quantity: 1 } });
+        if (!order) continue;
+        current.revision = order.sequence;
+        const key = String(trader.botId);
+        exposure.set(key, { direction: quote.direction, quantity: (exposure.get(key)?.quantity ?? 0) + order.remaining });
+        changed = true;
+        break;
+      }
+    }
+    if (changed) await recordReference(current, clock(), session);
+    return changed;
+  });
+  if (botDepthRefreshedAt.size >= 100) botDepthRefreshedAt.clear();
+  botDepthRefreshedAt.set(marketKey, +now);
+  return changed;
+}
+
+function depthSlotForQuote({ side, rung }) {
+  return `${side}-${rung}`;
 }
 
 async function maintainBootstrapTraders(market, now, clock, { session = null, replay = false }) {
@@ -693,7 +842,7 @@ async function canExecuteOperatorOrder(market, maker, at, session, replayContext
     || await exchangeMarketMakerAutomationDisabled(session, market)) return false;
   const decision = market.marketMakerDecision;
   if (!maker.marketMakerQuoteKey) {
-    if (decision?.mode === "halted") return false;
+    if (decision?.mode === "halted" || (isLiveWeeklyBootstrap(market) && mpiPipelineStale(market, at))) return false;
     const snapshot = replayContext?.at === +at ? replayContext.snapshot : await latestPublishedMpi(market, at, session);
     return canFillOperatorOrder(market, maker, snapshot, snapshot ? null : activeLiquidityPlan(market, at), at);
   }
@@ -872,9 +1021,15 @@ async function maintainMarketMaker(marketId, clock = () => new Date(), {
     const now = clock();
     if (market.type !== "weekly" || !market.openedAt) return;
     const exam = await readWeeklyExam(market.examId, session);
+    const liveWeekly = isLiveWeeklyBootstrap(market);
     const enabled = market.marketMakerEnabled !== false && publicState(market, now) === "open"
       && weeklyExamOpenAt(exam, now, replay) && +exam.releaseAt === +market.opensAt && +exam.closeAt === +market.closeAt
       && !await exchangeMarketMakerAutomationDisabled(session, market) && await weeklyExamReady(exam, session);
+    if (enabled && liveWeekly && mpiPipelineStale(market, now)) {
+      await cancelOperatorOrders(market, session, now);
+      await makerDecision(market, now, { mode: "halted", reason: "pipeline-stale", quoteKey: market.marketMakerDecision?.quoteKey }, session);
+      return;
+    }
     const snapshot = enabled ? await latestPublishedMpi(market, now, session) : null;
     const setting = replay ? null : await readMakerSetting(session);
     if (setting?.marketMakerPolicy === "B") {
@@ -908,10 +1063,28 @@ async function maintainMarketMaker(marketId, clock = () => new Date(), {
     const center = (snapshot?.mpi ?? plan.referencePrice) - 4 * net;
     const halfSpread = snapshot ? Math.max(8, Math.ceil(40 / Math.sqrt(snapshot.populationCount))) : 40;
     const reference = snapshot ? { mpiSnapshotId: snapshot._id } : { scheduledLiquidity: true };
-    const candidates = [
+    let candidates = [
       { side: "buy", direction: net < 0 ? "short" : "long", action: net < 0 ? "close" : "open", price: Math.floor(center - halfSpread) },
       { side: "sell", direction: net > 0 ? "long" : "short", action: net > 0 ? "close" : "open", price: Math.ceil(center + halfSpread) },
-    ].filter((candidate) => {
+    ];
+    if (liveWeekly && snapshot) {
+      // If an ordinary quote already owns the top price, join the depth
+      // one tick behind it rather than removing this side entirely.
+      candidates = candidates.map((candidate) => {
+        const buy = candidate.side === "buy";
+        const students = levels.filter((row) => row.quantity > row.operatorQuantity);
+        const sameSide = students.filter((row) => row._id.side === candidate.side).map((row) => row._id.price);
+        const bestSame = (buy ? Math.max : Math.min)(...sameSide);
+        const oppositePrices = students.filter((row) => row._id.side !== candidate.side).map((row) => row._id.price)
+          .concat(manualOrders.filter((row) => row.side !== candidate.side).map((row) => row.price));
+        const bestOpposite = (buy ? Math.min : Math.max)(...oppositePrices);
+        const oneTick = buy ? -1 : 1;
+        const bounds = [bestSame, bestOpposite].filter(Number.isFinite).map((value) => value + oneTick);
+        const price = (buy ? Math.min : Math.max)(candidate.price, ...bounds);
+        return { ...candidate, price };
+      }).filter((candidate) => Math.abs(candidate.price - center) <= Math.max(halfSpread * 2, 24));
+    }
+    candidates = candidates.filter((candidate) => {
       if (candidate.price < 1 || candidate.price > 999 || !operatorRiskAllows(positions, candidate)) return false;
       if (!canFillOperatorOrder(market, { ...candidate, ...reference }, snapshot, plan, now)) return false;
       if (manualOrders.some((row) => row.side !== candidate.side
@@ -922,6 +1095,15 @@ async function maintainMarketMaker(marketId, clock = () => new Date(), {
           : candidate.side === "buy" ? row._id.price <= candidate.price : row._id.price >= candidate.price
       ));
     });
+    if (liveWeekly && candidates.length) {
+      const safe = (quotes) => {
+        const risk = marketMakerReachableRisk({ positions, quotes });
+        return risk.hardLoss <= MM_LOSS_LIMIT && risk.peakPosition <= MM_POSITION_LIMIT;
+      };
+      const asQuotes = (quotes) => quotes.map((quote) => ({ ...quote, quantity: 1 }));
+      if (!safe(asQuotes(candidates))) candidates = candidates.filter((candidate) => candidate.action === "close"
+        && safe(asQuotes([candidate])));
+    }
 
     for (const order of working) {
       const candidate = candidates.find((row) => row.side === order.side);

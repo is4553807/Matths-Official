@@ -27,6 +27,8 @@ const runtimeSources = [
   read("public", "js", "auth.js"),
   read("views", "goat-arena-rules.ejs"),
   read("views", "partials", "business-footer.ejs"),
+  read("views", "partials", "business-footer-details.ejs"),
+  read("views", "partials", "exchange-footer.ejs"),
   read("package.json"),
 ].join("\n");
 
@@ -61,7 +63,10 @@ for (const fileName of viewFiles) {
   );
 }
 
-const footer = read("views", "partials", "business-footer.ejs");
+for (const shell of ["business-footer.ejs", "exchange-footer.ejs"]) {
+  assert.match(read("views", "partials", shell), /include\("business-footer-details"/);
+}
+const footer = read("views", "partials", "business-footer-details.ejs");
 assert.match(footer, />맵쓰 \(Matths\)</);
 assert.match(footer, />이상윤</);
 assert.match(footer, /href="tel:01086746646">010-8674-6646</);

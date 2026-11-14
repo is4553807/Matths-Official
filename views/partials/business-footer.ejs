@@ -1,7 +1,4 @@
-<% const footerContactEmail = typeof publicContactEmail !== "undefined" && publicContactEmail
-  ? publicContactEmail
-  : "matths-support@matths.kr";
-  const footerPublicOrigin =
+<% const footerPublicOrigin =
     typeof serviceUrls !== "undefined" && serviceUrls?.public
       ? String(serviceUrls.public).replace(/\/$/, "")
       : "";
@@ -27,36 +24,7 @@
       </nav>
     </div>
 
-    <dl class="business-site-footer__details" aria-label="맵쓰 사업자 정보">
-      <div>
-        <dt>상호</dt>
-        <dd>맵쓰 (Matths)</dd>
-      </div>
-      <div>
-        <dt>대표자</dt>
-        <dd>이상윤</dd>
-      </div>
-      <div>
-        <dt>사업자등록번호</dt>
-        <dd>595-68-00696</dd>
-      </div>
-      <div>
-        <dt>사업장 소재지</dt>
-        <dd>서울특별시 강남구 강남대로112길 47 (논현동)</dd>
-      </div>
-      <div>
-        <dt>고객센터</dt>
-        <dd><a href="mailto:<%= footerContactEmail %>"><%= footerContactEmail %></a></dd>
-      </div>
-      <div>
-        <dt>전화번호</dt>
-        <dd><a href="tel:01086746646">010-8674-6646</a></dd>
-      </div>
-      <div>
-        <dt>호스팅 서비스 제공자</dt>
-        <dd><a href="https://cloudtype.io/" target="_blank" rel="noopener noreferrer">주식회사 클라우드타입</a></dd>
-      </div>
-    </dl>
+    <%- include("business-footer-details", { detailsClass: "business-site-footer__details" }) %>
 
     <div class="business-site-footer__bottom">
       <span>© <%= new Date().getFullYear() %> Matths. All rights reserved.</span>
