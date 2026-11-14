@@ -11,7 +11,7 @@ const { botDepthOrderFilter, botDepthQuotes, isBotDepthOrder } = require("../ser
 
 const {
   ExchangeMarket, ExchangeSetting, ExchangeExamBotAttempt, ExchangeOrder, ExchangeTrade, ExchangeWallet,
-  ExchangeAccount, ExchangePosition, ExchangeTick, ExchangeBotReplayMpi, ExchangeBotReplayTrade,
+  ExchangeAccount, ExchangePosition, ExchangeTick, ExchangeBotReplayMpi, ExchangeBotReplayTrade, ExchangeEvent,
 } = models;
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -58,6 +58,8 @@ async function main() {
   await run(at(-60));
   const preregistered = await ExchangeMarket.findOne({ examId: exam._id });
   const filter = { marketId };
+  const auditFilter = { marketId, action: "weekly-opening-check" };
+  assert.equal(await ExchangeEvent.countDocuments(auditFilter), 0);
   assert.equal(preregistered.botParticipation, false);
   assert.equal(preregistered.openedAt, undefined);
   assert.equal(preregistered.marketMakerEnabled, true);
@@ -92,6 +94,9 @@ async function main() {
   await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "open" } });
   await run(opensAt);
   assert.equal(+(await ExchangeMarket.findById(marketId)).openedAt, +opensAt);
+  const marketOpenAudit = await ExchangeEvent.findOne(auditFilter).lean();
+  assert.equal(+marketOpenAudit.detail.openedAt, +opensAt);
+  assert.equal(marketOpenAudit.detail.openingBatch, undefined);
   assert.equal(await ExchangeExamBotAttempt.countDocuments(filter), 0);
 
   await PrivateMockExamAttempt.create({
@@ -105,6 +110,7 @@ async function main() {
   assert.equal(before.candles.length, 0);
 
   await run(at(30));
+  const initialBook = await terminalState({ marketId: String(marketId), now: at(30), publicOnly: true });
   await run(at(31));
   const opening = await ExchangeExamBotAttempt.find(filter).select("+answers").sort({ number: 1 }).lean();
   assert.deepEqual(opening.map(({ number }) => number), [1, 2, 3, 4, 5]);
@@ -136,6 +142,22 @@ async function main() {
   const healthyBook = await terminalState({ marketId: String(marketId), now: at(31), publicOnly: true });
   assert.ok(healthyBook.bids[0].price < healthyBook.asks[0].price);
   assert.ok(healthyBook.bids.length >= 2 && healthyBook.asks.length >= 2);
+  const audit = await ExchangeEvent.findOne(auditFilter).lean();
+  assert.equal(await ExchangeEvent.countDocuments(auditFilter), 1);
+  assert.equal(audit.detail.openingBatch.count, 5);
+  assert.equal(+audit.detail.openingBatch.submittedAt, +at(30));
+  assert.equal(audit.detail.mpi.value, first.latest.mpi);
+  assert.equal(+audit.detail.mpi.publishedAt, +at(30));
+  assert.equal(+audit.detail.book.at, +at(30));
+  assert.equal(audit.detail.book.bestBid, initialBook.bids[0].price);
+  assert.equal(audit.detail.book.bestAsk, initialBook.asks[0].price);
+  await run(at(45));
+  const finishedAudit = await ExchangeEvent.findOne(auditFilter).lean();
+  assert.equal(await ExchangeEvent.countDocuments(auditFilter), 1);
+  assert.ok(finishedAudit.detail.completedAt <= at(45));
+  const firstAutomatedTrade = await ExchangeTrade.findOne({ ...filter, botOnly: true, tradedAt: { $gte: at(30), $lt: at(45) } })
+    .sort({ tradedAt: 1, sequence: 1 }).lean();
+  assert.equal(+new Date(finishedAudit.detail.firstTrade?.tradedAt ?? 0), +new Date(firstAutomatedTrade?.tradedAt ?? 0));
   const openDepthKey = { ...filter, ...botDepthOrderFilter, status: "working" };
   const snapshotAfterOpen = await ExchangeTick.findOne(openingFilter).lean();
   assert.equal(await ExchangeOrder.countDocuments({ ...openDepthKey, mpiSnapshotId: snapshotAfterOpen._id }), openingLevels.length);

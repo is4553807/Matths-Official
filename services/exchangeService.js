@@ -13,6 +13,7 @@ const { EXCHANGE_WALLET_ID, FEE_RATES, initialBalance } = require("./exchangeFee
 const { withSchedulerLease } = require("./schedulerLeaseService");
 const { isBootstrap, isHistoricalBootstrap, isLiveWeeklyBootstrap, traderStopAt } = require("./exchangeBootstrapService");
 const { runHistoricalBootstrap } = require("./exchangeHistoricalBootstrapService");
+const { recordWeeklyOpeningAudit } = require("./exchangeOpeningAuditService");
 const { operatorOnlyExchange, publicMarketFilter } = require("./exchangeAccessService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
@@ -286,6 +287,10 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
       try { await maintainFundedBotOrders(market, isLiveWeeklyBootstrap(market) ? clock() : now, clock); }
       catch (cause) { console.error("[exchange] Trading Bot maintenance failed", String(market._id), cause.message); }
     }
+  }
+  for (const market of markets) {
+    try { await recordWeeklyOpeningAudit(market, clock()); }
+    catch (cause) { console.error("[exchange] weekly opening check failed", String(market._id), cause.message); }
   }
 }
 
