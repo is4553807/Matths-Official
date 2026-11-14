@@ -79,7 +79,7 @@ async function mpiState({ marketId, interval: requestedInterval, before, now = n
   const published = publishedMpiFilter(selected._id, now);
   const visible = { ...published, unavailable: { $ne: true }, populationCount: { $gte: minimumMpiAttempts } };
   const latest = await ExchangeTick.findOne(base.market.bootstrap ? published : visible).sort({ publishAt: -1 })
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable openingBotBatch").lean();
   const replayFilter = !historical && selected.replayMpiCount && selected.replayRecordedAt <= now
     ? { marketId: selected._id, reconstructedAt: { $lte: now }, sampledAt: { $lte: dataThroughAt }, publishAt: { $lte: now } }
     : null;

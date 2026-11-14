@@ -89,28 +89,60 @@ async function main() {
   assert.equal(+(await ExchangeMarket.findById(marketId)).openedAt, +opensAt);
   assert.equal(await ExchangeExamBotAttempt.countDocuments(filter), 0);
 
-  // Simulate an offline worker in the second slot. The next pass records the
-  // current slot at the processing clock, with no catch-up for slot two.
-  for (const minute of [13, 53, 73, 93, 113]) await run(at(minute));
-  const roster = await ExchangeExamBotAttempt.find(filter).select("+answers").sort({ submittedAt: 1 }).lean();
-  assert.deepEqual(roster.map(({ number }) => number), [1, 3, 4, 5, 6]);
-  assert.deepEqual(roster.map(({ submittedAt }) => +submittedAt), [13, 53, 73, 93, 113].map((minute) => +at(minute)));
-  assert.ok(roster.every(({ answers, score, reconstructedAt, source }) =>
-    source === "BOT" && !reconstructedAt && answers.length === points.length
-      && answers.reduce((sum, answer, index) => sum + (answer === "1" ? points[index] : 0), 0) === score));
-  const before = await mpiState({ marketId: String(marketId), now: at(142), publicOnly: true });
+  await PrivateMockExamAttempt.create({
+    examId: exam._id, userId: student._id, weekKey: exam.weekKey, formCode: "WEEKLY", attemptNumber: 1,
+    status: "submitted", score: 71, submittedAt: at(29), submissionFinalization: { status: "completed", completedAt: at(29) },
+  });
+  await run(at(29));
+  await assertNoMarketActivity(marketId);
+  const before = await mpiState({ marketId: String(marketId), now: at(29), publicOnly: true });
   assert.equal(before.latest, null);
   assert.equal(before.candles.length, 0);
-  const first = await mpiState({ marketId: String(marketId), now: at(143), publicOnly: true });
+
+  await run(at(30));
+  await run(at(31));
+  const opening = await ExchangeExamBotAttempt.find(filter).select("+answers").sort({ number: 1 }).lean();
+  assert.deepEqual(opening.map(({ number }) => number), [1, 2, 3, 4, 5]);
+  assert.ok(opening.every(({ submittedAt, openingBatch, answers, score, reconstructedAt, source }) =>
+    source === "BOT" && !reconstructedAt && answers.length === points.length
+      && openingBatch && +submittedAt === +at(30)
+      && answers.reduce((sum, answer, index) => sum + (answer === "1" ? points[index] : 0), 0) === score));
+  const openingFilter = { ...filter, openingBotBatch: true };
+  assert.equal(await ExchangeTick.countDocuments(openingFilter), 1);
+  const openingTick = await ExchangeTick.findOne(openingFilter).select("+contributions").lean();
+  assert.equal(openingTick.humanPopulationCount, 0);
+  assert.equal(openingTick.humanScoreSum, 0);
+  assert.deepEqual(openingTick.contributions.sort(), opening.map(({ botId, score }) => `${botId}:${score}`).sort());
+  const botScoreSum = opening.reduce((sum, bot) => sum + bot.score, 0);
+  const first = await mpiState({ marketId: String(marketId), now: at(30), publicOnly: true });
   assert.equal(first.latest.populationCount, 5);
   assert.equal(first.latest.humanPopulationCount, 0);
   assert.equal(first.latest.botPopulationCount, 5);
-  assert.equal(+first.latest.publishAt, +at(143));
+  assert.equal(first.latest.openingBotBatch, true);
+  assert.equal(first.latest.mpi, botScoreSum * 2);
+  assert.equal(+first.latest.publishAt, +at(30));
   assert.ok(first.candles.length);
+  assert.ok(first.candles.every(({ close }) => close === first.latest.mpi));
+  const stillOpening = await mpiState({ marketId: String(marketId), now: at(59), publicOnly: true });
+  assert.equal(stillOpening.latest.humanPopulationCount, 0);
+  assert.equal(stillOpening.latest.mpi, first.latest.mpi);
+  const delayedAt = new Date(+at(60) + 1);
+  const delayed = await mpiState({ marketId: String(marketId), now: delayedAt, publicOnly: true });
+  assert.equal(delayed.latest.humanPopulationCount, 1);
+  assert.equal(delayed.latest.mpi, Math.round((botScoreSum + 71) * 1000 / 6) / 100);
+  assert.equal(+delayed.latest.publishAt, +delayedAt);
+
+  // Simulate an offline worker in the second regular slot. Record the current
+  // slot at the processing clock and leave the missed slot absent.
+  await run(at(63));
+  await run(at(103));
+  const roster = await ExchangeExamBotAttempt.find(filter).sort({ number: 1 }).lean();
+  assert.deepEqual(roster.map(({ number }) => number), [1, 2, 3, 4, 5, 6, 8]);
+  assert.deepEqual(roster.slice(5).map(({ submittedAt }) => +submittedAt), [63, 103].map((minute) => +at(minute)));
 
   let tradeAt;
   let resting;
-  for (let minute = 143; minute <= 245; minute++) {
+  for (let minute = 103; minute <= 245; minute++) {
     const now = at(minute);
     await run(now);
     resting = await ExchangeOrder.findOne({ ...filter, source: "BOT", status: "working", expiresAt: { $gt: now } }).lean();
@@ -135,10 +167,6 @@ async function main() {
   assert.ok([...botView.bids, ...botView.asks].every(({ quantity, botQuantity = 0, operatorQuantity = 0 }) =>
     botQuantity + operatorQuantity <= quantity));
 
-  await PrivateMockExamAttempt.create({
-    examId: exam._id, userId: student._id, weekKey: exam.weekKey, formCode: "WEEKLY", attemptNumber: 1,
-    status: "submitted", score: 71, submittedAt: tradeAt, submissionFinalization: { status: "completed", completedAt: tradeAt },
-  });
   const takerAt = new Date(+tradeAt + 1);
   await placeOrder({
     marketId, userId: student._id, clock: () => takerAt,
@@ -170,7 +198,7 @@ async function main() {
   assert.equal(await ExchangeBotReplayTrade.countDocuments(filter), 0);
   assert.equal((await ExchangeSetting.findById("default")).automatedTradingDisabled, true);
 
-  console.log("Public weekly bot DB audit passed: recurring prep, live slots, delayed MPI, attributed matching and separate MM.");
+  console.log("Public weekly bot DB audit passed: opening batch, student MPI delay, live slots, attributed matching and separate MM.");
 }
 
 main().catch((cause) => { console.error(cause); process.exitCode = 1; }).finally(() => mongoose.disconnect());

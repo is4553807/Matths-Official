@@ -14,6 +14,7 @@
   };
 
   const left = 13;
+  const top = 16;
   const rightGutter = 58;
   const maxHistory = 5000;
   const kstOffset = 9 * 3600000;
@@ -67,6 +68,14 @@
 
     function plotWidth() {
       return Math.max(1, canvas.clientWidth - left - rightGutter);
+    }
+
+    function priceBottom() {
+      return canvas.clientHeight - (volume ? 53 : 28);
+    }
+
+    function hasPriceData() {
+      return candles.length > 0 || references.some((row) => row.price !== null);
     }
 
     function pointer(event) {
@@ -133,7 +142,7 @@
       const color = (name) => palette.getPropertyValue(name).trim();
       ctx.scale(ratio, ratio);
       ctx.font = "11px system-ui";
-      const right = width - rightGutter, top = 16, bottom = height - (volume ? 53 : 28);
+      const right = width - rightGutter, bottom = priceBottom();
       const { last, full, visible, pad, maxOffset } = limits();
       offset = clamp(offset, 0, maxOffset);
       const end = last + (1 + pad - offset) * ms;
@@ -273,7 +282,7 @@
       if (volume && hoverInPlot && !hovered) summary.textContent = showSources && sourceLabels.REPLAY
         ? "이 구간에는 가격 기록이 없습니다." : "이 구간에는 체결이 없습니다.";
       else showSummary(hovered || rows.at(-1) || candles.at(-1));
-      const hasData = candles.length || references.some((row) => row.price !== null);
+      const hasData = hasPriceData();
       zoomIn.disabled = !hasData || visible <= 3;
       zoomOut.disabled = !hasData || (visible >= full && (!onHistory || historyEnd));
       zoomReset.disabled = !hasData || (span === defaultSpan() && offset === 0 && !priceRange);
@@ -290,6 +299,14 @@
       span = next;
       draw();
       fetchHistory(requested > full);
+    }
+
+    function scalePrice(range, y, factor) {
+      const [min, max] = range;
+      const fraction = clamp((y - top) / (priceBottom() - top), 0, 1);
+      const anchor = max - (max - min) * fraction;
+      const size = clamp((max - min) * factor, 2, 2000);
+      return [anchor - size * (1 - fraction), anchor + size * fraction];
     }
 
     function reset() {
@@ -342,17 +359,27 @@
       draw();
     });
     canvas.addEventListener("wheel", (event) => {
-      if (!candles.length || (!event.deltaX && !event.deltaY)) return;
       const point = pointer(event);
-      if (point.x >= left + plotWidth()) return;
-      event.preventDefault();
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
-      if (!event.ctrlKey && Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      const factor = Math.exp(clamp(event.deltaY * unit, -320, 320) * .0017);
+      const horizontal = !event.ctrlKey && Math.abs(event.deltaX) > Math.abs(event.deltaY);
+      if (horizontal) {
+        if (!candles.length || point.x >= left + plotWidth()) return;
+        event.preventDefault();
         offset -= event.deltaX * unit * limits().visible / plotWidth();
         draw();
         fetchHistory();
-      } else {
-        zoom(Math.exp(clamp(event.deltaY * unit, -320, 320) * .0017), anchorAt(point.x));
+        return;
+      }
+      if (!event.deltaY) return;
+      if (event.ctrlKey) {
+        if (!candles.length || point.x >= left + plotWidth()) return;
+        event.preventDefault();
+        zoom(factor, anchorAt(point.x));
+      } else if (point.y >= top && point.y <= priceBottom() && hasPriceData()) {
+        event.preventDefault();
+        priceRange = scalePrice(renderedRange, point.y, factor);
+        draw();
       }
     }, { passive: false });
     canvas.addEventListener("pointerdown", (event) => {
@@ -379,19 +406,15 @@
             - next * (1 - anchorAt((a.x + b.x) / 2));
           span = next;
         } else if (drag?.mode === "price") {
-          const height = Math.max(80, canvas.clientHeight - (volume ? 69 : 44));
-          const [min, max] = drag.range;
-          const at = clamp((drag.point.y - 16) / height, 0, 1);
-          const anchor = max - (max - min) * at;
-          const size = clamp((max - min) * Math.exp((point.y - drag.point.y) / height), 2, 2000);
-          priceRange = [anchor - size * (1 - at), anchor + size * at];
+          const height = priceBottom() - top;
+          priceRange = scalePrice(drag.range, drag.point.y, Math.exp((point.y - drag.point.y) / height));
         } else if (drag?.mode === "pan") {
           offset = drag.offset + (point.x - drag.point.x) * drag.visible / plotWidth();
           const dy = point.y - drag.point.y;
           if (drag.vertical || Math.abs(dy) >= 3) {
             drag.vertical = true;
             const [min, max] = drag.range;
-            const height = Math.max(80, canvas.clientHeight - (volume ? 69 : 44));
+            const height = priceBottom() - top;
             const shift = clamp(dy * (max - min) / height, -max + 1, 999 - min);
             priceRange = [min + shift, max + shift];
           }

@@ -58,7 +58,9 @@
     const botCount = latest?.botWeight === 0 ? 0 : latest?.botPopulationCount ?? 0;
     get("mpi-bot-policy").hidden = !explainBots;
     text("mpi-value-label", state.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI");
-    text("mpi-bot-policy", state.market?.bootstrap
+    text("mpi-bot-policy", latest?.openingBotBatch
+      ? `개장 MPI에는 Exam Bot ${number.format(botCount)}건만 반영했습니다.`
+      : state.market?.bootstrap
       ? latest?.botWeight == null
         ? "잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다. 최종 정산은 유효한 학생 성적으로 계산합니다."
         : `Exam Bot 점수 가중치 ${number.format(latest.botWeight * 100)}% · 최종 정산은 유효한 학생 성적 기준`

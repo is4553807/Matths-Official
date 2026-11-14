@@ -17,7 +17,7 @@ const DEFAULT_MPI_MINIMUM = 5;
 const OBSERVED_MPI = "observed";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const CLOSED_WEEKLY_EXAM_STATUSES = new Set(["locked", "aggregating", "ranked", "archived", "finalizing", "finalized"]);
-const { botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
+const { LIVE_OPENING_BOT_COUNT, botParticipationForSchedule, submittedBots } = require("./exchangeScenarioService");
 const {
   POLICY, OPEN_ROUND_POLICY, LIVE_WEEKLY_POLICY, isHistoricalBootstrap, isLiveWeeklyBootstrap, isBootstrap,
   fadeAt, weightedMpi, recordExamBots, gradeExamBots, readExamBots,
@@ -173,7 +173,12 @@ function publishedMpiFilter(marketId, now) {
   const cutoff = mpiDataCutoff(now);
   return {
     marketId, kind: OBSERVED_MPI, publishAt: { $lte: now }, supersededAt: null,
-    $or: [{ dataCutoffAt: { $lte: cutoff } }, { dataCutoffAt: null, sampledAt: { $lte: cutoff } }],
+    $or: [
+      { dataCutoffAt: { $lte: cutoff } },
+      { dataCutoffAt: null, sampledAt: { $lte: cutoff } },
+      { openingBotBatch: true, humanPopulationCount: 0, botPopulationCount: LIVE_OPENING_BOT_COUNT,
+        populationCount: LIVE_OPENING_BOT_COUNT, dataCutoffAt: { $lte: now } },
+    ],
   };
 }
 
@@ -591,13 +596,14 @@ async function saveObservedMpi(market, now, clock = () => now, { session, replay
     const attempts = await liveAttemptRows(replay ? validAttemptsAtMarketTime(exam, now) : validAttempts(exam, now), session);
     const automationAllowed = (isBootstrap(current) || current.botParticipation) && !await exchangeAutomationDisabled(session, current);
     const bootstrap = automationAllowed && isBootstrap(current);
-    const bots = bootstrap ? await recordExamBots(current, exam, now, session) : automationAllowed ? submittedBots(current, now) : [];
+    const { bots, openingBots } = bootstrap ? await recordExamBots(current, exam, now, session)
+      : { bots: automationAllowed ? submittedBots(current, now) : [], openingBots: [] };
     const humanScoreSum = attempts.reduce((sum, row) => sum + row.score, 0);
     const botScoreSum = bots.reduce((sum, bot) => sum + bot.score, 0);
     const { weight: botWeight, step } = bootstrap ? fadeAt(current, now) : { weight: automationAllowed ? 1 : 0, step: 0 };
     const mpi = weightedMpi(humanScoreSum, attempts.length, botScoreSum, bots.length, botWeight);
     const populationCount = attempts.length + (botWeight > 0 ? bots.length : 0);
-    const last = await ExchangeTick.findOne({ marketId: current._id, kind: OBSERVED_MPI, supersededAt: null })
+    let last = await ExchangeTick.findOne({ marketId: current._id, kind: OBSERVED_MPI, supersededAt: null })
       .sort({ sampledAt: -1 }).select("+contributions").session(session).lean();
     const previousStep = current.mpiFadeStep ?? 0;
     if (bootstrap && step > previousStep) {
@@ -617,16 +623,33 @@ async function saveObservedMpi(market, now, clock = () => now, { session, replay
       internalMpi: mpi, internalMpiCount: attempts.length, internalBotCount: bots.length,
       humanScoreSum, botScoreSum, botWeight, mpiFadeStep: step,
     } }, { session, timestamps: false });
-    const available = mpi !== null && populationCount >= await readMpiMinimum(current, session);
+    const minimum = await readMpiMinimum(current, session);
+    let openingTick;
+    if (isLiveWeeklyBootstrap(current) && openingBots.length === LIVE_OPENING_BOT_COUNT
+      && botWeight === 1 && minimum <= openingBots.length) {
+      const openingScoreSum = openingBots.reduce((sum, bot) => sum + bot.score, 0);
+      const at = clock();
+      [openingTick] = await ExchangeTick.create([{
+        marketId: current._id, kind: OBSERVED_MPI, openingBotBatch: true,
+        sampledAt: at, dataCutoffAt: now, publishAt: at, expiresAt: new Date(+at + WEEK_MS * 2),
+        mpi: weightedMpi(0, 0, openingScoreSum, openingBots.length, 1), unavailable: false,
+        populationCount: openingBots.length, botPopulationCount: openingBots.length, humanPopulationCount: 0,
+        humanScoreSum: 0, botScoreSum: openingScoreSum, botWeight: 1,
+        contributions: openingBots.map(({ botId, score }) => `${botId}:${score}`),
+      }], { session });
+      last = openingTick;
+    }
+    const available = mpi !== null && populationCount >= minimum;
     const contributions = attempts.map(({ _id, score }) => `${_id}:${score}`)
       .concat(botWeight > 0 ? bots.map((bot) => `${bot.botId ?? bot.id}:${bot.score}`) : []);
     const leavingLiveBots = !bootstrap && isLiveWeeklyBootstrap(current) && last?.botWeight > 0 && last.botPopulationCount > 0;
     if (!available && !leavingLiveBots
-      && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return;
+      && (!bootstrap || (!last && step === previousStep) || (last?.unavailable && step === previousStep))) return openingTick;
     if (available && last && !last.unavailable && step === previousStep
       && !leavingLiveBots
-      && changedContributors(last.contributions || [], contributions) < (automationAllowed ? 1 : MPI_BATCH_SIZE)) return;
+      && changedContributors(last.contributions || [], contributions) < (automationAllowed ? 1 : MPI_BATCH_SIZE)) return openingTick;
     let sampledAt = clock();
+    if (openingTick && sampledAt <= openingTick.sampledAt) sampledAt = new Date(+openingTick.sampledAt + 1);
     const publishAt = new Date(+sampledAt + MPI_DELAY_MS);
     if (replay) {
       // Older tick kinds share the sampledAt uniqueness constraint with observed ticks.
@@ -641,7 +664,7 @@ async function saveObservedMpi(market, now, clock = () => now, { session, replay
       reconstructedBotPopulationCount: bots.filter((bot) => bot.reconstructedAt).length,
       humanScoreSum, botScoreSum, botWeight, contributions, publishAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2),
     }], { session });
-    return tick;
+    return openingTick ?? tick;
   };
   return session ? save(session) : mongoose.connection.transaction(save);
 }

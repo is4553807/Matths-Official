@@ -5,6 +5,9 @@ const HOUR = 60 * MINUTE;
 const ROUND_HOURS = 141;
 const BOT_POLICY_START = Date.parse("2026-11-15T06:00:00Z");
 const ORDER_LIFETIME = 6 * HOUR;
+const LIVE_OPENING_BOT_COUNT = 5;
+const LIVE_OPENING_DELAY_MS = 30 * MINUTE;
+const LIVE_OPENING_GRACE_MS = 5 * MINUTE;
 
 function eligibleRound(market) {
   if (market.type !== "weekly" || +market.closeAt - +market.opensAt !== ROUND_HOURS * HOUR) return false;
@@ -43,13 +46,24 @@ function weeklyParticipant(market, slot, cadence) {
   return newParticipant(key, market.opensAt, slot, cadence);
 }
 
-function dueLiveExamBot(market, now) {
+function dueLiveExamBots(market, now) {
   if (!market.botParticipation || !market.botSeed || !eligibleRound(market)
-    || now < market.opensAt || now >= market.closeAt) return null;
+    || now >= market.closeAt) return [];
+  const openingAt = +market.opensAt + LIVE_OPENING_DELAY_MS;
+  if (+now < openingAt) return [];
   const cadence = market.bootstrapPolicy.submissionMinutes * MINUTE;
-  const slot = Math.floor((+now - +market.opensAt) / cadence);
-  const bot = weeklyParticipant(market, slot, cadence);
-  return bot.submittedAt <= +now ? { ...bot, submittedAt: +now } : null;
+  const key = `${market.botSeed}:${market._id}:${+market.opensAt}`;
+  if (+now < openingAt + LIVE_OPENING_GRACE_MS) {
+    return Array.from({ length: LIVE_OPENING_BOT_COUNT }, (_, slot) => ({
+      ...newParticipant(`${key}:live-opening`, openingAt, slot, cadence), submittedAt: +now, opening: true,
+    }));
+  }
+  const slot = Math.floor((+now - openingAt) / cadence);
+  if (slot < 1) return [];
+  const bot = newParticipant(`${key}:live-weekly`, openingAt, slot, cadence);
+  return bot.submittedAt <= +now
+    ? [{ ...bot, number: slot + LIVE_OPENING_BOT_COUNT, submittedAt: +now }]
+    : [];
 }
 
 function submittedBots(market, now) {
@@ -86,4 +100,7 @@ function dueBotOrder(market, now, publicMpi = 600) {
   return { ...botOrder(bot, publicMpi), botId: bot.id, expiresAt: new Date(Math.min(bot.orderAt + ORDER_LIFETIME, +market.closeAt)) };
 }
 
-module.exports = { eligibleRound, botParticipationForSchedule, dueLiveExamBot, submittedBots, dueBotOrder };
+module.exports = {
+  LIVE_OPENING_BOT_COUNT, LIVE_OPENING_DELAY_MS, eligibleRound, botParticipationForSchedule,
+  dueLiveExamBots, submittedBots, dueBotOrder,
+};

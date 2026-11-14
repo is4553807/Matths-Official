@@ -128,7 +128,7 @@ async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
   const filter = forAdmin ? { marketId: market._id, kind: "observed", supersededAt: null }
     : { ...publishedMpiFilter(market._id, now), populationCount: { $gte: await readMpiMinimum(market) } };
   return ExchangeTick.find(filter).sort({ publishAt: -1 }).limit(limit)
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount botPopulationCount humanPopulationCount reconstructedBotPopulationCount botWeight unavailable openingBotBatch").lean();
 }
 
 async function terminalState({ marketId, userId, interval, marketType, now = new Date(), publicOnly = false } = {}) {

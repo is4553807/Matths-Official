@@ -1,6 +1,6 @@
 const { createHash } = require("node:crypto");
 const { ExchangeExamBotAttempt } = require("../models/exchangeModel");
-const { dueLiveExamBot, eligibleRound, submittedBots } = require("./exchangeScenarioService");
+const { dueLiveExamBots, eligibleRound, submittedBots } = require("./exchangeScenarioService");
 
 const MINUTE = 60_000;
 const POLICY = Object.freeze({
@@ -38,7 +38,8 @@ function weightedMpi(humanTotal, humanCount, botTotal, botCount, weight) {
 
 async function readExamBots(market, now, session) {
   return ExchangeExamBotAttempt.find({ marketId: market._id, submittedAt: { $lte: now } })
-    .select("botId number label score submittedAt source reconstructedAt").sort({ submittedAt: 1, number: 1 }).session(session || null).lean();
+    .select("botId number label score submittedAt source reconstructedAt openingBatch").sort({ submittedAt: 1, number: 1 })
+    .session(session || null).lean();
 }
 
 async function recordExamBots(market, exam, now, session) {
@@ -48,13 +49,13 @@ async function recordExamBots(market, exam, now, session) {
   const through = market.mpiFade?.startedAt && !usesIndependentTraderWallets(market)
     ? new Date(Math.min(+now, +market.mpiFade.startedAt + market.bootstrapPolicy.fadeMinutes * MINUTE - 1)) : now;
   // The live runner accepts the current slot only and records the server clock.
-  const participants = isLiveWeeklyBootstrap(market) ? [dueLiveExamBot(market, now)].filter(Boolean) : submittedBots(market, through);
+  const participants = isLiveWeeklyBootstrap(market) ? dueLiveExamBots(market, now) : submittedBots(market, through);
   const due = participants.filter(({ id, submittedAt }) =>
     !known.has(id) && submittedAt >= +exam.releaseAt && submittedAt < +exam.closeAt);
-  if (!due.length) return existing;
+  if (!due.length) return { bots: existing, openingBots: [] };
   const rows = gradeExamBots(market, exam, due);
   await ExchangeExamBotAttempt.insertMany(rows, { session });
-  return existing.concat(rows);
+  return { bots: existing.concat(rows), openingBots: rows.filter(({ openingBatch }) => openingBatch) };
 }
 
 function gradeExamBots(market, exam, bots) {
@@ -71,6 +72,7 @@ function gradeExamBots(market, exam, bots) {
     const grading = gradePrivateMockAnswers({ ...exam, answers });
     return { marketId: market._id, examId: exam._id, botId: bot.id, number: bot.number,
       source: "BOT", label: botLabel("ExamBot", bot.number), submittedAt: new Date(bot.submittedAt),
+      ...(bot.opening ? { openingBatch: true } : {}),
       answers: grading.answers, answeredCount: grading.answeredCount, correctCount: grading.correctCount,
       score: grading.score, correctByQuestion: grading.correctByQuestion };
   });
