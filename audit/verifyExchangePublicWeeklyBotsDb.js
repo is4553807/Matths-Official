@@ -81,6 +81,8 @@ async function main() {
   assert.equal(scheduled.market?.status, "scheduled");
   assert.equal(scheduled.market?.liveWeeklyBots, true);
   assert.equal(scheduled.market?.historicalBootstrap, false);
+  assert.equal(scheduled.interval, "2h");
+  assert.equal((await terminalState({ marketId: String(marketId), now: at(-1), interval: "5m" })).interval, "5m");
 
   // Keep random-looking bot answers reproducible without substituting orders or submissions.
   await ExchangeMarket.updateOne({ _id: marketId }, { $set: { botSeed: "weekly-public-bots-audit" } });

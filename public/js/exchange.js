@@ -208,10 +208,9 @@
     const market = selectedMarket();
     const isWeekly = market?.type === "weekly";
     const historical = market?.historicalBootstrap === true;
-    text("order-market-rules", historical
+    const weeklyOverview = historical || market?.liveWeeklyBots === true;
+    text("order-market-rules", market?.bootstrap
       ? "지정가로 주문하며, 만기에는 정산 MPI를 적용합니다."
-      : market?.bootstrap
-      ? "잠정 MPI에 Exam Bot 점수가 반영될 수 있습니다. 정산은 유효한 학생 성적으로 계산합니다. 자동 주문과 체결될 수 있습니다."
       : market?.botParticipation
       ? "거래소의 운영 봇이 거래 상대방이 될 수 있습니다. 이 회차의 공식 MPI와 만기 정산에는 학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다."
       : "거래소의 자동화 계정이 거래 상대방이 될 수 있습니다. 공식 MPI와 만기 정산 지수는 실제 유효 응시 성적으로 계산합니다.");
@@ -271,10 +270,10 @@
     countdown();
     updateOrder();
     calculate();
-    chart.update(candles, market ? [market.id, historical].join("|") : "", references, {
+    chart.update(candles, market ? [market.id, weeklyOverview].join("|") : "", references, {
       showSources: hasReplay,
-      opensAt: historical ? market.opensAt : null,
-      throughAt: historical ? Math.min(Date.parse(state.serverNow), Date.parse(market.closeAt)) : null,
+      opensAt: weeklyOverview ? market.opensAt : null,
+      throughAt: weeklyOverview ? Math.min(Date.parse(state.serverNow), Date.parse(market.closeAt)) : null,
     });
   }
 

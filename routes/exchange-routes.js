@@ -198,7 +198,7 @@ router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (re
   const before = historyBefore(req.query.before);
   const now = new Date();
   const market = await ExchangeMarket.findOne(marketFilter(req, marketId))
-    .select("bootstrapPolicy.version historicalBootstrap.status replayRecordedAt replayVolume").lean();
+    .select("type opensAt closeAt bootstrapPolicy.version historicalBootstrap.status replayRecordedAt replayVolume").lean();
   if (publicOnly(req)) requireMarket(market);
   const interval = futuresChartInterval(req.query.interval, market, now).code;
   const candles = await futuresChartHistory(marketId, interval, before, now, market);

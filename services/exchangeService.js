@@ -57,7 +57,8 @@ async function marketList(now, { publicOnly = false } = {}) {
 
 function futuresChartInterval(requested, market, now = new Date()) {
   const hasReplay = market?.replayVolume > 0 && market.replayRecordedAt <= now;
-  return intervalFor(requested, isHistoricalBootstrap(market) ? "2h" : hasReplay ? "1h" : "1m");
+  if (isHistoricalBootstrap(market) || isLiveWeeklyBootstrap(market)) return intervalFor(requested, "2h");
+  return intervalFor(requested, hasReplay ? "1h" : "1m");
 }
 
 async function futuresChartHistory(marketId, interval, before, now = new Date(), market) {
