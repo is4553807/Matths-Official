@@ -140,7 +140,7 @@ async function main() {
         assert.match(html, /<dt>거래량<\/dt>/);
         assert.doesNotMatch(html, /학생 참여 거래량|자동화 계정 간 (?:거래량|체결)|학생[· ]자동화 혼합 봉/);
       } else {
-        assert.match(html, /잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
+        assert.doesNotMatch(html, /mpi-bot-policy|잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
       }
     }
     const quote = (await (await get(marketUrl)).json())[trader.side === "buy" ? "bids" : "asks"]

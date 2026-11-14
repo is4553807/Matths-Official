@@ -19,11 +19,6 @@
       <div class="market-identity">
         <h1 id="mpi-title">MPI 지수</h1>
         <p id="mpi-market-name"><%= initial.market?.title || "맵쓰 주간 모의고사" %></p>
-        <p id="mpi-bot-policy" <%= initial.market?.botParticipation && !historical ? "" : "hidden" %>><%= initial.latest?.openingBotBatch
-          ? `개장 MPI에는 Exam Bot ${initial.latest.botPopulationCount.toLocaleString("ko-KR")}건만 반영했습니다.`
-          : initial.market?.bootstrap
-          ? "잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다. 최종 정산은 유효한 학생 성적으로 계산합니다."
-          : "학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다." %></p>
         <label class="market-select" id="mpi-select-wrap" hidden>회차 <select id="mpi-select" aria-label="회차 선택"></select></label>
       </div>
       <dl class="market-metrics">

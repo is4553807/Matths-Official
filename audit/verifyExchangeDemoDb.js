@@ -811,7 +811,7 @@ async function main() {
         assert.doesNotMatch(html, /시뮬레이션|모의 체결|exchange-scenario/);
         assert.equal((html.match(/<canvas\b/g) || []).length, 1);
         if (path.endsWith("mpi")) {
-          assert.match(html, /잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
+          assert.doesNotMatch(html, /mpi-bot-policy|잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
         } else {
           assert.doesNotMatch(html, /trade-series-wrap/);
           assert.match(html, /<dt>거래량<\/dt>/);

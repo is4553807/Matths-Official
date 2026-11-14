@@ -56,18 +56,7 @@
     text("mpi-value", latest?.mpi != null ? number.format(latest.mpi) : "—");
     text("mpi-score", latest?.mpi != null ? `${number.format(latest.mpi / 10)}점` : "—");
     const botCount = latest?.botWeight === 0 ? 0 : latest?.botPopulationCount ?? 0;
-    get("mpi-bot-policy").hidden = !explainBots;
-    text("mpi-value-label", state.market?.bootstrap && !historical ? "잠정 MPI" : "공개 MPI");
-    text("mpi-bot-policy", latest?.openingBotBatch
-      ? `개장 MPI에는 Exam Bot ${number.format(botCount)}건만 반영했습니다.`
-      : state.market?.bootstrap
-      ? latest?.botWeight == null
-        ? "잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다. 최종 정산은 유효한 학생 성적으로 계산합니다."
-        : `Exam Bot 점수 가중치 ${number.format(latest.botWeight * 100)}% · 최종 정산은 유효한 학생 성적 기준`
-      : "학생 성적과 운영 봇의 생성 점수를 같은 비중으로 반영합니다.");
-    if (explainBots && botCount && latest?.reconstructedBotPopulationCount) {
-      get("mpi-bot-policy").textContent += ` · 과거 봇 점수 ${number.format(latest.reconstructedBotPopulationCount)}건 포함`;
-    }
+    text("mpi-value-label", explainBots && state.market?.bootstrap ? "잠정 MPI" : "공개 MPI");
     const humanCount = latest?.humanPopulationCount ?? ((latest?.populationCount ?? 0) - botCount);
     text("mpi-count", !latest ? "—" : explainBots && botCount
       ? `학생 ${number.format(humanCount)}명 · 봇 ${number.format(botCount)}명` : `${number.format(latest.populationCount)}명`);
