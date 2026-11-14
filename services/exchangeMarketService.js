@@ -374,50 +374,69 @@ async function syncWeeklyMarkets(now = new Date()) {
   }
 }
 
+function duplicateSchedule() {
+  return error(409, "선택한 시행 연도에 같은 학년과 회차의 일정이 이미 등록되어 있습니다.");
+}
+
+async function persistSchedule(schedule, scheduleId, actorId, now, session) {
+  const existing = await ExchangeMarket.findOne(scheduleId
+    ? { _id: scheduleId, type: schedule.type, grade: schedule.grade, round: schedule.round }
+    : { key: schedule.key }).session(session);
+  if (scheduleId && !existing) throw error(404, "수정할 시험 일정을 찾을 수 없습니다.");
+  if (scheduleId === "" && existing) throw duplicateSchedule();
+  if (schedule.closeAt <= now || (existing && (existing.phase !== "scheduled" || existing.closeAt <= now))) {
+    throw error(409, "거래가 종료된 시장은 일정을 변경할 수 없습니다.");
+  }
+  const dateLocked = existing && (existing.openedAt || now >= existing.opensAt);
+  if (existing && +existing.opensAt !== +schedule.opensAt) {
+    if (dateLocked) throw error(409, "개장 이후에는 시험일을 변경할 수 없습니다.");
+    if (schedule.opensAt <= now) throw error(409, "시험일은 개장 시각이 지나지 않은 날짜로 변경해 주세요.");
+    const entries = { marketId: existing._id };
+    if (existing.volume > 0 || existing.escrow > 0 || await ExchangeOrder.exists(entries).session(session)
+      || await ExchangeTrade.exists(entries).session(session) || await ExchangeAccount.exists(entries).session(session)) {
+      throw error(409, "주문 또는 거래 기록이 있는 시장은 시험일을 변경할 수 없습니다.");
+    }
+  }
+  if (dateLocked && (
+    (existing.settlementSource || "") !== schedule.settlementSource || (existing.population || "") !== schedule.population
+  )) throw error(409, "개장 이후에는 사전 공지한 성적 출처와 모집단을 변경할 수 없습니다.");
+  if (existing && existing.key !== schedule.key
+    && await ExchangeMarket.exists({ key: schedule.key }).session(session)) throw duplicateSchedule();
+
+  const market = existing || new ExchangeMarket();
+  const previousOpensAt = market.opensAt;
+  const previousCloseAt = market.closeAt;
+  market.set(schedule);
+  market.revision += 1;
+  await market.save({ session });
+  await new ExchangeEvent({ marketId: market._id, actorId, action: "schedule", detail: {
+    opensAt: schedule.opensAt, closeAt: schedule.closeAt, previousOpensAt, previousCloseAt,
+  } }).save({ session });
+  return market;
+}
+
+function scheduleTransaction(work) {
+  return mongoose.connection.transaction(work).catch((cause) => {
+    if (cause.code === 11000 && cause.keyPattern?.key) throw duplicateSchedule();
+    throw cause;
+  });
+}
+
 async function saveSchedule(input, actorId, now = new Date()) {
   const schedule = scheduleInput(input);
-  const createOnly = input.scheduleId === "";
-  const saved = mongoose.connection.transaction(async (session) => {
-    const existing = await ExchangeMarket.findOne(input.scheduleId
-      ? { _id: input.scheduleId, type: schedule.type, grade: schedule.grade, round: schedule.round }
-      : { key: schedule.key }).session(session);
-    if (input.scheduleId && !existing) throw error(404, "수정할 시험 일정을 찾을 수 없습니다.");
-    if (createOnly && existing) throw error(409, "선택한 시행 연도에 같은 학년과 회차의 일정이 이미 등록되어 있습니다.");
-    if (schedule.closeAt <= now || (existing && (existing.phase !== "scheduled" || existing.closeAt <= now))) {
-      throw error(409, "거래가 종료된 시장은 일정을 변경할 수 없습니다.");
-    }
-    const dateLocked = existing && (existing.openedAt || now >= existing.opensAt);
-    if (existing && +existing.opensAt !== +schedule.opensAt) {
-      if (dateLocked) throw error(409, "개장 이후에는 시험일을 변경할 수 없습니다.");
-      if (schedule.opensAt <= now) throw error(409, "시험일은 개장 시각이 지나지 않은 날짜로 변경해 주세요.");
-      const entries = { marketId: existing._id };
-      if (existing.volume > 0 || existing.escrow > 0 || await ExchangeOrder.exists(entries).session(session)
-        || await ExchangeTrade.exists(entries).session(session) || await ExchangeAccount.exists(entries).session(session)) {
-        throw error(409, "주문 또는 거래 기록이 있는 시장은 시험일을 변경할 수 없습니다.");
-      }
-    }
-    if (dateLocked && (
-      (existing.settlementSource || "") !== schedule.settlementSource || (existing.population || "") !== schedule.population
-    )) throw error(409, "개장 이후에는 사전 공지한 성적 출처와 모집단을 변경할 수 없습니다.");
-    if (existing && existing.key !== schedule.key
-      && await ExchangeMarket.exists({ key: schedule.key }).session(session)) {
-      throw error(409, "선택한 시행 연도에 같은 학년과 회차의 일정이 이미 등록되어 있습니다.");
-    }
+  return scheduleTransaction((session) => persistSchedule(schedule, input.scheduleId, actorId, now, session));
+}
 
-    const market = existing || new ExchangeMarket();
-    const previousOpensAt = market.opensAt;
-    const previousCloseAt = market.closeAt;
-    market.set(schedule);
-    market.revision += 1;
-    await market.save({ session });
-    await new ExchangeEvent({ marketId: market._id, actorId, action: "schedule", detail: {
-      opensAt: schedule.opensAt, closeAt: schedule.closeAt, previousOpensAt, previousCloseAt,
-    } }).save({ session });
-    return market;
-  });
-  return saved.catch((cause) => {
-    if (cause.code !== 11000 || !cause.keyPattern?.key) throw cause;
-    throw error(409, "선택한 시행 연도에 같은 학년과 회차의 일정이 이미 등록되어 있습니다.");
+async function saveGroupedSchedule(input, actorId, now = new Date()) {
+  const schedules = [1, 2].map((grade) => scheduleInput({
+    grade, round: input.round, examDate: input.examDate, closeAt: input.closeAt,
+    settlementSource: input[`settlementSource${grade}`], population: input[`population${grade}`],
+    count2: input[`count2Grade${grade}`], count3: input[`count3Grade${grade}`], count4: input[`count4Grade${grade}`],
+  }));
+  return scheduleTransaction(async (session) => {
+    const first = await persistSchedule(schedules[0], input.scheduleId1 ?? "", actorId, now, session);
+    await persistSchedule(schedules[1], input.scheduleId2 ?? "", actorId, now, session);
+    return first;
   });
 }
 
@@ -698,7 +717,7 @@ async function saveObservedMpi(market, now, clock = () => now, { session, replay
 module.exports = {
   ROUNDS, MPI_DELAY_MS, error, integer, seoulInput, seoulDate, actualExamOpenTime, scheduleInput, readWeeklyExam, weeklyExamReady, weeklyExamOpenAt,
   validAttempts, validAttemptsAtMarketTime,
-  readSetting, readMpiMinimum, publicState, openWeeklyMarket, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum,
+  readSetting, readMpiMinimum, publicState, openWeeklyMarket, syncWeeklyMarkets, saveSchedule, saveGroupedSchedule, saveMinimum, saveMpiMinimum,
   sampleMinute, saveObservedMpi, startMpiBotFade, liveStudent, liveAttemptRows, pendingAttempts, applyNovember14MpiMinimum, activateNovember14ExamBots, backfillNovember14ExamBots,
   exchangeAutomationDisabled, exchangeMarketMakerAutomationDisabled, mpiDataCutoff, publishedMpiFilter,
   latestPublishedMpi, activeBookOrders, activeLiquidityPlan, marketReference, bookLevels,

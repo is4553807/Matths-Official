@@ -213,9 +213,10 @@ async function leaderboard({ publicOnly = false } = {}) {
 }
 
 async function adminState(year, grade, now = new Date()) {
+  const scheduleGrades = grade === 3 ? [3] : [1, 2];
   const [markets, settings, minimumMpiAttempts, events, schedules, sourceExams, makerSetting] = await Promise.all([
     marketList(now), readSetting(), readMpiMinimum(), ExchangeEvent.find().sort({ createdAt: -1 }).limit(25).lean(),
-    ExchangeMarket.find({ year, grade, type: { $in: ["mock", "csat"] } }).lean(),
+    ExchangeMarket.find({ year, grade: { $in: scheduleGrades }, type: { $in: ["mock", "csat"] } }).lean(),
     PrivateMockExam.find({ formCode: "WEEKLY", isTest: { $ne: true }, closeAt: { $gt: now } })
       .select("title status releaseAt closeAt questionCount archiveItemId +answerKey +points").sort({ releaseAt: 1 }).limit(12).lean(),
     ExchangeSetting.findById("default")
@@ -252,7 +253,7 @@ async function adminState(year, grade, now = new Date()) {
     ]);
     exams.push({ id: String(exam._id), title: exam.title, status: exam.status, releaseAt: exam.releaseAt, count, ready, file: Boolean(file) });
   }
-  return { markets: controls, settings, minimumMpiAttempts, events, schedules, exams, makerSetting };
+  return { markets: controls, settings, minimumMpiAttempts, events, scheduleGrades, schedules, exams, makerSetting };
 }
 
 async function runExchangeTick(now = new Date(), maintain = true, sample = true, clock = () => now) {

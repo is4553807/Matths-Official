@@ -178,6 +178,43 @@ async function testHttp() {
         body: new URLSearchParams(body),
       });
     }
+    const combined = {
+      combined: "1", grade: "1", round: "3", examDate: `${nextYear}-03-24`, closeAt: `${nextYear}-03-27T20:00`,
+      scheduleId1: "", scheduleId2: "", settlementSource1: "고1 성적", settlementSource2: "고2 성적",
+    };
+    const combinedYear = nextYear + 1;
+    const grade2Conflict = await saveSchedule({ grade: "2", round: "3", examDate: `${combinedYear}-03-25`,
+      closeAt: `${combinedYear}-03-28T20:00` }, undefined);
+    assert.equal((await schedulePost({ ...combined, examDate: `${combinedYear}-03-24`,
+      closeAt: `${combinedYear}-03-27T20:00` })).status, 409, "A grade 2 conflict rolls back grade 1");
+    assert.equal(await ExchangeMarket.countDocuments({ key: `${combinedYear}:1:3` }), 0);
+    const combinedResponse = await schedulePost(combined);
+    assert.equal(combinedResponse.status, 303);
+    assert.match(combinedResponse.headers.get("location"), /grade=1/);
+    const grade1Schedule = await ExchangeMarket.findOne({ key: `${nextYear}:1:3` });
+    const grade2Schedule = await ExchangeMarket.findOne({ key: `${nextYear}:2:3` });
+    assert.equal(seoulInput(grade1Schedule.opensAt), `${nextYear}-03-24T12:10`);
+    assert.equal(+grade1Schedule.opensAt, +grade2Schedule.opensAt);
+    assert.equal(+grade1Schedule.closeAt, +grade2Schedule.closeAt);
+    assert.equal(grade1Schedule.settlementSource, "고1 성적");
+    assert.equal(grade2Schedule.settlementSource, "고2 성적");
+    const combinedPage = await fetch(`${origin}/admin/exchange?year=${nextYear}&grade=2`, { headers: { Cookie: admin } });
+    assert.equal(combinedPage.status, 200);
+    const combinedHtml = await combinedPage.text();
+    assert.match(combinedHtml, /고1·고2/);
+    assert.match(combinedHtml, new RegExp(`name="scheduleId1" value="${grade1Schedule._id}"`));
+    assert.match(combinedHtml, new RegExp(`name="scheduleId2" value="${grade2Schedule._id}"`));
+    assert.doesNotMatch(combinedHtml, /name="round" value="csat"/);
+    assert.equal((await schedulePost({ ...combined, round: "csat" })).status, 400);
+    const combinedEdit = await schedulePost({ ...combined, scheduleId1: grade1Schedule.id,
+      scheduleId2: grade2Schedule.id, examDate: `${nextYear}-03-25` });
+    assert.equal(combinedEdit.status, 303);
+    for (const { _id } of [grade1Schedule, grade2Schedule]) {
+      const edited = await ExchangeMarket.findById(_id);
+      assert.equal(seoulInput(edited.opensAt), `${nextYear}-03-25T12:10`);
+    }
+    await ExchangeMarket.deleteMany({ _id: { $in: [grade1Schedule._id, grade2Schedule._id, grade2Conflict._id] } });
+
     const csatForm = { grade: "3", round: "csat" };
     const initial = { ...csatForm, scheduleId: "", examDate: `${nextYear}-11-18`, closeAt: `${nextYear}-11-21T12:00` };
     const currentYearPage = await fetch(`${origin}/admin/exchange?year=${nextYear - 1}&grade=3`, { headers: { Cookie: admin } });

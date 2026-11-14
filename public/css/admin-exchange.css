@@ -25,6 +25,9 @@
 .exchange-admin-details dl { display: flex; flex-wrap: wrap; gap: 12px 25px; padding: 0; margin: 4px 0; }
 .exchange-admin-details dt { color: #56647a; font-size: 12px; }
 .exchange-admin-details dd { margin: 3px 0 0; font-size: 14px; font-weight: 650; }
+.exchange-admin-form fieldset.exchange-admin-schedule-grade { flex-basis: 100%; min-width: 0; margin: 0; padding: 9px 11px 11px; border: 1px solid #dce3ec; border-radius: 6px; }
+.exchange-admin-schedule-grade legend { padding: 0 5px; color: #3b4b65; font-size: 12px; font-weight: 650; }
+.exchange-admin-schedule-existing { margin: 6px 0 10px; padding-left: 20px; color: #56647a; font-size: 12px; }
 @media (max-width: 600px) { .exchange-admin-section { padding: 15px; } .exchange-admin-section .section-top { align-items: flex-start; flex-direction: column; } }
 
 .exchange-admin-liquidity { margin-block: 14px; padding: 14px; border: 1px solid #dce3ec; border-radius: 7px; background: #f7f9fc; }

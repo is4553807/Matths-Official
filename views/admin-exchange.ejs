@@ -72,37 +72,75 @@
     </section>
 
     <section class="exchange-admin-section" aria-labelledby="schedule-title">
+      <% const combined = scheduleGrades.length === 2;
+        const scheduleNow = Date.now();
+        const canChangeDate = (row) => !row || (!row.openedAt && +row.opensAt > scheduleNow);
+        const isClosed = (row) => row && (row.phase !== "scheduled" || +row.closeAt <= scheduleNow);
+        const commonValue = (values) => new Set(values).size === 1 ? values[0] : "";
+      %>
       <div class="section-top">
-        <div><h2 id="schedule-title">실제 모의고사와 수능 일정</h2><p>고1–고3 모의고사 시험일 12:10, 수능일 16:00 KST에 자동 개장합니다. 종료 일시는 회차별로 입력하세요.</p></div>
+        <div><h2 id="schedule-title">실제 모의고사와 수능 일정</h2><p>모의고사는 시험일 12:10, 수능은 16:00 KST에 자동 개장합니다. 고1·고2는 회차별 시험일과 거래 종료 시각을 함께 저장합니다.</p></div>
       </div>
       <form class="exchange-admin-form inline" method="get" action="/admin/exchange" data-grade-filter>
         <label>시행 연도 <input type="number" min="2000" max="2100" name="year" value="<%= year %>" required /></label>
-        <label>학년 <select name="grade"><% for (const level of [1, 2, 3]) { %><option value="<%= level %>" <%= grade === level ? "selected" : "" %>>고<%= level %></option><% } %></select></label>
+        <label>학년 <select name="grade">
+          <option value="1" <%= combined ? "selected" : "" %>>고1·고2</option>
+          <option value="3" <%= combined ? "" : "selected" %>>고3</option>
+        </select></label>
         <button type="submit">회차 조회</button>
       </form>
       <% for (const round of rounds) {
-        const schedule = schedules.find((row) => row.round === round);
+        const entries = scheduleGrades.map((level) => ({
+          level, record: schedules.find((row) => row.grade === level && row.round === round),
+        }));
+        const records = entries.map(({ record }) => record).filter(Boolean);
+        const locked = records.filter((record) => !canChangeDate(record));
+        const lockedDate = commonValue(locked.map((record) => record.examDate));
+        const examDate = locked.length ? lockedDate : commonValue(records.map((record) => record.examDate));
+        const closeAt = commonValue(records.map((record) => seoulInput(record.closeAt)));
+        const closed = records.some(isClosed);
+        const lockedDatesDiffer = locked.length > 1 && !lockedDate;
+        const disabled = closed || lockedDatesDiffer;
+        const showExisting = combined && records.length && (records.length < entries.length || !examDate || !closeAt || disabled
+          || new Set(records.map((record) => record.examDate)).size > 1);
         const roundName = round === "csat" ? "수능" : `${round}모`;
         const opens = actualExamOpenTime(round);
-        const closed = schedule && (schedule.phase !== "scheduled" || +schedule.closeAt <= Date.now());
-        const canChangeDate = !schedule || (!schedule.openedAt && +schedule.opensAt > Date.now());
       %>
         <details class="exchange-admin-round">
-          <summary><strong><%= roundName %></strong><span><%= schedule ? `${schedule.examDate} · ${opens} KST` : "시험일 미등록" %></span></summary>
+          <summary><strong><%= roundName %></strong><span><%= !records.length ? "시험일 미등록" : showExisting ? "학년별 등록 일정 확인" : `${examDate} · ${opens} KST` %></span></summary>
           <form method="post" action="/admin/exchange/schedules" class="exchange-admin-form" data-schedule-form data-open-time="<%= opens %>">
-            <input type="hidden" name="scheduleId" value="<%= schedule?._id ?? '' %>" />
             <input type="hidden" name="grade" value="<%= grade %>" />
             <input type="hidden" name="round" value="<%= round %>" />
-            <fieldset <%= closed ? "disabled" : "" %>>
-              <label>시험일 <input type="date" name="examDate" min="2000-01-01" max="2100-12-31" value="<%= schedule?.examDate || '' %>" <%= canChangeDate ? "" : "readonly" %> required /></label>
+            <% if (combined) { %><input type="hidden" name="combined" value="1" /><% } %>
+            <% for (const { level, record } of entries) { %>
+              <input type="hidden" name="<%= combined ? 'scheduleId' + level : 'scheduleId' %>" value="<%= record?._id ?? '' %>" />
+            <% } %>
+            <% if (showExisting) { %>
+              <ul class="exchange-admin-schedule-existing">
+                <% for (const { level, record } of entries) { %>
+                  <li>고<%= level %> · <%= record ? `시험 ${record.examDate} · 마감 ${seoulInput(record.closeAt).replace("T", " ")} KST` : "일정 미등록" %></li>
+                <% } %>
+              </ul>
+            <% } %>
+            <% if (combined && disabled) { %>
+              <p><%= closed ? "종료된 시장이 있어 두 일정을 함께 변경할 수 없습니다." : "이미 개장한 두 시장의 시험일이 달라 함께 변경할 수 없습니다." %></p>
+            <% } %>
+            <fieldset <%= disabled ? "disabled" : "" %>>
+              <label><%= combined ? "공통 시험일" : "시험일" %> <input type="date" name="examDate" min="2000-01-01" max="2100-12-31" value="<%= examDate %>" <%= locked.length ? "readonly" : "" %> required /></label>
               <label>자동 개장 · KST <output><%= opens %></output></label>
-              <label>거래 종료 · KST <input type="datetime-local" name="closeAt" value="<%= seoulInput(schedule?.closeAt) %>" required /></label>
-              <label>평균 점수 출처 <input type="text" name="settlementSource" maxlength="200" value="<%= schedule?.settlementSource || '' %>" <%= canChangeDate ? "" : "readonly" %> /></label>
-              <label>집계 모집단 <input type="text" name="population" maxlength="200" value="<%= schedule?.population || '' %>" <%= canChangeDate ? "" : "readonly" %> /></label>
-              <% for (const [index, point] of [2, 3, 4].entries()) { %>
-                <label><%= point %>점 문항 수 <input type="number" min="0" max="50" name="count<%= point %>" value="<%= schedule?.questionCounts?.[index] ?? '' %>" /></label>
+              <label><%= combined ? "공통 거래 종료" : "거래 종료" %> · KST <input type="datetime-local" name="closeAt" value="<%= closeAt %>" required /></label>
+              <% for (const { level, record } of entries) { %>
+                <% if (combined) { %>
+                  <fieldset class="exchange-admin-schedule-grade"><legend>고<%= level %> 정산 정보</legend>
+                <% } %>
+                <label>평균 점수 출처 <input type="text" name="settlementSource<%= combined ? level : '' %>" maxlength="200" value="<%= record?.settlementSource || '' %>" <%= canChangeDate(record) ? "" : "readonly" %> /></label>
+                <label>집계 모집단 <input type="text" name="population<%= combined ? level : '' %>" maxlength="200" value="<%= record?.population || '' %>" <%= canChangeDate(record) ? "" : "readonly" %> /></label>
+                <% for (const [index, point] of [2, 3, 4].entries()) { %>
+                  <label><%= point %>점 문항 수 <input type="number" min="0" max="50" name="count<%= point %><%= combined ? 'Grade' + level : '' %>" value="<%= record?.questionCounts?.[index] ?? '' %>" /></label>
+                <% } %>
+                <% if (combined) { %></fieldset><% } %>
               <% } %>
-              <button type="submit">일정 저장</button>
+              <button type="submit"><%= combined ? "고1·고2 일정 저장" : "일정 저장" %></button>
             </fieldset>
           </form>
         </details>

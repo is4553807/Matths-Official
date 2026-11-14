@@ -5,7 +5,7 @@ const { exchangeLogout } = require("../controllers/matthsController");
 const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
 const { ExchangeMarket, ExchangeOrder, ExchangeWallet } = require("../models/exchangeModel");
 const {
-  ROUNDS, error, integer, seoulInput, actualExamOpenTime, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
+  ROUNDS, error, integer, seoulInput, actualExamOpenTime, saveSchedule, saveGroupedSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
 const { placeOrder, cancelOrder, registerResult, voidMarket, saveMarketMakerBudgets, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
@@ -229,14 +229,15 @@ router.post("/api/exchange/orders/:orderId/cancel", privateResponse, apiLogin, a
 const admin = [privateResponse, auth.isLoggedIn, auth.isAdmin];
 function adminRedirect(res, input = {}) {
   const year = /^\d{4}$/.test(input.year) ? input.year : "";
-  const grade = /^[123]$/.test(input.grade) ? input.grade : "";
+  const grade = /^[12]$/.test(input.grade) ? "1" : String(input.grade) === "3" ? "3" : "";
   const query = new URLSearchParams({ saved: "1", ...(year ? { year } : {}), ...(grade ? { grade } : {}) });
   res.redirect(303, `/admin/exchange?${query}`);
 }
 
 router.get("/admin/exchange", ...admin, async (req, res) => {
   const year = req.query.year ? integer(req.query.year, 2000, 2100, "시행 연도") : Number(seoulInput(new Date()).slice(0, 4));
-  const grade = req.query.grade ? integer(req.query.grade, 1, 3, "학년") : 1;
+  const selectedGrade = req.query.grade ? integer(req.query.grade, 1, 3, "학년") : 1;
+  const grade = selectedGrade === 3 ? 3 : 1;
   const data = await adminState(year, grade);
   res.render("admin-exchange", { ...data, year, grade, rounds: ROUNDS[grade], seoulInput, actualExamOpenTime,
     saved: req.query.saved === "1", exchangeHref: exchangeUrl(),
@@ -244,8 +245,12 @@ router.get("/admin/exchange", ...admin, async (req, res) => {
 });
 
 router.post("/admin/exchange/schedules", ...admin, async (req, res) => {
-  const scheduleId = req.body.scheduleId == null || req.body.scheduleId === "" ? req.body.scheduleId : id(req.body.scheduleId);
-  const schedule = await saveSchedule({ ...req.body, scheduleId }, viewer(req));
+  const input = req.body;
+  const scheduleId = (value) => value == null || value === "" ? value : id(value);
+  const actorId = viewer(req);
+  const schedule = input.combined === "1"
+    ? await saveGroupedSchedule({ ...input, scheduleId1: scheduleId(input.scheduleId1), scheduleId2: scheduleId(input.scheduleId2) }, actorId)
+    : await saveSchedule({ ...input, scheduleId: scheduleId(input.scheduleId) }, actorId);
   adminRedirect(res, schedule);
 });
 router.post("/admin/exchange/minimum", ...admin, async (req, res) => {
