@@ -7,11 +7,6 @@
     timeZone: "Asia/Seoul", hourCycle: "h23", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
   });
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  const sourceStyles = {
-    REPLAY: { color: "--sample", shape: "diamond" },
-    AUTOMATED: { color: "--chart-automated", shape: "square" },
-    MIXED: { color: "--chart-mixed", shape: "circle" },
-  };
 
   const left = 13;
   const top = 16;
@@ -187,11 +182,10 @@
       ctx.clip();
       for (const row of rows) {
         const at = x(row._id + ms / 2);
-        const sourceStyle = showSources && Object.hasOwn(sourceLabels, row.source) ? sourceStyles[row.source] : null;
-        const replay = row.source === "REPLAY" && sourceStyle;
+        const replay = showSources && row.source === "REPLAY" && sourceLabels.REPLAY;
         const bodyTop = Math.min(y(row.open), y(row.close));
         const bodyHeight = Math.max(1.5, Math.abs(y(row.open) - y(row.close)));
-        ctx.strokeStyle = replay ? color(sourceStyle.color) : row.close >= row.open ? color("--bid") : color("--ask");
+        ctx.strokeStyle = replay ? color("--sample") : row.close >= row.open ? color("--bid") : color("--ask");
         ctx.fillStyle = ctx.strokeStyle;
         ctx.beginPath();
         ctx.moveTo(at, y(row.high));
@@ -205,20 +199,16 @@
           ctx.fillRect(at - bodyWidth / 2, bottom + 29 - h, bodyWidth, h);
           ctx.globalAlpha = 1;
         }
-        if (sourceStyle && spacing >= 4) {
+        if (replay && spacing >= 4) {
           const markY = Math.max(top + 4, y(row.high) - 6);
           const markSize = Math.min(3, spacing * .35);
-          ctx.fillStyle = color(sourceStyle.color);
+          ctx.fillStyle = color("--sample");
           ctx.beginPath();
-          if (sourceStyle.shape === "diamond") {
-            ctx.moveTo(at, markY - markSize);
-            ctx.lineTo(at + markSize, markY);
-            ctx.lineTo(at, markY + markSize);
-            ctx.lineTo(at - markSize, markY);
-            ctx.closePath();
-          } else if (sourceStyle.shape === "square") {
-            ctx.rect(at - markSize, markY - markSize, 2 * markSize, 2 * markSize);
-          } else ctx.arc(at, markY, markSize, 0, Math.PI * 2);
+          ctx.moveTo(at, markY - markSize);
+          ctx.lineTo(at + markSize, markY);
+          ctx.lineTo(at, markY + markSize);
+          ctx.lineTo(at - markSize, markY);
+          ctx.closePath();
           ctx.fill();
         }
       }

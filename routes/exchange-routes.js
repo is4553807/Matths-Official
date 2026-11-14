@@ -5,7 +5,7 @@ const { exchangeLogout } = require("../controllers/matthsController");
 const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
 const { ExchangeMarket, ExchangeOrder, ExchangeWallet } = require("../models/exchangeModel");
 const {
-  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
+  ROUNDS, error, integer, seoulInput, actualExamOpenTime, saveSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
 const { placeOrder, cancelOrder, registerResult, voidMarket, saveMarketMakerBudgets, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
@@ -238,14 +238,15 @@ router.get("/admin/exchange", ...admin, async (req, res) => {
   const year = req.query.year ? integer(req.query.year, 2000, 2100, "시행 연도") : Number(seoulInput(new Date()).slice(0, 4));
   const grade = req.query.grade ? integer(req.query.grade, 1, 3, "학년") : 1;
   const data = await adminState(year, grade);
-  res.render("admin-exchange", { ...data, year, grade, rounds: ROUNDS[grade], seoulInput,
+  res.render("admin-exchange", { ...data, year, grade, rounds: ROUNDS[grade], seoulInput, actualExamOpenTime,
     saved: req.query.saved === "1", exchangeHref: exchangeUrl(),
     exchangeWalletHref: exchangeUrl("/exchange/dashboard?wallet=exchange"), disablePageAnalytics: true });
 });
 
 router.post("/admin/exchange/schedules", ...admin, async (req, res) => {
-  await saveSchedule(req.body, viewer(req));
-  adminRedirect(res, req.body);
+  const scheduleId = req.body.scheduleId == null || req.body.scheduleId === "" ? req.body.scheduleId : id(req.body.scheduleId);
+  const schedule = await saveSchedule({ ...req.body, scheduleId }, viewer(req));
+  adminRedirect(res, schedule);
 });
 router.post("/admin/exchange/minimum", ...admin, async (req, res) => {
   await saveMinimum({ marketId: req.body.marketId ? id(req.body.marketId) : undefined,

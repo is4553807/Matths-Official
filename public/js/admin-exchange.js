@@ -2,11 +2,12 @@
   const filter = document.querySelector("[data-grade-filter]");
   filter?.elements.grade.addEventListener("change", () => filter.requestSubmit());
   for (const form of document.querySelectorAll("[data-schedule-form]")) {
-    form.elements.examDate.addEventListener("input", () => {
-      const date = form.elements.examDate.value;
-      form.querySelector("[data-opening]").textContent = date ? `${date} ${form.dataset.openTime}` : form.dataset.openTime;
-      if (date) form.elements.closeAt.min = `${date}T${form.dataset.openTime}`;
-    });
+    const { examDate, closeAt } = form.elements;
+    const setCloseMinimum = () => {
+      closeAt.min = examDate.value ? `${examDate.value}T${form.dataset.openTime}` : "";
+    };
+    examDate.addEventListener("input", setCloseMinimum);
+    setCloseMinimum();
   }
   for (const button of document.querySelectorAll("[data-confirm-void], [data-confirm-settle]")) {
     button.addEventListener("click", (event) => {

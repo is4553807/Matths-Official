@@ -83,19 +83,19 @@
       <% for (const round of rounds) {
         const schedule = schedules.find((row) => row.round === round);
         const roundName = round === "csat" ? "수능" : `${round}모`;
-        const opens = round === "csat" ? "16:00" : "12:10";
+        const opens = actualExamOpenTime(round);
         const closed = schedule && (schedule.phase !== "scheduled" || +schedule.closeAt <= Date.now());
-        const canChangeDate = !schedule || +schedule.opensAt > Date.now();
+        const canChangeDate = !schedule || (!schedule.openedAt && +schedule.opensAt > Date.now());
       %>
         <details class="exchange-admin-round">
           <summary><strong><%= roundName %></strong><span><%= schedule ? `${schedule.examDate} · ${opens} KST` : "시험일 미등록" %></span></summary>
           <form method="post" action="/admin/exchange/schedules" class="exchange-admin-form" data-schedule-form data-open-time="<%= opens %>">
-            <input type="hidden" name="year" value="<%= year %>" />
+            <input type="hidden" name="scheduleId" value="<%= schedule?._id ?? '' %>" />
             <input type="hidden" name="grade" value="<%= grade %>" />
             <input type="hidden" name="round" value="<%= round %>" />
             <fieldset <%= closed ? "disabled" : "" %>>
-              <label>시험일 <input type="date" name="examDate" min="<%= year %>-01-01" max="<%= year %>-12-31" value="<%= schedule?.examDate || '' %>" <%= canChangeDate ? "" : "readonly" %> required /></label>
-              <label>자동 개장 · KST <output data-opening><%= schedule ? `${schedule.examDate} ${opens}` : opens %></output></label>
+              <label>시험일 <input type="date" name="examDate" min="2000-01-01" max="2100-12-31" value="<%= schedule?.examDate || '' %>" <%= canChangeDate ? "" : "readonly" %> required /></label>
+              <label>자동 개장 · KST <output><%= opens %></output></label>
               <label>거래 종료 · KST <input type="datetime-local" name="closeAt" value="<%= seoulInput(schedule?.closeAt) %>" required /></label>
               <label>평균 점수 출처 <input type="text" name="settlementSource" maxlength="200" value="<%= schedule?.settlementSource || '' %>" <%= canChangeDate ? "" : "readonly" %> /></label>
               <label>집계 모집단 <input type="text" name="population" maxlength="200" value="<%= schedule?.population || '' %>" <%= canChangeDate ? "" : "readonly" %> /></label>

@@ -136,7 +136,12 @@ async function main() {
       const html = await response.text();
       assert.doesNotMatch(html, /시뮬레이션|모의 체결|exchange-scenario|botSeed/);
       assert.equal((html.match(/<canvas\b/g) || []).length, 1);
-      assert.match(html, path === futuresUrl ? /자동화 계정 간 체결/ : /잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
+      if (path === futuresUrl) {
+        assert.match(html, /<dt>거래량<\/dt>/);
+        assert.doesNotMatch(html, /학생 참여 거래량|자동화 계정 간 (?:거래량|체결)|학생[· ]자동화 혼합 봉/);
+      } else {
+        assert.match(html, /잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
+      }
     }
     const quote = (await (await get(marketUrl)).json())[trader.side === "buy" ? "bids" : "asks"]
       .find((row) => row.price === trader.price);

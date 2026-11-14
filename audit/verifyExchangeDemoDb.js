@@ -172,14 +172,51 @@ async function testHttp() {
     assert.equal(await readMpiMinimum(), 6);
     assert.equal((await postMpiMinimum(admin, "5")).status, 303);
 
-    const registered = await fetch(`${origin}/admin/exchange/schedules`, {
-      method: "POST", redirect: "manual", headers: { Cookie: admin, Origin: origin },
-      body: new URLSearchParams({ year: nextYear, grade: "3", round: "csat",
-        examDate: `${nextYear}-11-18`, closeAt: `${nextYear}-11-21T12:00` }),
-    });
+    function schedulePost(body) {
+      return fetch(`${origin}/admin/exchange/schedules`, {
+        method: "POST", redirect: "manual", headers: { Cookie: admin, Origin: origin },
+        body: new URLSearchParams(body),
+      });
+    }
+    const csatForm = { grade: "3", round: "csat" };
+    const initial = { ...csatForm, scheduleId: "", examDate: `${nextYear}-11-18`, closeAt: `${nextYear}-11-21T12:00` };
+    const currentYearPage = await fetch(`${origin}/admin/exchange?year=${nextYear - 1}&grade=3`, { headers: { Cookie: admin } });
+    const schedulingHtml = await currentYearPage.text();
+    assert.match(schedulingHtml, /name="examDate" min="2000-01-01" max="2100-12-31"/);
+    assert.match(schedulingHtml, /자동 개장 · KST <output>12:10<\/output>/);
+    assert.match(schedulingHtml, /자동 개장 · KST <output>16:00<\/output>/);
+    const registered = await schedulePost(initial);
     assert.equal(registered.status, 303);
+    assert.match(registered.headers.get("location"), new RegExp(`year=${nextYear}`));
     const csat = await ExchangeMarket.findOne({ key: `${nextYear}:3:csat` });
     assert.equal(seoulInput(csat.opensAt), `${nextYear}-11-18T16:00`);
+    const editPage = await fetch(`${origin}/admin/exchange?year=${nextYear}&grade=3`, { headers: { Cookie: admin } });
+    const editorHtml = await editPage.text();
+    assert.match(editorHtml, new RegExp(`name="scheduleId" value="${csat._id}"`));
+    assert.doesNotMatch(editorHtml, /<output>\d{4}-\d{2}-\d{2}/);
+    const next = { ...csatForm, examDate: `${nextYear + 1}-11-16`, closeAt: `${nextYear + 1}-11-19T12:00` };
+    const mover = { ...next, scheduleId: String(csat._id) };
+    assert.equal((await schedulePost({ ...next, year: nextYear + 1 })).status, 303, "Legacy POST creates by canonical exam year");
+    const occupied = await ExchangeMarket.findOne({ key: `${nextYear + 1}:3:csat` });
+    assert.equal((await schedulePost(mover)).status, 409);
+    assert.equal((await schedulePost({ ...next, scheduleId: "" })).status, 409);
+    assert.equal((await schedulePost({ ...next, scheduleId: "invalid" })).status, 404);
+    assert.equal((await schedulePost({ ...next, scheduleId: String(objectId()) })).status, 404);
+    assert.equal((await schedulePost({ ...mover, examDate: `${nextYear - 2}-11-16` })).status, 409);
+    assert.equal((await ExchangeMarket.findById(csat.id)).key, `${nextYear}:3:csat`);
+    await ExchangeMarket.deleteOne({ _id: occupied._id });
+    await ExchangeMarket.updateOne({ _id: csat._id }, { $set: { escrow: 1 } });
+    assert.equal((await schedulePost(mover)).status, 409);
+    await ExchangeMarket.updateOne({ _id: csat._id }, { $set: { escrow: 0 } });
+    const moved = await schedulePost(mover);
+    assert.equal(moved.status, 303);
+    assert.match(moved.headers.get("location"), new RegExp(`year=${nextYear + 1}`));
+    const movedSchedule = await ExchangeMarket.findOne({ key: `${nextYear + 1}:3:csat` });
+    assert.equal(movedSchedule.id, csat.id);
+    assert.equal(seoulInput(movedSchedule.opensAt), `${nextYear + 1}-11-16T16:00`);
+    assert.equal(await ExchangeMarket.countDocuments({ key: `${nextYear}:3:csat` }), 0);
+    assert.ok(await models.ExchangeEvent.exists({ marketId: csat._id, action: "schedule",
+      "detail.previousOpensAt": csat.opensAt, "detail.opensAt": movedSchedule.opensAt }));
     const blocked = await fetch(`${origin}/api/exchange/markets/${csat._id}/orders`, {
       method: "POST", headers: { Cookie: student, Origin: origin, "Content-Type": "application/json" },
       body: JSON.stringify({ action: "open", direction: "long", price: 650, quantity: 1, commandId: randomUUID() }),
@@ -189,6 +226,7 @@ async function testHttp() {
     await ExchangeMarket.updateOne({ _id: csat._id }, {
       $set: { opensAt: new Date(routeNow - 60_000), closeAt: new Date(routeNow + 60_000) },
     });
+    assert.equal((await schedulePost({ ...initial, scheduleId: String(csat._id) })).status, 409);
     const adminWalletOrders = `${origin}/api/exchange/markets/${csat._id}/orders?wallet=exchange`;
     const orderBody = { action: "open", direction: "long", price: 1, quantity: 1, commandId: randomUUID() };
     function postOrder(cookie) {
@@ -776,7 +814,8 @@ async function main() {
           assert.match(html, /잠정 MPI에는 Exam Bot 점수가 포함될 수 있습니다/);
         } else {
           assert.doesNotMatch(html, /trade-series-wrap/);
-          assert.match(html, /자동화 계정 간 체결/);
+          assert.match(html, /<dt>거래량<\/dt>/);
+          assert.doesNotMatch(html, /학생 참여 거래량|자동화 계정 간 (?:거래량|체결)|학생[· ]자동화 혼합 봉/);
         }
       }
       const marketApi = `${origin}/api/exchange/markets/${botCrossId}`;
