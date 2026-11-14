@@ -281,7 +281,7 @@ async function runExchangeTick(now = new Date(), maintain = true, sample = true,
       catch (cause) { console.error("[exchange] MM maintenance failed", String(market._id), cause.message); }
     }
     if (isLiveWeeklyBootstrap(market) || ((market.botParticipation || isBootstrap(market)) && !await exchangeAutomationDisabled(null, market))) {
-      try { await maintainFundedBotOrders(market, now, clock); }
+      try { await maintainFundedBotOrders(market, isLiveWeeklyBootstrap(market) ? clock() : now, clock); }
       catch (cause) { console.error("[exchange] Trading Bot maintenance failed", String(market._id), cause.message); }
     }
   }
