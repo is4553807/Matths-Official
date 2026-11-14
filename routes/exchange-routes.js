@@ -5,7 +5,7 @@ const { exchangeLogout } = require("../controllers/matthsController");
 const { exchangeUrl, serviceUrl } = require("../services/serviceUrlService");
 const { ExchangeMarket, ExchangeOrder, ExchangeWallet } = require("../models/exchangeModel");
 const {
-  ROUNDS, error, integer, seoulInput, actualExamOpenTime, saveSchedule, saveGroupedSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade, stopMpiBotContributions,
+  ROUNDS, error, integer, seoulInput, actualExamOpenTime, saveSchedule, saveGroupedSchedule, saveMinimum, saveMpiMinimum, syncWeeklyMarkets, startMpiBotFade,
 } = require("../services/exchangeMarketService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP } = require("../services/exchangeFees");
 const { placeOrder, cancelOrder, registerResult, voidMarket, saveMarketMakerBudgets, setPaused, setMarketMakerEnabled, setTradingBotsEnabled, scheduleMarketLiquidity, stopMarketLiquidity } = require("../services/exchangeTradingService");
@@ -277,7 +277,6 @@ router.post("/admin/exchange/markets/:marketId/action", ...admin, async (req, re
   if (action === "pause" || action === "resume") await setPaused(marketId, action === "pause", actorId, reason);
   else if (action === "mm-enable" || action === "mm-disable") await setMarketMakerEnabled(marketId, action === "mm-enable", actorId, reason);
   else if (action === "mpi-bot-fade") await startMpiBotFade(marketId, actorId, reason);
-  else if (action === "mpi-bot-stop") await stopMpiBotContributions(marketId, actorId, reason);
   else if (action === "trading-bots-disable" || action === "trading-bots-enable") {
     await setTradingBotsEnabled(marketId, action === "trading-bots-enable", actorId, reason);
   }

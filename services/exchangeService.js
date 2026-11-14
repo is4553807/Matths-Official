@@ -234,7 +234,6 @@ async function adminState(year, grade, now = new Date()) {
       marketMakerPolicy: makerSetting?.marketMakerPolicy ?? "baseline",
       marketMakerDecision: market.marketMakerDecision,
       bootstrapPolicy: market.bootstrapPolicy, mpiFade: market.mpiFade, botWeight: market.botWeight,
-      mpiBotsDisabledAt: market.mpiBotsDisabledAt,
       tradingBotsEnabled: market.tradingBotsEnabled !== false, internalBotCount: market.internalBotCount,
       tradingBotsStopAt: isBootstrap(market) ? traderStopAt(market) : null,
       tradingBotsWindowEnded: isBootstrap(market) && now >= traderStopAt(market),

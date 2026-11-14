@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const models = require("../models/exchangeModel");
 const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("../models/matthsModel");
 const { LIVE_WEEKLY_POLICY } = require("../services/exchangeBootstrapService");
-const { latestPublishedMpi, saveObservedMpi, startMpiBotFade, stopMpiBotContributions } = require("../services/exchangeMarketService");
+const { latestPublishedMpi, saveObservedMpi, startMpiBotFade } = require("../services/exchangeMarketService");
 const { maintainMarketMaker, placeOrder, processMarket } = require("../services/exchangeTradingService");
 const { EXCHANGE_WALLET_ID, INITIAL_TP, TP_SCALE, tradeFee } = require("../services/exchangeFees");
 
@@ -20,7 +20,7 @@ const FIRST_OPENS_AT = new Date("2027-01-03T06:00:00.000Z");
 const QUESTION_POINTS = [...Array(3).fill(2), ...Array(14).fill(3), ...Array(13).fill(4)];
 const objectId = () => new mongoose.Types.ObjectId();
 
-async function roundFixture(admin, number) {
+async function roundFixture(admin, number, { scheduleBots = true } = {}) {
   const opensAt = new Date(+FIRST_OPENS_AT + number * WEEK);
   const closeAt = new Date(+opensAt + ROUND);
   const archive = await ArchiveItem.create({
@@ -36,7 +36,8 @@ async function roundFixture(admin, number) {
   });
   const market = await ExchangeMarket.create({
     key: `weekly:${exam._id}`, title: exam.title, type: "weekly", examId: exam._id, openedAt: opensAt, opensAt, closeAt,
-    bootstrapPolicy: LIVE_WEEKLY_POLICY, botParticipation: true, botSeed: `settlement-audit-${number}`, botWeight: 1,
+    bootstrapPolicy: LIVE_WEEKLY_POLICY, botParticipation: true, botWeight: 1,
+    ...(scheduleBots ? { botSeed: `settlement-audit-${number}` } : {}),
     marketMakerEnabled: true, tradingBotsEnabled: true, minimumMpiAttempts: 1,
   });
   return { exam, market, opensAt, closeAt, at: (minutes) => new Date(+opensAt + minutes * MINUTE) };
@@ -121,7 +122,7 @@ async function mixedSettlement(admin, students) {
   assert.equal((await ExchangeMarket.findById(market._id)).phase, "scheduled");
   const now = await closeExam(round);
   assert.equal((await settleRound(round, now)).phase, "scheduled", "Integrity review blocks settlement");
-  await assert.rejects(stopMpiBotContributions(market._id, admin, "After the settlement cutoff", closeAt), { status: 409 });
+  await assert.rejects(startMpiBotFade(market._id, admin, "After the settlement cutoff", closeAt), { status: 409 });
   await PrivateMockExamAttempt.updateOne({ examId: round.exam._id, userId: pending._id }, {
     $set: { integrityStatus: "INVALIDATED" },
   });
@@ -147,63 +148,57 @@ async function mixedSettlement(admin, students) {
   assert.deepEqual(await ExchangeWallet.findById(short._id).lean(), sellerWallet);
   assert.deepEqual(await ExchangeWallet.findById(long._id).lean(), buyerWallet);
   assert.equal(await ExchangeEvent.countDocuments({ ...filter, action: "normal" }), 1);
-  await assert.rejects(stopMpiBotContributions(market._id, admin, "Too late", now), { status: 409 });
+  await assert.rejects(startMpiBotFade(market._id, admin, "Too late", now), { status: 409 });
   assert.equal((await ExchangeMarket.findById(market._id)).settlement, 627.5);
 }
 
-async function stoppedSettlement(admin, [student, laterStudent]) {
-  const round = await roundFixture(admin, 1);
+async function gradualFade(admin, students) {
+  const round = await roundFixture(admin, 1, { scheduleBots: false });
   const filter = { marketId: round.market._id };
-  await humanAttempt(round, student._id, 55);
-  await saveObservedMpi(round.market, round.at(50), () => round.at(50));
-  const first = await ExchangeTick.findOne(filter).lean();
-  assert.equal(first.humanPopulationCount, 1);
-  assert.equal(first.botPopulationCount, 0);
-  assert.equal(+first.publishAt, +round.at(80));
+  for (const student of students) await humanAttempt(round, student._id, 65);
   await ExchangeExamBotAttempt.create(rawBotAttempt(round, 100));
   const initialTime = round.at(70);
   await saveObservedMpi(round.market, initialTime, () => initialTime);
   const mixed = await ExchangeTick.findOne({ ...filter, sampledAt: initialTime }).lean();
   assert.equal(+mixed.publishAt, +round.at(100));
-  assert.ok(mixed.botWeight > 0 && mixed.botPopulationCount > 0);
+  assert.equal(mixed.botWeight, 1);
+  assert.equal(mixed.botPopulationCount, 1);
   await maintainMarketMaker(round.market._id, () => initialTime);
   const initial = await ExchangeMarket.findById(round.market._id).lean();
   assert.equal(initial.marketMakerDecision.mode, "baseline");
   assert.equal(initial.marketMakerDecision.reason, "weighted-settlement-unvalidated");
-  const stoppedAt = round.at(75);
-  await stopMpiBotContributions(round.market._id, admin, "Remove bot contribution for this round", stoppedAt);
-  await stopMpiBotContributions(round.market._id, admin, "Repeated request", round.at(76));
-  const state = await ExchangeMarket.findById(round.market._id).select("+botSeed").lean();
-  assert.equal(+state.mpiBotsDisabledAt, +stoppedAt);
-  assert.equal(state.tradingBotsEnabled, true);
-  assert.equal(state.marketMakerEnabled, true);
-  const controls = await ExchangeEvent.find({ ...filter, action: "mpi-bot-contribution-stop" }).lean();
+  const startedAt = round.at(75);
+  await startMpiBotFade(round.market._id, admin, "Gradually reduce bot contribution", startedAt);
+  await startMpiBotFade(round.market._id, admin, "Repeated request", round.at(76));
+  const controls = await ExchangeEvent.find({ ...filter, action: "mpi-bot-fade-start" }).lean();
   assert.equal(controls.length, 1);
-  assert.equal(+controls[0].at, +stoppedAt);
-  assert.equal(controls[0].detail.previousWeight, 1);
-  assert.equal(controls[0].detail.weight, 0);
-  const superseded = await ExchangeTick.findById(mixed._id).lean();
-  assert.equal(+superseded.supersededAt, +stoppedAt);
-  assert.equal((await ExchangeTick.findById(first._id)).supersededAt ?? null, null);
-  const later = round.at(76);
-  await humanAttempt(round, laterStudent._id, 75, {
-    submittedAt: later, submissionFinalization: { status: "completed", completedAt: later },
-  });
-  await saveObservedMpi(state, round.at(77), () => round.at(77));
+  assert.equal(controls[0].detail.initialWeight, 1);
+  assert.equal(+controls[0].detail.endsAt, +round.at(135));
+  assert.equal((await ExchangeTick.findById(mixed._id)).supersededAt ?? null, null);
+  await saveObservedMpi(round.market, round.at(105), () => round.at(105));
+  const half = await ExchangeTick.findOne({ ...filter, sampledAt: round.at(105) }).lean();
+  assert.equal(half.mpi, 681.82);
+  assert.equal(half.botWeight, 0.5);
+  await saveObservedMpi(round.market, round.at(135), () => round.at(135));
   const sample = await ExchangeTick.findOne(filter).sort({ sampledAt: -1 }).lean();
   assert.equal(sample.mpi, 650);
   assert.equal(sample.botWeight, 0);
-  assert.equal(sample.populationCount, 2);
-  assert.ok((await latestPublishedMpi(state, round.at(100)))._id.equals(first._id));
-  assert.ok((await latestPublishedMpi(state, round.at(107)))._id.equals(sample._id));
-  await maintainMarketMaker(round.market._id, () => round.at(77));
-  const afterStop = await ExchangeMarket.findById(round.market._id).lean();
-  assert.equal(afterStop.marketMakerDecision.mode, "baseline", "A zero-weight round can evaluate the existing Forecast B history");
-  assert.equal(afterStop.marketMakerDecision.reason, "insufficient-history");
-  assertSettlement(await settleRound(round, await closeExam(round)), 650, 2, 0);
+  assert.equal(sample.populationCount, students.length);
+  assert.ok((await latestPublishedMpi(round.market, round.at(100)))._id.equals(mixed._id));
+  assert.ok((await latestPublishedMpi(round.market, round.at(164)))._id.equals(half._id));
+  assert.ok((await latestPublishedMpi(round.market, round.at(165)))._id.equals(sample._id));
+  await maintainMarketMaker(round.market._id, () => round.at(135));
+  const afterFade = await ExchangeMarket.findById(round.market._id).lean();
+  assert.equal(+afterFade.mpiFade.startedAt, +startedAt);
+  assert.equal(afterFade.tradingBotsEnabled, true);
+  assert.equal(afterFade.marketMakerEnabled, true);
+  assert.ok(await ExchangeOrder.exists({ ...filter, source: "MM", status: "working", expiresAt: { $gt: round.at(135) } }));
+  assert.equal(afterFade.marketMakerDecision.mode, "baseline", "A zero-weight round can evaluate the existing Forecast B history");
+  assert.equal(afterFade.marketMakerDecision.reason, "insufficient-history");
+  assertSettlement(await settleRound(round, await closeExam(round)), 650, students.length, 0);
 }
 
-async function fadedSettlement(admin, students) {
+async function fadeCutoffSettlement(admin, students) {
   const round = await roundFixture(admin, 2);
   for (const student of students) await humanAttempt(round, student._id, 65);
   await ExchangeExamBotAttempt.create(rawBotAttempt(round, 100));
@@ -211,6 +206,18 @@ async function fadedSettlement(admin, students) {
   // Settlement must derive the final weight even if no worker heartbeat saved a fade step.
   assert.equal((await ExchangeMarket.findById(round.market._id)).botWeight, 1);
   assertSettlement(await settleRound(round, await closeExam(round)), 650, students.length, 0);
+
+  const partial = await roundFixture(admin, 5);
+  await humanAttempt(partial, students[0]._id, 60);
+  await ExchangeExamBotAttempt.create(rawBotAttempt(partial, 90));
+  // An imported fade can be in progress at close. The operator action normally
+  // rejects this late of a start, so seed the persisted state directly.
+  const startedAt = new Date(+partial.closeAt - 30 * MINUTE);
+  await assert.rejects(startMpiBotFade(partial.market._id, admin, "Too near close", startedAt), { status: 409 });
+  await ExchangeMarket.updateOne({ _id: partial.market._id }, { $set: { mpiFade: { startedAt, actorId: admin, initialWeight: 1 } } });
+  const settled = await settleRound(partial, await closeExam(partial));
+  assertSettlement(settled, 700, 2, 1);
+  assert.equal(settled.settlementBotWeight, 0.5);
 }
 
 async function botOnlyAndVoid(admin) {
@@ -250,8 +257,8 @@ async function main() {
     })),
   ]);
   await mixedSettlement(admin._id, students);
-  await stoppedSettlement(admin._id, students);
-  await fadedSettlement(admin._id, students);
+  await gradualFade(admin._id, students);
+  await fadeCutoffSettlement(admin._id, students);
   await botOnlyAndVoid(admin._id);
   assert.equal(await ExchangeWallet.countDocuments({ available: { $lt: 0 } }), 0);
   console.log("Exchange weighted settlement verified: persisted bots, validity and cutoffs, independent controls, escrow and retry-safe payout.");

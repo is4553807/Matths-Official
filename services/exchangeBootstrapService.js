@@ -22,8 +22,7 @@ const traderStopAt = (market) => new Date(+market.closeAt - (market.bootstrapPol
 const tradersEnabledAt = (market, now) => market.tradingBotsEnabled !== false && now < traderStopAt(market);
 
 function fadeAt(market, now) {
-  const { mpiFade, mpiBotsDisabledAt, bootstrapPolicy } = market;
-  if (mpiBotsDisabledAt && mpiBotsDisabledAt <= now) return { weight: 0, step: market.mpiFadeStep ?? 0 };
+  const { mpiFade, bootstrapPolicy } = market;
   if (!mpiFade?.startedAt) return { weight: 1, step: 0 };
   const elapsed = Math.max(0, +now - +mpiFade.startedAt) / MINUTE;
   const duration = bootstrapPolicy.fadeMinutes;

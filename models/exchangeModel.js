@@ -59,7 +59,6 @@ const market = new Schema({
   mpiFade: { startedAt: Date, actorId: objectId, initialWeight: Number },
   botWeight: Number,
   mpiFadeStep: Number,
-  mpiBotsDisabledAt: Date,
   tradingBotsEnabled: Boolean,
   botOnlyVolume: Number,
   tradeSequence: Number,
